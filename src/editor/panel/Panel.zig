@@ -39,7 +39,7 @@ pub fn draw(panel: *Panel) !dvui.App.Result {
     var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
         .background = true,
-        .color_fill = dvui.themeGet().color(.window, .fill).opacity(if (builtin.os.tag == .macos) 0.5 else 1.0),
+        .color_fill = dvui.themeGet().color(.window, .fill),
     });
     defer vbox.deinit();
 

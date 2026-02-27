@@ -87,7 +87,7 @@ pub fn draw(self: *Workspace) !dvui.App.Result {
         .background = true,
         .gravity_y = 0.0,
         .id_extra = self.grouping,
-        .color_fill = dvui.themeGet().color(.window, .fill).opacity(if (builtin.os.tag == .macos) 0.5 else 1.0),
+        .color_fill = dvui.themeGet().color(.window, .fill),
     });
     defer vbox.deinit();
 
