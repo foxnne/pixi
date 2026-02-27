@@ -59,7 +59,7 @@ checker_color_odd: [4]u8 = .{ 175, 175, 175, 255 },
 
 /// Opacity of the background window
 /// CURRENTLY ONLY SUPPORTED ON MACOS
-window_opacity: f32 = 0.95,
+window_opacity: f32 = 0.93,
 
 /// Loads settings or if fails, returns default settings
 pub fn load(allocator: std.mem.Allocator, path: []const u8) !Settings {

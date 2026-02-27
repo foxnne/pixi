@@ -586,6 +586,7 @@ pub fn drawColors() !void {
         .expand = .horizontal,
         .background = false,
         .min_size_content = .{ .w = 64.0, .h = 64.0 },
+        .margin = dvui.Rect.all(4),
     });
     defer hbox.deinit();
 
@@ -599,10 +600,8 @@ pub fn drawColors() !void {
         .color_fill = primary,
         //.color_fill_hover = primary,
         //.color_fill_press = primary,
-        .margin = dvui.Rect.all(1),
+        .margin = dvui.Rect.all(4),
         .padding = dvui.Rect.all(0),
-        .border = dvui.Rect.all(1.0),
-        .color_border = dvui.themeGet().color(.control, .fill),
         .box_shadow = .{
             .color = .black,
             .offset = .{ .x = -2.0, .y = 2.0 },
@@ -891,6 +890,9 @@ pub fn drawPalettes() !void {
             }
 
             flex_box.deinit();
+
+            const clip = dvui.clip(dvui.currentWindow().rect_pixels);
+            defer dvui.clipSet(clip);
 
             dvui.renderTriangles(triangles.build(), null) catch {
                 dvui.log.err("Failed to render triangles", .{});

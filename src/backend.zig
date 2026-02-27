@@ -27,6 +27,16 @@ pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
             // This sets both the titlebar and the window background color.
             window.setBackgroundColor(new_color);
 
+            if (dvui.themeGet().dark) {
+                if (objc.app_kit.Appearance.appearanceNamed(objc.app_kit.NSAppearanceNameVibrantDark)) |appearance| {
+                    window.setAppearance(appearance);
+                }
+            } else {
+                if (objc.app_kit.Appearance.appearanceNamed(objc.app_kit.NSAppearanceNameVibrantLight)) |appearance| {
+                    window.setAppearance(appearance);
+                }
+            }
+
             // SDL3 currently removes the shadow when the transparency flag for the window is set. This brings it back.
             window.setHasShadow(true);
         }

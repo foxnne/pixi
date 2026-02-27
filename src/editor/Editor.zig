@@ -90,44 +90,25 @@ pub fn init(
 
     pixi_dark.window = .{
         .fill = .{ .r = 34, .g = 35, .b = 42, .a = 255 },
-        .fill_hover = .{ .r = 62, .g = 64, .b = 74, .a = 255 },
-        .fill_press = .{ .r = 32, .g = 34, .b = 44, .a = 255 },
-        //.fill_hover = .{ .r = 64, .g = 68, .b = 78, .a = 255 },
-        //.fill_press = theme.window.fill,
-        .border = .{ .r = 48, .g = 52, .b = 62, .a = 255 },
+        .border = .{ .r = 34, .g = 35, .b = 42, .a = 255 },
         .text = .{ .r = 206, .g = 163, .b = 127, .a = 255 },
-        .text_hover = pixi_dark.window.text,
-        .text_press = pixi_dark.window.text,
     };
 
     pixi_dark.control = .{
         .fill = .{ .r = 42, .g = 44, .b = 54, .a = 255 },
-        .fill_hover = .{ .r = 62, .g = 64, .b = 74, .a = 255 },
-        .fill_press = .{ .r = 32, .g = 34, .b = 44, .a = 255 },
-        .border = .{ .r = 48, .g = 52, .b = 62, .a = 255 },
+        .border = .{ .r = 42, .g = 44, .b = 54, .a = 255 },
         .text = .{ .r = 134, .g = 138, .b = 148, .a = 255 },
-        .text_hover = .{ .r = 124, .g = 128, .b = 138, .a = 255 },
-        .text_press = .{ .r = 124, .g = 128, .b = 138, .a = 255 },
     };
 
     pixi_dark.highlight = .{
         .fill = .{ .r = 47, .g = 179, .b = 135, .a = 255 },
-        //.fill_hover = theme.highlight.fill.?.average(theme.control.fill_hover.?),
-        //.fill_press = theme.highlight.fill.?.average(theme.control.fill_press.?),
-        .border = .{ .r = 48, .g = 52, .b = 62, .a = 255 },
+        .border = .{ .r = 47, .g = 179, .b = 135, .a = 255 },
         .text = pixi_dark.window.fill,
-        .text_hover = pixi_dark.window.fill,
-        .text_press = pixi_dark.window.fill,
     };
 
     // theme.content
-    pixi_dark.fill = pixi_dark.window.fill.?;
-    pixi_dark.border = pixi_dark.window.border.?;
-    pixi_dark.fill_hover = pixi_dark.control.fill_hover.?;
-    pixi_dark.fill_press = pixi_dark.control.fill_press.?;
+    pixi_dark.fill = pixi_dark.control.fill.?;
     pixi_dark.text = pixi_dark.window.text.?;
-    pixi_dark.text_hover = pixi_dark.window.text_hover.?;
-    pixi_dark.text_press = pixi_dark.window.text_press.?;
     pixi_dark.focus = pixi_dark.highlight.fill.?;
 
     pixi_dark.dark = true;
@@ -143,34 +124,38 @@ pub fn init(
     moi.name = "Moi";
     moi.window = .{
         .fill = .{ .r = 84, .g = 12, .b = 26, .a = 255 },
-        .fill_hover = .{ .r = 94, .g = 22, .b = 36, .a = 255 },
-        .fill_press = .{ .r = 74, .g = 12, .b = 26, .a = 255 },
         .border = .{ .r = 104, .g = 62, .b = 72, .a = 255 },
         .text = .{ .r = 255, .g = 190, .b = 190, .a = 240 },
-        .text_hover = .{ .r = 255, .g = 255, .b = 255, .a = 200 },
-        .text_press = .{ .r = 255, .g = 255, .b = 255, .a = 200 },
     };
 
     moi.control = .{
         .fill = .{ .r = 85, .g = 36, .b = 47, .a = 255 },
-        .fill_hover = .{ .r = 95, .g = 46, .b = 57, .a = 255 },
-        .fill_press = .{ .r = 75, .g = 26, .b = 37, .a = 255 },
         .border = .{ .r = 104, .g = 62, .b = 72, .a = 255 },
         .text = .{ .r = 255, .g = 235, .b = 235, .a = 200 },
     };
-
-    moi.fill = moi.window.fill.?;
-    moi.border = moi.window.border.?;
-    moi.fill_hover = moi.control.fill_hover.?;
-    moi.fill_press = moi.control.fill_press.?;
-    moi.text = moi.control.text.?;
-    moi.text_hover = moi.window.text_hover.?;
-    moi.text_press = moi.window.text_press.?;
-    moi.focus = moi.highlight.fill.?;
-
     moi.highlight = .{
         .fill = moi.window.fill.?.lighten(10),
     };
+
+    moi.fill = moi.window.fill.?;
+    moi.text = moi.window.text.?;
+    moi.focus = moi.highlight.fill.?;
+
+    var pixi_light = pixi_dark;
+    pixi_light.dark = false;
+    pixi_light.name = "Pixi Light";
+    pixi_light.window = dvui.Theme.builtin.adwaita_light.window;
+    pixi_light.window.text = .{ .r = 170, .g = 130, .b = 140, .a = 255 };
+    pixi_light.control = dvui.Theme.builtin.adwaita_light.control;
+    pixi_light.control.text = .black;
+    pixi_light.highlight = .{
+        .fill = .{ .r = 170, .g = 130, .b = 140, .a = 255 },
+        .text = .white,
+    };
+
+    pixi_light.fill = .{ .r = 170, .g = 130, .b = 140, .a = 255 };
+    pixi_light.text = .{ .r = 40, .g = 40, .b = 50, .a = 255 };
+    pixi_light.focus = pixi_light.highlight.fill.?;
 
     var editor: Editor = .{
         .config_folder = config_folder,
@@ -197,6 +182,11 @@ pub fn init(
     editor.themes.append(moi) catch {
         dvui.log.err("Failed to append moi theme", .{});
         return error.FailedToAppendMoiTheme;
+    };
+
+    editor.themes.append(pixi_light) catch {
+        dvui.log.err("Failed to append pixi light theme", .{});
+        return error.FailedToAppendPixiLightTheme;
     };
 
     for (dvui.Theme.builtins) |b| {
@@ -235,7 +225,7 @@ pub fn init(
         .folders = .init(app.allocator),
     };
 
-    pixi.backend.setTitlebarColor(dvui.currentWindow(), pixi_dark.control.fill.?.opacity(editor.settings.window_opacity));
+    pixi.backend.setTitlebarColor(dvui.currentWindow(), pixi_dark.fill.opacity(editor.settings.window_opacity));
 
     editor.explorer.* = .init();
     editor.panel.* = .init();
@@ -294,7 +284,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             .{
                 .expand = .both,
                 .background = if (builtin.os.tag == .macos) false else true,
-                .color_fill = dvui.themeGet().color(.control, .fill),
+                .color_fill = dvui.themeGet().color(.content, .fill),
             },
         );
         defer base_box.deinit();

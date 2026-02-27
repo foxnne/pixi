@@ -12,8 +12,8 @@
     .dependencies = .{
         .mach_objc = .{
             //.path = "../mach-objc-dev",
-            .url = "git+https://github.com/foxnne/mach-objc#83ce1ff11fa90aa562b23372b19b6cd132af99c3",
-            .hash = "mach_objc-0.0.0-hSeUK4UwDQCTwx5GGKFDwX49mtXjcemzXUR0AzAruBnW",
+            .url = "git+https://github.com/foxnne/mach-objc#e5bff6819205ac523b4a07898a8046af6c2f345d",
+            .hash = "mach_objc-0.0.0-hSeUK_0xDQAUDvMlrxtixoue1J3h4N3IzzL-AKvL0S29",
             .lazy = true,
         },
         .zigwin32 = .{

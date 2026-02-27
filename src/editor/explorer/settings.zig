@@ -24,7 +24,7 @@ pub fn draw() !void {
         }, .{
             .expand = .none,
         })) {
-            pixi.backend.setTitlebarColor(dvui.currentWindow(), dvui.themeGet().color(.control, .fill).opacity(pixi.editor.settings.window_opacity));
+            pixi.backend.setTitlebarColor(dvui.currentWindow(), dvui.themeGet().color(.content, .fill).opacity(pixi.editor.settings.window_opacity));
             dvui.refresh(null, @src(), vbox.data().id);
         }
     }
