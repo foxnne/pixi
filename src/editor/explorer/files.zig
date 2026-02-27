@@ -2,6 +2,7 @@ const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const dvui = @import("dvui");
 const Editor = pixi.Editor;
+const builtin = @import("builtin");
 
 const icons = @import("icons");
 
@@ -16,6 +17,8 @@ pub var edit_id: ?usize = null;
 // If close_rect is not null, the dialog will animate into that rect then close
 pub var new_file_path: ?[]const u8 = null;
 pub var new_file_close_rect: ?dvui.Rect.Physical = null;
+
+const open_message = if (builtin.os.tag == .macos) "Reveal in Finder" else "Reveal in File Browser";
 
 pub const Extension = enum {
     unsupported,
@@ -489,6 +492,14 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                             }
 
                             _ = dvui.separator(@src(), .{ .expand = .horizontal });
+                        }
+
+                        if ((dvui.menuItemLabel(@src(), open_message, .{}, .{ .expand = .horizontal })) != null) {
+                            pixi.editor.openInFileBrowser(if (entry.kind == .file) std.fs.path.dirname(abs_path) orelse abs_path else abs_path) catch {
+                                dvui.log.err("Failed to open file browser", .{});
+                            };
+
+                            fw2.close();
                         }
 
                         if ((dvui.menuItemLabel(@src(), "New File...", .{}, .{ .expand = .horizontal })) != null) {

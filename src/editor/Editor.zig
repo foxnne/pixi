@@ -86,9 +86,9 @@ pub fn init(
     }) catch app.root_path;
     const palette_folder = std.fs.path.join(pixi.app.allocator, &.{ config_folder, "Palettes" }) catch config_folder;
 
-    var theme = dvui.themeGet();
+    var pixi_dark = dvui.themeGet();
 
-    theme.window = .{
+    pixi_dark.window = .{
         .fill = .{ .r = 34, .g = 35, .b = 42, .a = 255 },
         .fill_hover = .{ .r = 62, .g = 64, .b = 74, .a = 255 },
         .fill_press = .{ .r = 32, .g = 34, .b = 44, .a = 255 },
@@ -96,11 +96,11 @@ pub fn init(
         //.fill_press = theme.window.fill,
         .border = .{ .r = 48, .g = 52, .b = 62, .a = 255 },
         .text = .{ .r = 206, .g = 163, .b = 127, .a = 255 },
-        .text_hover = theme.window.text,
-        .text_press = theme.window.text,
+        .text_hover = pixi_dark.window.text,
+        .text_press = pixi_dark.window.text,
     };
 
-    theme.control = .{
+    pixi_dark.control = .{
         .fill = .{ .r = 42, .g = 44, .b = 54, .a = 255 },
         .fill_hover = .{ .r = 62, .g = 64, .b = 74, .a = 255 },
         .fill_press = .{ .r = 32, .g = 34, .b = 44, .a = 255 },
@@ -110,34 +110,67 @@ pub fn init(
         .text_press = .{ .r = 124, .g = 128, .b = 138, .a = 255 },
     };
 
-    theme.highlight = .{
+    pixi_dark.highlight = .{
         .fill = .{ .r = 47, .g = 179, .b = 135, .a = 255 },
         //.fill_hover = theme.highlight.fill.?.average(theme.control.fill_hover.?),
         //.fill_press = theme.highlight.fill.?.average(theme.control.fill_press.?),
         .border = .{ .r = 48, .g = 52, .b = 62, .a = 255 },
-        .text = theme.window.fill,
-        .text_hover = theme.window.fill,
-        .text_press = theme.window.fill,
+        .text = pixi_dark.window.fill,
+        .text_hover = pixi_dark.window.fill,
+        .text_press = pixi_dark.window.fill,
     };
 
     // theme.content
-    theme.fill = theme.window.fill.?;
-    theme.border = theme.window.border.?;
-    theme.fill_hover = theme.control.fill_hover.?;
-    theme.fill_press = theme.control.fill_press.?;
-    theme.text = theme.window.text.?;
-    theme.text_hover = theme.window.text_hover.?;
-    theme.text_press = theme.window.text_press.?;
-    theme.focus = theme.highlight.fill.?;
+    pixi_dark.fill = pixi_dark.window.fill.?;
+    pixi_dark.border = pixi_dark.window.border.?;
+    pixi_dark.fill_hover = pixi_dark.control.fill_hover.?;
+    pixi_dark.fill_press = pixi_dark.control.fill_press.?;
+    pixi_dark.text = pixi_dark.window.text.?;
+    pixi_dark.text_hover = pixi_dark.window.text_hover.?;
+    pixi_dark.text_press = pixi_dark.window.text_press.?;
+    pixi_dark.focus = pixi_dark.highlight.fill.?;
 
-    theme.dark = true;
-    theme.name = "Pixi Dark";
-    theme.font_body = .find(.{ .family = "Vera Sans", .size = 8 });
-    theme.font_title = .find(.{ .family = "Vera Sans", .size = 10, .weight = .bold });
-    theme.font_heading = .find(.{ .family = "Vera Sans", .size = 8, .style = .italic });
-    theme.font_mono = .find(.{ .family = "CozetteVector", .size = 10 });
+    pixi_dark.dark = true;
+    pixi_dark.name = "Pixi Dark";
+    pixi_dark.font_body = .find(.{ .family = "Vera Sans", .size = 8 });
+    pixi_dark.font_title = .find(.{ .family = "Vera Sans", .size = 10, .weight = .bold });
+    pixi_dark.font_heading = .find(.{ .family = "Vera Sans", .size = 8, .style = .italic });
+    pixi_dark.font_mono = .find(.{ .family = "CozetteVector", .size = 10 });
 
-    dvui.themeSet(theme);
+    dvui.themeSet(pixi_dark);
+
+    var moi: dvui.Theme = pixi_dark;
+    moi.name = "Moi";
+    moi.window = .{
+        .fill = .{ .r = 84, .g = 12, .b = 26, .a = 255 },
+        .fill_hover = .{ .r = 94, .g = 22, .b = 36, .a = 255 },
+        .fill_press = .{ .r = 74, .g = 12, .b = 26, .a = 255 },
+        .border = .{ .r = 104, .g = 62, .b = 72, .a = 255 },
+        .text = .{ .r = 255, .g = 190, .b = 190, .a = 240 },
+        .text_hover = .{ .r = 255, .g = 255, .b = 255, .a = 200 },
+        .text_press = .{ .r = 255, .g = 255, .b = 255, .a = 200 },
+    };
+
+    moi.control = .{
+        .fill = .{ .r = 85, .g = 36, .b = 47, .a = 255 },
+        .fill_hover = .{ .r = 95, .g = 46, .b = 57, .a = 255 },
+        .fill_press = .{ .r = 75, .g = 26, .b = 37, .a = 255 },
+        .border = .{ .r = 104, .g = 62, .b = 72, .a = 255 },
+        .text = .{ .r = 255, .g = 235, .b = 235, .a = 200 },
+    };
+
+    moi.fill = moi.window.fill.?;
+    moi.border = moi.window.border.?;
+    moi.fill_hover = moi.control.fill_hover.?;
+    moi.fill_press = moi.control.fill_press.?;
+    moi.text = moi.control.text.?;
+    moi.text_hover = moi.window.text_hover.?;
+    moi.text_press = moi.window.text_press.?;
+    moi.focus = moi.highlight.fill.?;
+
+    moi.highlight = .{
+        .fill = moi.window.fill.?.lighten(10),
+    };
 
     var editor: Editor = .{
         .config_folder = config_folder,
@@ -156,9 +189,14 @@ pub fn init(
         .themes = .init(app.allocator),
     };
 
-    editor.themes.append(theme) catch {
+    editor.themes.append(pixi_dark) catch {
         dvui.log.err("Failed to append theme", .{});
         return error.FailedToAppendTheme;
+    };
+
+    editor.themes.append(moi) catch {
+        dvui.log.err("Failed to append moi theme", .{});
+        return error.FailedToAppendMoiTheme;
     };
 
     for (dvui.Theme.builtins) |b| {
@@ -197,7 +235,7 @@ pub fn init(
         .folders = .init(app.allocator),
     };
 
-    pixi.backend.setTitlebarColor(dvui.currentWindow(), theme.control.fill.?.opacity(editor.settings.window_opacity));
+    pixi.backend.setTitlebarColor(dvui.currentWindow(), pixi_dark.control.fill.?.opacity(editor.settings.window_opacity));
 
     editor.explorer.* = .init();
     editor.panel.* = .init();
@@ -1285,6 +1323,14 @@ pub fn redo(editor: *Editor) !void {
     if (editor.activeFile()) |file| {
         try file.history.undoRedo(file, .redo);
     }
+}
+
+pub fn openInFileBrowser(_: *Editor, path: []const u8) !void {
+    const cmd = if (builtin.os.tag == .macos) "open" else if (builtin.os.tag == .linux) "xdg-open" else "start";
+    _ = std.process.Child.run(.{ .argv = &.{ cmd, path }, .allocator = pixi.app.allocator }) catch {
+        dvui.log.err("Failed to open file browser", .{});
+        return;
+    };
 }
 
 pub fn closeFileID(editor: *Editor, id: u64) !void {
