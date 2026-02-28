@@ -188,6 +188,28 @@ const HTMAXBUTTON: i32 = 9;
 const HTCLOSE: i32 = 20;
 const SM_CXSIZEFRAME: u32 = 32;
 const SM_CYSIZEFRAME: u32 = 33;
+const WM_LBUTTONDOWN: u32 = 0x0201;
+const WM_LBUTTONUP: u32 = 0x0202;
+const WM_MOUSEMOVE: u32 = 0x0200;
+const WM_NCLBUTTONDOWN: u32 = 0x00A1;
+const WM_NCLBUTTONUP: u32 = 0x00A2;
+const WM_NCMOUSEMOVE: u32 = 0x00A0;
+
+/// Returns HTCLOSE, HTMAXBUTTON, or HTMINBUTTON if (client_x, client_y) is in the caption button strip; null otherwise.
+fn win32CaptionButtonHit(hWnd: ?win32.foundation.HWND, client_x: i32, client_y: i32) ?i32 {
+    var rect: win32.foundation.RECT = undefined;
+    if (win32.ui.windows_and_messaging.GetClientRect(hWnd, &rect) == 0) return null;
+    const caption_h = win32.ui.windows_and_messaging.GetSystemMetrics(@as(win32.ui.windows_and_messaging.SYSTEM_METRICS_INDEX, @enumFromInt(4)));
+    var btn_w = win32.ui.windows_and_messaging.GetSystemMetrics(@as(win32.ui.windows_and_messaging.SYSTEM_METRICS_INDEX, @enumFromInt(30)));
+    if (btn_w < 40) btn_w = 40;
+    const right = rect.right;
+    if (client_y >= 0 and client_y < caption_h and client_x >= right - 3 * btn_w) {
+        if (client_x >= right - btn_w) return HTCLOSE;
+        if (client_x >= right - 2 * btn_w) return HTMAXBUTTON;
+        return HTMINBUTTON;
+    }
+    return null;
+}
 
 fn win32MicaSubclassProc(
     hWnd: ?win32.foundation.HWND,
@@ -271,12 +293,38 @@ fn win32MicaSubclassProc(
         }
         if (y < top + frame_h) return @as(win32.foundation.LRESULT, @intCast(HTTOP));
 
-        // 2) Title bar (below top resize strip): return HTCLIENT for button area so the app gets mouse events (hover + click); draggable area stays HTCAPTION.
+        // 2) Title bar (below top resize strip): return native hit-test for caption buttons so Windows draws and handles them (hover + click). Order right-to-left: Close, Maximize, Minimize.
         if (y < top + caption_h) {
-            if (x >= right - 3 * btn_w) return def; // Button area = HTCLIENT so app can draw buttons and get hover; app calls performWindowButton() on click.
+            if (x >= right - 3 * btn_w) {
+                if (x >= right - btn_w) return @as(win32.foundation.LRESULT, @intCast(HTCLOSE));
+                if (x >= right - 2 * btn_w) return @as(win32.foundation.LRESULT, @intCast(HTMAXBUTTON));
+                return @as(win32.foundation.LRESULT, @intCast(HTMINBUTTON));
+            }
             return @as(win32.foundation.LRESULT, @intCast(HTCAPTION));
         }
         return def;
+    }
+    // SDL receives client-area messages first; when the cursor is over the caption buttons we forward
+    // them as non-client messages to DefWindowProc so the native buttons get hover and click.
+    if (uMsg == WM_LBUTTONDOWN or uMsg == WM_LBUTTONUP or uMsg == WM_MOUSEMOVE) {
+        const lp = @as(isize, lParam);
+        const client_x = @as(i32, @as(i16, @truncate(lp)));
+        const client_y = @as(i32, @as(i16, @truncate(lp >> 16)));
+        if (win32CaptionButtonHit(hWnd, client_x, client_y)) |hit_code| {
+            var pt = win32.foundation.POINT{ .x = client_x, .y = client_y };
+            if (win32.graphics.gdi.ClientToScreen(hWnd, &pt) != 0) {
+                const x16 = @as(u16, @bitCast(@as(i16, @intCast(pt.x))));
+                const y16 = @as(u16, @bitCast(@as(i16, @intCast(pt.y))));
+                const nc_lparam: win32.foundation.LPARAM = @intCast((@as(u32, x16)) | (@as(u32, y16) << 16));
+                const nc_msg = switch (uMsg) {
+                    WM_LBUTTONDOWN => WM_NCLBUTTONDOWN,
+                    WM_LBUTTONUP => WM_NCLBUTTONUP,
+                    WM_MOUSEMOVE => WM_NCMOUSEMOVE,
+                    else => unreachable,
+                };
+                return win32.ui.windows_and_messaging.DefWindowProcW(hWnd, nc_msg, @as(win32.foundation.WPARAM, @intCast(hit_code)), nc_lparam);
+            }
+        }
     }
     return win32.ui.shell.DefSubclassProc(hWnd, uMsg, wParam, lParam);
 }
