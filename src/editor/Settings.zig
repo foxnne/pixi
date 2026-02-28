@@ -61,6 +61,8 @@ checker_color_odd: [4]u8 = .{ 175, 175, 175, 255 },
 /// CURRENTLY ONLY SUPPORTED ON MACOS
 window_opacity: f32 = 0.93,
 
+content_opacity: f32 = 0.93,
+
 titlebar_height: f32 = 30.0, // This is the height of the titlebar in pixels
 
 /// Loads settings or if fails, returns default settings

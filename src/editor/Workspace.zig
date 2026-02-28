@@ -87,7 +87,7 @@ pub fn draw(self: *Workspace) !dvui.App.Result {
         .background = true,
         .gravity_y = 0.0,
         .id_extra = self.grouping,
-        .color_fill = dvui.themeGet().color(.window, .fill),
+        .color_fill = dvui.themeGet().color(.window, .fill).opacity(pixi.editor.settings.content_opacity),
     });
     defer vbox.deinit();
 

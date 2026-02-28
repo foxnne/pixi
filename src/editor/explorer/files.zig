@@ -73,7 +73,10 @@ pub fn drawFiles(path: []const u8, tree: *pixi.dvui.TreeWidget) !void {
         .{ .stroke_color = dvui.themeGet().color(.window, .text) },
         .{ .gravity_y = 0.5, .padding = dvui.Rect.all(0) },
     );
-    const filter_text_edit = dvui.textEntry(@src(), .{ .placeholder = "Filter..." }, .{ .expand = .horizontal });
+    const filter_text_edit = dvui.textEntry(@src(), .{ .placeholder = "Filter..." }, .{
+        .expand = .horizontal,
+        .background = false,
+    });
     const filter_text = filter_text_edit.getText();
     filter_text_edit.deinit();
     filter_hbox.deinit();

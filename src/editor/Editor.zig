@@ -153,7 +153,7 @@ pub fn init(
         .text = .white,
     };
 
-    pixi_light.fill = .{ .r = 170, .g = 130, .b = 140, .a = 255 };
+    pixi_light.fill = dvui.Theme.builtin.adwaita_light.control.fill.?;
     pixi_light.text = .{ .r = 40, .g = 40, .b = 50, .a = 255 };
     pixi_light.focus = pixi_light.highlight.fill.?;
 
@@ -264,6 +264,7 @@ const handle_dist = 60;
 pub fn tick(editor: *Editor) !dvui.App.Result {
     defer editor.dim_titlebar = false;
     editor.setTitlebarColor();
+    editor.setWindowStyle();
 
     editor.rebuildWorkspaces() catch {
         dvui.log.err("Failed to rebuild workspaces", .{});
@@ -508,6 +509,10 @@ pub fn setTitlebarColor(editor: *Editor) void {
         editor.last_titlebar_color = color;
         pixi.backend.setTitlebarColor(dvui.currentWindow(), color.opacity(editor.settings.window_opacity));
     }
+}
+
+pub fn setWindowStyle(_: *Editor) void {
+    pixi.backend.setWindowStyle(dvui.currentWindow());
 }
 
 pub fn drawRadialMenu(editor: *Editor) !void {

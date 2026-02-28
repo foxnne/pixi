@@ -40,7 +40,7 @@ pub fn draw(_: Infobar) !void {
         var button: dvui.ButtonWidget = undefined;
         button.init(@src(), .{}, .{ .gravity_y = 0.5, .margin = .all(0), .padding = .all(0) });
         button.processEvents();
-        button.drawBackground();
+        //button.drawBackground();
         defer button.deinit();
 
         var box = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal, .margin = .all(0), .padding = .all(0) });

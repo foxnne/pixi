@@ -50,7 +50,7 @@ fn wrapContentViewWithVibrancy(window: objc.Object) void {
     content_view.msgSend(void, "setAutoresizingMask:", .{@as(c_ulong, 18)});
 }
 
-pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
+pub fn setWindowStyle(win: *dvui.Window) void {
     if (builtin.os.tag == .macos) {
         const raw_ptr = sdl3.SDL_GetPointerProperty(
             sdl3.SDL_GetWindowProperties(win.backend.impl.window),
@@ -65,6 +65,21 @@ pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
             window.msgSend(void, "setStyleMask:", .{style_mask | NSWindowStyleMaskFullSizeContentView});
             // This sets the titlebar to transparent so our effect view shows through.
             window.msgSend(void, "setTitlebarAppearsTransparent:", .{true});
+        }
+    }
+}
+
+pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
+    if (builtin.os.tag == .macos) {
+        const raw_ptr = sdl3.SDL_GetPointerProperty(
+            sdl3.SDL_GetWindowProperties(win.backend.impl.window),
+            sdl3.SDL_PROP_WINDOW_COCOA_WINDOW_POINTER,
+            null,
+        );
+        if (raw_ptr != null) {
+            const window = objc.Object.fromId(raw_ptr);
+
+            setWindowStyle(win);
 
             // Wrap content view in NSVisualEffectView once for vibrancy (blur behind window).
             wrapContentViewWithVibrancy(window);

@@ -27,6 +27,18 @@ pub fn draw() !void {
             pixi.backend.setTitlebarColor(dvui.currentWindow(), dvui.themeGet().color(.content, .fill).opacity(pixi.editor.settings.window_opacity));
             dvui.refresh(null, @src(), vbox.data().id);
         }
+
+        if (dvui.sliderEntry(@src(), "Content Opacity: {d:0.01}", .{
+            .value = &pixi.editor.settings.content_opacity,
+            .interval = 0.01,
+            .max = 1.0,
+            .min = 0.5,
+        }, .{
+            .expand = .none,
+        })) {
+            pixi.backend.setTitlebarColor(dvui.currentWindow(), dvui.themeGet().color(.content, .fill).opacity(pixi.editor.settings.content_opacity));
+            dvui.refresh(null, @src(), vbox.data().id);
+        }
     }
 
     dvui.label(@src(), "{d:0>3.0} fps", .{dvui.FPS()}, .{});
