@@ -290,16 +290,20 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         );
         defer overall_box.deinit();
 
-        var titlebar_box = dvui.box(
-            @src(),
-            .{ .dir = .horizontal },
-            .{
-                .expand = .horizontal,
-                .background = false,
-                .min_size_content = .{ .w = 1, .h = pixi.editor.settings.titlebar_height },
-            },
-        );
-        titlebar_box.deinit();
+        {
+            var titlebar_box = dvui.box(
+                @src(),
+                .{ .dir = .horizontal },
+                .{
+                    .expand = .horizontal,
+                    .background = false,
+                    .min_size_content = .{ .w = 1, .h = pixi.editor.settings.titlebar_height },
+                },
+            );
+            defer titlebar_box.deinit();
+            // On Windows the caption buttons are handled natively (hit-test returns HTMINBUTTON/HTMAXBUTTON/HTCLOSE) so we don't draw our own; just a spacer so the title bar is draggable.
+            _ = dvui.spacer(@src(), .{ .expand = .horizontal });
+        }
 
         var base_box = dvui.box(
             @src(),

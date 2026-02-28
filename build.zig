@@ -149,6 +149,7 @@ pub fn build(b: *std.Build) !void {
         if (b.lazyDependency("zigwin32", .{})) |dep| {
             exe.root_module.addImport("win32", dep.module("win32"));
         }
+        exe.linkSystemLibrary("comctl32");
     }
 
     exe.linkLibCpp();

@@ -15,12 +15,12 @@ pub fn draw() !void {
 
     if (dvui.Theme.picker(@src(), pixi.editor.themes.items, .{})) {}
 
-    if (builtin.os.tag == .macos) {
+    if (true) {
         if (dvui.sliderEntry(@src(), "Window Opacity: {d:0.01}", .{
             .value = &pixi.editor.settings.window_opacity,
             .interval = 0.01,
             .max = 1.0,
-            .min = 0.5,
+            .min = 0.0,
         }, .{
             .expand = .none,
         })) {
@@ -32,7 +32,7 @@ pub fn draw() !void {
             .value = &pixi.editor.settings.content_opacity,
             .interval = 0.01,
             .max = 1.0,
-            .min = 0.5,
+            .min = 0.0,
         }, .{
             .expand = .none,
         })) {

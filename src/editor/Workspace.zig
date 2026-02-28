@@ -1167,7 +1167,9 @@ pub fn drawHomePage(_: *Workspace, canvas_vbox: *dvui.BoxWidget) !void {
             .gravity_x = 0.5,
             .expand = .horizontal,
             .padding = dvui.Rect.all(2),
-            .color_fill = dvui.themeGet().color(.window, .fill),
+            .color_fill = .transparent,
+            .color_fill_hover = dvui.themeGet().color(.window, .fill_hover),
+            .color_fill_press = dvui.themeGet().color(.window, .fill_press),
         });
         defer button.deinit();
 
@@ -1193,7 +1195,9 @@ pub fn drawHomePage(_: *Workspace, canvas_vbox: *dvui.BoxWidget) !void {
             .gravity_x = 0.5,
             .expand = .horizontal,
             .padding = dvui.Rect.all(2),
-            .color_fill = dvui.themeGet().color(.window, .fill),
+            .color_fill = .transparent,
+            .color_fill_hover = dvui.themeGet().color(.window, .fill_hover),
+            .color_fill_press = dvui.themeGet().color(.window, .fill_press),
         });
         defer button.deinit();
 
@@ -1242,6 +1246,7 @@ pub fn drawHomePage(_: *Workspace, canvas_vbox: *dvui.BoxWidget) !void {
             .expand = .both,
             .color_border = dvui.themeGet().color(.control, .fill),
             .corner_radius = dvui.Rect.all(8),
+            .color_fill = .transparent,
         });
         defer scroll_area.deinit();
 
@@ -1266,7 +1271,9 @@ pub fn drawHomePage(_: *Workspace, canvas_vbox: *dvui.BoxWidget) !void {
                 .id_extra = i,
                 .margin = dvui.Rect.all(1),
                 .padding = dvui.Rect.all(2),
-                .color_fill = dvui.themeGet().color(.window, .fill),
+                .color_fill = .transparent,
+                .color_fill_hover = dvui.themeGet().color(.window, .fill_hover),
+                .color_fill_press = dvui.themeGet().color(.window, .fill_press),
                 .color_text = dvui.themeGet().color(.control, .text).opacity(0.5),
             })) {
                 try pixi.editor.setProjectFolder(folder);
