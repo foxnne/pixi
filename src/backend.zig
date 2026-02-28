@@ -124,6 +124,24 @@ fn applyWin32AcrylicAccent(hwnd: win32.foundation.HWND) void {
     _ = SetWindowCompositionAttribute(hwnd, &data);
 }
 
+// Extend client area into title bar: return 0 from WM_NCCALCSIZE when wParam TRUE (MSDN).
+const WM_NCCALCSIZE: u32 = 0x0083;
+const WM_NCHITTEST: u32 = 0x0084;
+const HTCAPTION: i32 = 2;
+const HTLEFT: i32 = 10;
+const HTRIGHT: i32 = 11;
+const HTTOP: i32 = 12;
+const HTTOPLEFT: i32 = 13;
+const HTTOPRIGHT: i32 = 14;
+const HTBOTTOM: i32 = 15;
+const HTBOTTOMLEFT: i32 = 16;
+const HTBOTTOMRIGHT: i32 = 17;
+const HTMINBUTTON: i32 = 8;
+const HTMAXBUTTON: i32 = 9;
+const HTCLOSE: i32 = 20;
+const SM_CXSIZEFRAME: u32 = 32;
+const SM_CYSIZEFRAME: u32 = 33;
+
 fn win32MicaSubclassProc(
     hWnd: ?win32.foundation.HWND,
     uMsg: u32,
@@ -140,6 +158,62 @@ fn win32MicaSubclassProc(
         uMsg == win32.ui.windows_and_messaging.WM_DWMCOMPOSITIONCHANGED)
     {
         _ = win32.graphics.dwm.DwmExtendFrameIntoClientArea(hWnd, &win32_mica_margins);
+    }
+    // Extend client area into the title bar so the app can draw there; we keep OS min/max/close via hit-test.
+    if (uMsg == WM_NCCALCSIZE and wParam != 0) {
+        return 0; // Client area = full window (frame/caption removed from our perspective; we draw title bar).
+    }
+    if (uMsg == WM_NCHITTEST) {
+        const def = win32.ui.shell.DefSubclassProc(hWnd, uMsg, wParam, lParam);
+        // lParam = (y << 16) | x in screen coordinates (signed 16-bit each).
+        const lp = @as(isize, lParam);
+        const x = @as(i32, @as(i16, @truncate(lp)));
+        const y = @as(i32, @as(i16, @truncate(lp >> 16)));
+        var rect: win32.foundation.RECT = undefined;
+        if (win32.ui.windows_and_messaging.GetWindowRect(hWnd, &rect) == 0) return def;
+        const top = rect.top;
+        const bottom = rect.bottom;
+        const left = rect.left;
+        const right = rect.right;
+        // Point outside window? Use default so other windows/screen get correct hit.
+        if (x < left or x >= right or y < top or y >= bottom) return def;
+        // Always run our hit test for points inside the window so title bar/buttons are consistent
+        // and not treated as client (avoids first click going to the app's input layer).
+
+        const frame_w = @max(win32.ui.windows_and_messaging.GetSystemMetrics(@as(win32.ui.windows_and_messaging.SYSTEM_METRICS_INDEX, @enumFromInt(SM_CXSIZEFRAME))), 4);
+        const frame_h = @max(win32.ui.windows_and_messaging.GetSystemMetrics(@as(win32.ui.windows_and_messaging.SYSTEM_METRICS_INDEX, @enumFromInt(SM_CYSIZEFRAME))), 4);
+        const caption_h = win32.ui.windows_and_messaging.GetSystemMetrics(@as(win32.ui.windows_and_messaging.SYSTEM_METRICS_INDEX, @enumFromInt(4))); // SM_CYCAPTION
+        var btn_w = win32.ui.windows_and_messaging.GetSystemMetrics(@as(win32.ui.windows_and_messaging.SYSTEM_METRICS_INDEX, @enumFromInt(30))); // SM_CXSIZE
+        if (btn_w < 40) btn_w = 40; // Ensure reliable hit area at high DPI
+
+        // 1) Resize edges and corners (check before title bar so edges work)
+        if (x < left + frame_w) {
+            if (y < top + frame_h) return @as(win32.foundation.LRESULT, @intCast(HTTOPLEFT));
+            if (y >= bottom - frame_h) return @as(win32.foundation.LRESULT, @intCast(HTBOTTOMLEFT));
+            return @as(win32.foundation.LRESULT, @intCast(HTLEFT));
+        }
+        if (x >= right - frame_w) {
+            if (y < top + frame_h) return @as(win32.foundation.LRESULT, @intCast(HTTOPRIGHT));
+            if (y >= bottom - frame_h) return @as(win32.foundation.LRESULT, @intCast(HTBOTTOMRIGHT));
+            return @as(win32.foundation.LRESULT, @intCast(HTRIGHT));
+        }
+        if (y >= bottom - frame_h) {
+            if (x < left + frame_w) return @as(win32.foundation.LRESULT, @intCast(HTBOTTOMLEFT));
+            if (x >= right - frame_w) return @as(win32.foundation.LRESULT, @intCast(HTBOTTOMRIGHT));
+            return @as(win32.foundation.LRESULT, @intCast(HTBOTTOM));
+        }
+        if (y < top + frame_h) return @as(win32.foundation.LRESULT, @intCast(HTTOP));
+
+        // 2) Title bar (below top resize strip): caption buttons then draggable area
+        if (y < top + caption_h) {
+            if (x >= right - 3 * btn_w) {
+                if (x >= right - btn_w) return @as(win32.foundation.LRESULT, @intCast(HTCLOSE));
+                if (x >= right - 2 * btn_w) return @as(win32.foundation.LRESULT, @intCast(HTMAXBUTTON));
+                return @as(win32.foundation.LRESULT, @intCast(HTMINBUTTON));
+            }
+            return @as(win32.foundation.LRESULT, @intCast(HTCAPTION));
+        }
+        return def;
     }
     return win32.ui.shell.DefSubclassProc(hWnd, uMsg, wParam, lParam);
 }
@@ -195,6 +269,13 @@ pub fn setWindowStyle(win: *dvui.Window) void {
         // Enable layered window so SetLayeredWindowAttributes(..., LWA_ALPHA) can set whole-window opacity (see setTitlebarColor).
         const exstyle = win32.ui.windows_and_messaging.GetWindowLongPtrW(hwnd_h, win32.ui.windows_and_messaging.GWL_EXSTYLE);
         _ = win32.ui.windows_and_messaging.SetWindowLongPtrW(hwnd_h, win32.ui.windows_and_messaging.GWL_EXSTYLE, exstyle | WS_EX_LAYERED);
+
+        // Force WM_NCCALCSIZE so the client area extends over the title bar immediately (not only after maximize).
+        const SWP_NOMOVE: u32 = 0x0002;
+        const SWP_NOSIZE: u32 = 0x0001;
+        const SWP_FRAMECHANGED: u32 = 0x0020;
+        const swp_flags = @as(win32.ui.windows_and_messaging.SET_WINDOW_POS_FLAGS, @bitCast(SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED));
+        _ = win32.ui.windows_and_messaging.SetWindowPos(hwnd_h, null, 0, 0, 0, 0, swp_flags);
     }
 }
 
@@ -245,7 +326,7 @@ pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
 
         setWindowStyle(win);
 
-        // Use COLOR_NONE so the title bar uses the same look as the client area (no solid theme overlay).
+        // No caption/border tint; we draw our own title bar in the extended client area (see WM_NCCALCSIZE in subclass).
         const color_none: u32 = win32.graphics.dwm.DWMWA_COLOR_NONE;
         _ = win32.graphics.dwm.DwmSetWindowAttribute(hwnd_h, win32.graphics.dwm.DWMWA_CAPTION_COLOR, &color_none, @sizeOf(u32));
         _ = win32.graphics.dwm.DwmSetWindowAttribute(hwnd_h, win32.graphics.dwm.DWMWA_BORDER_COLOR, &color_none, @sizeOf(u32));
