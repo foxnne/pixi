@@ -491,6 +491,10 @@ pub fn drawCanvas(self: *Workspace) !void {
         file_widget.processEvents();
     } else {
         try self.drawHomePage(canvas_vbox);
+        //pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .bottom, .{});
+        //pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .left, .{});
+        //pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .right, .{});
+        //pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .top, .{});
     }
 }
 
