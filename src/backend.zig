@@ -7,6 +7,49 @@ const sdl3 = @import("backend").c;
 const objc = @import("objc");
 const win32 = @import("win32");
 
+// AppKit geometry types for NSView frame/bounds (same layout as Foundation).
+const NSPoint = extern struct { x: f64, y: f64 };
+const NSSize = extern struct { width: f64, height: f64 };
+const NSRect = extern struct { origin: NSPoint, size: NSSize };
+
+// NSWindowStyleMaskFullSizeContentView = 1 << 15 — content view extends under titlebar so vibrancy can cover it.
+const NSWindowStyleMaskFullSizeContentView: c_ulong = 1 << 15;
+
+/// Wraps the window's content view in an NSVisualEffectView so the window gets
+/// vibrancy (blur of the desktop behind it). Safe to call multiple times;
+/// only wraps once per window. Caller should set full-size content view style
+/// mask and titlebarAppearsTransparent before calling so the effect covers the titlebar.
+fn wrapContentViewWithVibrancy(window: objc.Object) void {
+    const content_view = window.msgSend(objc.Object, "contentView", .{});
+    if (content_view.value == 0) return;
+
+    const NSVisualEffectViewClass = objc.getClass("NSVisualEffectView") orelse return;
+    const already_wrapped = content_view.msgSend(bool, "isKindOfClass:", .{NSVisualEffectViewClass.value});
+    if (already_wrapped) return;
+
+    // [[NSVisualEffectView alloc] init]
+    const effect_view = NSVisualEffectViewClass.msgSend(objc.Object, "alloc", .{}).msgSend(objc.Object, "init", .{});
+    if (effect_view.value == 0) return;
+
+    // Blur content behind the window (desktop, other windows).
+    // NSVisualEffectBlendingModeBehindWindow = 0
+    effect_view.msgSend(void, "setBlendingMode:", .{@as(c_long, 0)});
+    // NSVisualEffectStateActive = 0
+    effect_view.msgSend(void, "setState:", .{@as(c_long, 0)});
+    // NSVisualEffectMaterialFullScreenUI (15) – works well for full-window vibrancy
+    effect_view.msgSend(void, "setMaterial:", .{@as(c_long, 15)});
+
+    // Replace window's content view with the effect view, then put the original view inside it.
+    window.msgSend(void, "setContentView:", .{effect_view.value});
+    effect_view.msgSend(void, "addSubview:", .{content_view.value});
+
+    // Make the original content view fill the effect view.
+    const bounds = effect_view.msgSend(NSRect, "bounds", .{});
+    content_view.msgSend(void, "setFrame:", .{bounds});
+    // NSViewWidthSizable | NSViewHeightSizable = 2 | 16 = 18
+    content_view.msgSend(void, "setAutoresizingMask:", .{@as(c_ulong, 18)});
+}
+
 pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
     if (builtin.os.tag == .macos) {
         const raw_ptr = sdl3.SDL_GetPointerProperty(
@@ -17,8 +60,14 @@ pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
         if (raw_ptr != null) {
             const window = objc.Object.fromId(raw_ptr);
 
-            // This sets the titlebar to transparent.
+            // Allow content view to extend under the titlebar so vibrancy covers it.
+            const style_mask = window.msgSend(c_ulong, "styleMask", .{});
+            window.msgSend(void, "setStyleMask:", .{style_mask | NSWindowStyleMaskFullSizeContentView});
+            // This sets the titlebar to transparent so our effect view shows through.
             window.msgSend(void, "setTitlebarAppearsTransparent:", .{true});
+
+            // Wrap content view in NSVisualEffectView once for vibrancy (blur behind window).
+            wrapContentViewWithVibrancy(window);
 
             const NSColor = objc.getClass("NSColor").?;
             const new_color = NSColor.msgSend(objc.Object, "colorWithRed:green:blue:alpha:", .{

@@ -278,13 +278,33 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     // defer scaler.deinit();
 
     {
+        var overall_box = dvui.box(
+            @src(),
+            .{ .dir = .vertical },
+            .{
+                .expand = .both,
+                .background = true,
+                .color_fill = dvui.themeGet().color(.content, .fill).opacity(pixi.editor.settings.window_opacity),
+            },
+        );
+        defer overall_box.deinit();
+
+        var titlebar_box = dvui.box(
+            @src(),
+            .{ .dir = .horizontal },
+            .{
+                .expand = .horizontal,
+                .background = false,
+                .min_size_content = .{ .w = 1, .h = pixi.editor.settings.titlebar_height },
+            },
+        );
+        titlebar_box.deinit();
+
         var base_box = dvui.box(
             @src(),
             .{ .dir = .horizontal },
             .{
                 .expand = .both,
-                .background = if (builtin.os.tag == .macos) false else true,
-                .color_fill = dvui.themeGet().color(.content, .fill),
             },
         );
         defer base_box.deinit();
