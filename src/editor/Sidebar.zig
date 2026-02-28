@@ -60,7 +60,7 @@ fn drawOption(option: Pane, icon: []const u8, size: f32) !bool {
     defer bw.deinit();
     bw.processEvents();
 
-    const color: dvui.Color = if (selected) theme.color(.highlight, .fill) else if (bw.hovered()) theme.color(.window, .text) else theme.color(.control, .fill).lighten(12.0);
+    const color: dvui.Color = if (selected) theme.color(.highlight, .fill) else if (bw.hovered()) theme.color(.window, .text) else theme.color(.window, .fill);
 
     dvui.icon(
         @src(),
