@@ -10,7 +10,8 @@
 **Pixi** is an cross-platform open-source pixel art editor and animation editor written in [Zig](https://github.com/ziglang/zig).
 
 
-<img width="1710" height="1112" alt="Screenshot 2026-02-26 at 6 08 44 PM" src="https://github.com/user-attachments/assets/55247e41-7e36-4b5f-beb8-03a635f356bc" />
+<img width="1776" height="1259" alt="image" src="https://github.com/user-attachments/assets/d787bbc3-7c71-47f4-a841-b9a1f19c1e71" />
+
 
 #### Check out the [user guide](https://github.com/foxnne/pixi/wiki/User-Guide)!
 
