@@ -37,7 +37,7 @@ pub const dvui_app: dvui.App = .{ .config = .{ .options = .{
     .min_size = .{ .w = 640.0, .h = 480.0 },
     .title = "Pixi",
     .icon = icon,
-    .transparent = if (builtin.os.tag == .macos) true else false,
+    .transparent = if (builtin.os.tag == .macos or builtin.os.tag == .windows) true else false,
 } }, .frameFn = AppFrame, .initFn = AppInit, .deinitFn = AppDeinit };
 
 pub const main = dvui.App.main;

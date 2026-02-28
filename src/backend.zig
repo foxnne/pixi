@@ -12,9 +12,40 @@ const NSPoint = extern struct { x: f64, y: f64 };
 const NSSize = extern struct { width: f64, height: f64 };
 const NSRect = extern struct { origin: NSPoint, size: NSSize };
 
+const DWMWA_SYSTEM_BACKDROP_TYPE: c_ulong = 20;
+const DWMWA_SYSTEM_BACKDROP_TYPE_DEFAULT: c_ulong = 0;
+const DWMWA_SYSTEM_BACKDROP_TYPE_ACRYLIC: c_ulong = 1;
+const DWMWA_SYSTEM_BACKDROP_TYPE_NONE: c_ulong = 2;
+const DWMWA_SYSTEM_BACKDROP_TYPE_TRANSPARENT: c_ulong = 3;
+const DWMWA_SYSTEM_BACKDROP_TYPE_BLUR_BEHIND: c_ulong = 4;
+const DWMWA_SYSTEM_BACKDROP_TYPE_ACRYLIC_LIGHT: c_ulong = 5;
+const DWMWA_SYSTEM_BACKDROP_TYPE_ACRYLIC_DARK: c_ulong = 6;
+
+// Windows 11 (Build 22621+): System backdrop and extended frame for title bar drawing.
+const DWMWA_SYSTEMBACKDROP_TYPE: u32 = 38; // Windows 11 SDK
+const DWMSBT_MAINWINDOW: u32 = 2; // Mica
+const DWMSBT_TRANSIENTWINDOW: u32 = 3; // Acrylic (frosted glass) — more visible blur than Mica
+
+// Layered window for whole-window opacity (LWA_ALPHA). Works with SDL's GPU renderer.
+const WS_EX_LAYERED: u32 = 0x00080000;
+
+// Undocumented user32 API for acrylic blur (used by Start menu, taskbar). Loaded at runtime.
+const WCA_ACCENT_POLICY: u32 = 19;
+const ACCENT_ENABLE_ACRYLICBLURBEHIND: u32 = 4;
+const WINCOMPATTR_DATA = struct {
+    attrib: u32,
+    pv_data: *const anyopaque,
+    cb_data: usize,
+};
+const ACCENT_POLICY = struct {
+    accent_state: u32,
+    accent_flags: u32,
+    gradient_color: u32, // ABGR
+    animation_id: u32,
+};
+
 // NSWindowStyleMaskFullSizeContentView = 1 << 15 — content view extends under titlebar so vibrancy can cover it.
 const NSWindowStyleMaskFullSizeContentView: c_ulong = 1 << 15;
-
 const ns_visual_effect_material: c_long = 15;
 
 /// Wraps the window's content view in an NSVisualEffectView so the window gets
@@ -54,6 +85,65 @@ fn wrapContentViewWithVibrancy(window: objc.Object) void {
     content_view.msgSend(void, "setAutoresizingMask:", .{@as(c_ulong, 18)});
 }
 
+fn getWin32Hwnd(win: *dvui.Window) ?*anyopaque {
+    const raw = sdl3.SDL_GetPointerProperty(
+        sdl3.SDL_GetWindowProperties(win.backend.impl.window),
+        sdl3.SDL_PROP_WINDOW_WIN32_HWND_POINTER,
+        null,
+    );
+    return if (raw != null) @ptrCast(raw) else null;
+}
+
+// Full-window Mica margins for DwmExtendFrameIntoClientArea (-1 = "sheet of glass").
+const win32_mica_margins = win32.ui.controls.MARGINS{
+    .cxLeftWidth = -1,
+    .cxRightWidth = -1,
+    .cyTopHeight = -1,
+    .cyBottomHeight = -1,
+};
+
+const win32_mica_subclass_id: usize = 0x50584931; // "PXI1"
+
+/// Applies the undocumented SetWindowCompositionAttribute accent policy for acrylic blur (frosted glass).
+/// Safe to call; no-ops if user32 or the API is unavailable.
+fn applyWin32AcrylicAccent(hwnd: win32.foundation.HWND) void {
+    var user32 = std.DynLib.open("user32.dll") catch return;
+    defer user32.close();
+    const SetWindowCompositionAttribute = user32.lookup(*const fn (win32.foundation.HWND, *const WINCOMPATTR_DATA) callconv(.winapi) i32, "SetWindowCompositionAttribute") orelse return;
+    var policy = ACCENT_POLICY{
+        .accent_state = ACCENT_ENABLE_ACRYLICBLURBEHIND,
+        .accent_flags = 0,
+        .gradient_color = 0xE6_00_00_00, // ABGR: dark tint so blur is visible
+        .animation_id = 0,
+    };
+    var data = WINCOMPATTR_DATA{
+        .attrib = WCA_ACCENT_POLICY,
+        .pv_data = @ptrCast(&policy),
+        .cb_data = @sizeOf(ACCENT_POLICY),
+    };
+    _ = SetWindowCompositionAttribute(hwnd, &data);
+}
+
+fn win32MicaSubclassProc(
+    hWnd: ?win32.foundation.HWND,
+    uMsg: u32,
+    wParam: win32.foundation.WPARAM,
+    lParam: win32.foundation.LPARAM,
+    uIdSubclass: usize,
+    dwRefData: usize,
+) callconv(.winapi) win32.foundation.LRESULT {
+    _ = uIdSubclass;
+    _ = dwRefData;
+    // DWM requires the frame extension to be applied in WM_ACTIVATE (and when composition changes)
+    // for the backdrop to show correctly instead of staying opaque.
+    if (uMsg == win32.ui.windows_and_messaging.WM_ACTIVATE or
+        uMsg == win32.ui.windows_and_messaging.WM_DWMCOMPOSITIONCHANGED)
+    {
+        _ = win32.graphics.dwm.DwmExtendFrameIntoClientArea(hWnd, &win32_mica_margins);
+    }
+    return win32.ui.shell.DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
 pub fn setWindowStyle(win: *dvui.Window) void {
     if (builtin.os.tag == .macos) {
         const raw_ptr = sdl3.SDL_GetPointerProperty(
@@ -70,6 +160,41 @@ pub fn setWindowStyle(win: *dvui.Window) void {
             // This sets the titlebar to transparent so our effect view shows through.
             window.msgSend(void, "setTitlebarAppearsTransparent:", .{true});
         }
+    } else if (builtin.os.tag == .windows) {
+        const hwnd = getWin32Hwnd(win) orelse return;
+        const hwnd_h = @as(win32.foundation.HWND, @ptrCast(hwnd));
+
+        // Windows 11: Apply Acrylic (frosted glass) backdrop so title bar and extended frame show blur. Requires Build 22621+.
+        // DWMSBT_TRANSIENTWINDOW = Acrylic is more visible than Mica; use MAINWINDOW for subtler Mica.
+        const backdrop_type: u32 = DWMSBT_TRANSIENTWINDOW;
+        _ = win32.graphics.dwm.DwmSetWindowAttribute(
+            hwnd_h,
+            @as(win32.graphics.dwm.DWMWINDOWATTRIBUTE, @enumFromInt(DWMWA_SYSTEMBACKDROP_TYPE)),
+            &backdrop_type,
+            @sizeOf(u32),
+        );
+
+        // Subclass so we can re-apply frame extension in WM_ACTIVATE (required by DWM for backdrop to show).
+        _ = win32.ui.shell.SetWindowSubclass(hwnd_h, win32MicaSubclassProc, win32_mica_subclass_id, 0);
+
+        // Extend the DWM frame (Acrylic) into the entire client area so the backdrop material shows there.
+        _ = win32.graphics.dwm.DwmExtendFrameIntoClientArea(hwnd_h, &win32_mica_margins);
+
+        // Optional: undocumented accent API for extra acrylic blur (Start menu / taskbar use this). May improve frosted look.
+        applyWin32AcrylicAccent(hwnd_h);
+
+        // Per MSDN: for backdrop to render, the client area background must be transparent or a black brush.
+        // BLACK_BRUSH (4) lets DWM draw the backdrop material; a null brush can leave the area undefined.
+        const black_brush = win32.graphics.gdi.GetStockObject(win32.graphics.gdi.GET_STOCK_OBJECT_FLAGS.BLACK_BRUSH);
+        _ = win32.ui.windows_and_messaging.SetClassLongPtrW(
+            hwnd_h,
+            win32.ui.windows_and_messaging.GCLP_HBRBACKGROUND,
+            @as(isize, @bitCast(@intFromPtr(black_brush))),
+        );
+
+        // Enable layered window so SetLayeredWindowAttributes(..., LWA_ALPHA) can set whole-window opacity (see setTitlebarColor).
+        const exstyle = win32.ui.windows_and_messaging.GetWindowLongPtrW(hwnd_h, win32.ui.windows_and_messaging.GWL_EXSTYLE);
+        _ = win32.ui.windows_and_messaging.SetWindowLongPtrW(hwnd_h, win32.ui.windows_and_messaging.GWL_EXSTYLE, exstyle | WS_EX_LAYERED);
     }
 }
 
@@ -115,22 +240,24 @@ pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
             window.msgSend(void, "setHasShadow:", .{true});
         }
     } else if (builtin.os.tag == .windows) {
-        const colorref = @as(u32, @intCast(color.r)) |
-            (@as(u32, @intCast(color.g)) << 8) |
-            (@as(u32, @intCast(color.b)) << 16);
+        const hwnd = getWin32Hwnd(win) orelse return;
+        const hwnd_h = @as(win32.foundation.HWND, @ptrCast(hwnd));
 
-        // Set both caption color and border color
-        _ = win32.graphics.dwm.DwmSetWindowAttribute(@ptrCast(sdl3.SDL_GetPointerProperty(
-            sdl3.SDL_GetWindowProperties(win.backend.impl.window),
-            sdl3.SDL_PROP_WINDOW_WIN32_HWND_POINTER,
-            null,
-        )), win32.graphics.dwm.DWMWA_CAPTION_COLOR, &colorref, @sizeOf(u32));
+        setWindowStyle(win);
 
-        _ = win32.graphics.dwm.DwmSetWindowAttribute(@ptrCast(sdl3.SDL_GetPointerProperty(
-            sdl3.SDL_GetWindowProperties(win.backend.impl.window),
-            sdl3.SDL_PROP_WINDOW_WIN32_HWND_POINTER,
-            null,
-        )), win32.graphics.dwm.DWMWA_BORDER_COLOR, &colorref, @sizeOf(u32));
+        // Use COLOR_NONE so the title bar uses the same look as the client area (no solid theme overlay).
+        const color_none: u32 = win32.graphics.dwm.DWMWA_COLOR_NONE;
+        _ = win32.graphics.dwm.DwmSetWindowAttribute(hwnd_h, win32.graphics.dwm.DWMWA_CAPTION_COLOR, &color_none, @sizeOf(u32));
+        _ = win32.graphics.dwm.DwmSetWindowAttribute(hwnd_h, win32.graphics.dwm.DWMWA_BORDER_COLOR, &color_none, @sizeOf(u32));
+
+        // Keep window fully opaque on Windows. LWA_ALPHA applies to the entire window (title bar + all UI),
+        // so using color.a would make content invisible; per-pixel alpha would require UpdateLayeredWindow (not supported by SDL).
+        _ = win32.ui.windows_and_messaging.SetLayeredWindowAttributes(
+            hwnd_h,
+            0,
+            255,
+            win32.ui.windows_and_messaging.LWA_ALPHA,
+        );
     }
 }
 
