@@ -290,16 +290,34 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         );
         defer overall_box.deinit();
 
-        var titlebar_box = dvui.box(
-            @src(),
-            .{ .dir = .horizontal },
-            .{
-                .expand = .horizontal,
-                .background = false,
-                .min_size_content = .{ .w = 1, .h = pixi.editor.settings.titlebar_height },
-            },
-        );
-        titlebar_box.deinit();
+        {
+            var titlebar_box = dvui.box(
+                @src(),
+                .{ .dir = .horizontal },
+                .{
+                    .expand = .horizontal,
+                    .background = false,
+                    .min_size_content = .{ .w = 1, .h = if (builtin.os.tag == .windows) 0 else pixi.editor.settings.titlebar_height },
+                },
+            );
+
+            // Spacer so caption buttons sit on the right
+            _ = dvui.spacer(@src(), .{ .expand = .horizontal });
+            if (builtin.os.tag == .windows) {
+                const win = dvui.currentWindow();
+                const btn_w: f32 = @floatFromInt(pixi.backend.getTitleBarButtonWidth(win));
+                const th = pixi.editor.settings.titlebar_height;
+                const btn_opts: dvui.Options = .{ .min_size_content = .{ .w = btn_w, .h = th }, .expand = .none, .margin = .all(0), .padding = .all(0) };
+                if (dvui.buttonIcon(@src(), "Minimize", icons.tvg.lucide.minus, .{ .draw_focus = false }, .{}, btn_opts))
+                    pixi.backend.performWindowButton(win, .minimize);
+                if (dvui.buttonIcon(@src(), "Maximize", icons.tvg.lucide.square, .{ .draw_focus = false }, .{}, btn_opts))
+                    pixi.backend.performWindowButton(win, .maximize);
+                if (dvui.buttonIcon(@src(), "Close", icons.tvg.lucide.x, .{ .draw_focus = false }, .{}, btn_opts))
+                    pixi.backend.performWindowButton(win, .close);
+            }
+
+            defer titlebar_box.deinit();
+        }
 
         var base_box = dvui.box(
             @src(),

@@ -85,6 +85,53 @@ fn wrapContentViewWithVibrancy(window: objc.Object) void {
     content_view.msgSend(void, "setAutoresizingMask:", .{@as(c_ulong, 18)});
 }
 
+// Window button action for custom-drawn title bar (app gets HTCLIENT there and calls this on click).
+pub const TitleBarButton = enum { minimize, maximize, close };
+
+// Returns which title bar button (if any) is at the given client-area coordinates. Windows only; other platforms return null.
+pub fn getTitleBarButtonAt(win: *dvui.Window, client_x: i32, client_y: i32) ?TitleBarButton {
+    if (builtin.os.tag != .windows) return null;
+    const hwnd = getWin32Hwnd(win) orelse return null;
+    var rect: win32.foundation.RECT = undefined;
+    if (win32.ui.windows_and_messaging.GetClientRect(@ptrCast(hwnd), &rect) == 0) return null;
+    const caption_h = win32.ui.windows_and_messaging.GetSystemMetrics(@as(win32.ui.windows_and_messaging.SYSTEM_METRICS_INDEX, @enumFromInt(4)));
+    var btn_w = win32.ui.windows_and_messaging.GetSystemMetrics(@as(win32.ui.windows_and_messaging.SYSTEM_METRICS_INDEX, @enumFromInt(30)));
+    if (btn_w < 40) btn_w = 40;
+    const width = rect.right;
+    if (client_y < 0 or client_y >= caption_h) return null;
+    if (client_x < width - 3 * btn_w) return null;
+    if (client_x >= width - btn_w) return .close;
+    if (client_x >= width - 2 * btn_w) return .maximize;
+    return .minimize;
+}
+
+// Performs the window button action (minimize, maximize/restore, close). Call from app when user clicks your title bar buttons. Windows only.
+pub fn performWindowButton(win: *dvui.Window, button: TitleBarButton) void {
+    if (builtin.os.tag != .windows) return;
+    const hwnd = getWin32Hwnd(win) orelse return;
+    const hwnd_h: win32.foundation.HWND = @ptrCast(hwnd);
+    const WM_SYSCOMMAND: u32 = 0x0112;
+    const SC_MINIMIZE: usize = 0xF020;
+    const SC_MAXIMIZE: usize = 0xF030;
+    const SC_RESTORE: usize = 0xF120;
+    const SC_CLOSE: usize = 0xF060;
+    const wparam: win32.foundation.WPARAM = switch (button) {
+        .minimize => SC_MINIMIZE,
+        .maximize => if (win32.ui.windows_and_messaging.IsZoomed(hwnd_h) != 0) SC_RESTORE else SC_MAXIMIZE,
+        .close => SC_CLOSE,
+    };
+    _ = win32.ui.windows_and_messaging.PostMessageW(hwnd_h, WM_SYSCOMMAND, wparam, 0);
+}
+
+// Title bar button width in pixels (same as hit-test area). Use for laying out three buttons on the right. Windows only; returns 0 on other platforms.
+pub fn getTitleBarButtonWidth(win: *dvui.Window) i32 {
+    _ = win;
+    if (builtin.os.tag != .windows) return 0;
+    var w = win32.ui.windows_and_messaging.GetSystemMetrics(@as(win32.ui.windows_and_messaging.SYSTEM_METRICS_INDEX, @enumFromInt(30)));
+    if (w < 50) w = 50;
+    return w;
+}
+
 fn getWin32Hwnd(win: *dvui.Window) ?*anyopaque {
     const raw = sdl3.SDL_GetPointerProperty(
         sdl3.SDL_GetWindowProperties(win.backend.impl.window),
@@ -154,14 +201,34 @@ fn win32MicaSubclassProc(
     _ = dwRefData;
     // DWM requires the frame extension to be applied in WM_ACTIVATE (and when composition changes)
     // for the backdrop to show correctly instead of staying opaque.
+    // Re-apply backdrop type on activate/deactivate so the window stays acrylic when unfocused
+    // instead of dimming to opaque (default DWM behavior for inactive windows).
     if (uMsg == win32.ui.windows_and_messaging.WM_ACTIVATE or
         uMsg == win32.ui.windows_and_messaging.WM_DWMCOMPOSITIONCHANGED)
     {
+        const backdrop_type: u32 = DWMSBT_TRANSIENTWINDOW;
+        _ = win32.graphics.dwm.DwmSetWindowAttribute(
+            hWnd,
+            @as(win32.graphics.dwm.DWMWINDOWATTRIBUTE, @enumFromInt(DWMWA_SYSTEMBACKDROP_TYPE)),
+            &backdrop_type,
+            @sizeOf(u32),
+        );
         _ = win32.graphics.dwm.DwmExtendFrameIntoClientArea(hWnd, &win32_mica_margins);
     }
     // Extend client area into the title bar so the app can draw there; we keep OS min/max/close via hit-test.
+    // When maximized, constrain the client rect to the monitor work area so the window doesn't extend past
+    // the screen edge (the 7–8 px overflow that happens when returning 0 with borderless-style handling).
     if (uMsg == WM_NCCALCSIZE and wParam != 0) {
-        return 0; // Client area = full window (frame/caption removed from our perspective; we draw title bar).
+        const params = @as(*win32.ui.windows_and_messaging.NCCALCSIZE_PARAMS, @ptrFromInt(@as(usize, @intCast(lParam))));
+        if (win32.ui.windows_and_messaging.IsZoomed(hWnd) != 0) {
+            const hmon = win32.graphics.gdi.MonitorFromWindow(hWnd, win32.graphics.gdi.MONITOR_DEFAULTTONEAREST);
+            var mi: win32.graphics.gdi.MONITORINFO = undefined;
+            mi.cbSize = @sizeOf(win32.graphics.gdi.MONITORINFO);
+            if (win32.graphics.gdi.GetMonitorInfoW(hmon, &mi) != 0) {
+                params.rgrc[0] = mi.rcWork;
+            }
+        }
+        return 0; // Client area = rgrc[0] (full window when not maximized; work area when maximized).
     }
     if (uMsg == WM_NCHITTEST) {
         const def = win32.ui.shell.DefSubclassProc(hWnd, uMsg, wParam, lParam);
@@ -204,13 +271,9 @@ fn win32MicaSubclassProc(
         }
         if (y < top + frame_h) return @as(win32.foundation.LRESULT, @intCast(HTTOP));
 
-        // 2) Title bar (below top resize strip): caption buttons then draggable area
+        // 2) Title bar (below top resize strip): return HTCLIENT for button area so the app gets mouse events (hover + click); draggable area stays HTCAPTION.
         if (y < top + caption_h) {
-            if (x >= right - 3 * btn_w) {
-                if (x >= right - btn_w) return @as(win32.foundation.LRESULT, @intCast(HTCLOSE));
-                if (x >= right - 2 * btn_w) return @as(win32.foundation.LRESULT, @intCast(HTMAXBUTTON));
-                return @as(win32.foundation.LRESULT, @intCast(HTMINBUTTON));
-            }
+            if (x >= right - 3 * btn_w) return def; // Button area = HTCLIENT so app can draw buttons and get hover; app calls performWindowButton() on click.
             return @as(win32.foundation.LRESULT, @intCast(HTCAPTION));
         }
         return def;
