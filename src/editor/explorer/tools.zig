@@ -802,8 +802,7 @@ pub fn drawPalettes() !void {
                 },
             });
 
-            var triangles = dvui.Triangles.Builder.init(dvui.currentWindow().lifo(), 3000, 3000 * 3) catch return;
-            defer triangles.deinit(dvui.currentWindow().lifo());
+            var triangles = dvui.Triangles.Builder.init(dvui.currentWindow().arena(), palette.colors.len * 300, palette.colors.len * 300 * 30) catch return;
 
             for (palette.colors, 0..) |color, i| {
                 var anim = dvui.animate(
@@ -860,7 +859,15 @@ pub fn drawPalettes() !void {
 
                 const base_index: u16 = @intCast(triangles.vertexes.items.len);
 
-                const b = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] } }) catch return;
+                const b = path.build().fillConvexTriangles(
+                    dvui.currentWindow().arena(),
+                    .{ .color = .{
+                        .r = color[0],
+                        .g = color[1],
+                        .b = color[2],
+                        .a = color[3],
+                    }, .fade = 1.0 },
+                ) catch return;
                 for (b.vertexes) |vertex| {
                     triangles.appendVertex(vertex);
                 }
