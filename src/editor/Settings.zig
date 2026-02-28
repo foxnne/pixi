@@ -58,10 +58,10 @@ checker_color_even: [4]u8 = .{ 255, 255, 255, 255 },
 checker_color_odd: [4]u8 = .{ 175, 175, 175, 255 },
 
 /// Opacity of the background window
-/// CURRENTLY ONLY SUPPORTED ON MACOS
-window_opacity: f32 = 0.93,
+/// CURRENTLY ONLY SUPPORTED ON MACOS and Windows
+window_opacity: f32 = 0.7,
 
-content_opacity: f32 = 0.93,
+content_opacity: f32 = 0.5,
 
 titlebar_height: f32 = 30.0, // This is the height of the titlebar in pixels
 
