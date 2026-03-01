@@ -129,7 +129,7 @@ pub fn init(
     };
 
     moi.control = .{
-        .fill = .{ .r = 85, .g = 36, .b = 47, .a = 255 },
+        .fill = moi.window.fill.?.lighten(10),
         .border = .{ .r = 104, .g = 62, .b = 72, .a = 255 },
         .text = .{ .r = 255, .g = 235, .b = 235, .a = 200 },
     };
@@ -137,7 +137,7 @@ pub fn init(
         .fill = moi.window.fill.?.lighten(10),
     };
 
-    moi.fill = moi.window.fill.?;
+    moi.fill = moi.control.fill.?;
     moi.text = moi.window.text.?;
     moi.focus = moi.highlight.fill.?;
 
@@ -285,7 +285,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             .{
                 .expand = .both,
                 .background = true,
-                .color_fill = dvui.themeGet().color(.content, .fill).opacity(pixi.editor.settings.window_opacity),
+                .color_fill = dvui.themeGet().color(.content, .fill).opacity(pixi.editor.settings.window_opacity).lighten((1.0 - pixi.editor.settings.window_opacity) * 4.0),
             },
         );
         defer overall_box.deinit();
