@@ -341,7 +341,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
 
                 inner_id_extra.* = dvui.Id.update(tree.data().id, abs_path).asUsize();
 
-                var color = dvui.themeGet().color(.control, .fill);
+                var color = dvui.themeGet().color(.window, .fill);
                 if (pixi.editor.colors.palette) |*palette| {
                     color = palette.getDVUIColor(color_id.*);
                 }
@@ -378,9 +378,9 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                     .id_extra = inner_id_extra.*,
                     .expand = .horizontal,
                     //.color_fill_hover = .fill,
-                    .color_fill_hover = dvui.themeGet().color(.control, .fill_hover),
-                    .color_fill_press = dvui.themeGet().color(.control, .fill_press),
-                    .color_fill = if (selected) dvui.themeGet().color(.window, .fill) else .transparent,
+                    .color_fill_hover = dvui.themeGet().color(.window, .fill_hover),
+                    .color_fill_press = dvui.themeGet().color(.window, .fill_press),
+                    .color_fill = if (selected) dvui.themeGet().color(.control, .fill_hover) else .transparent,
                     .padding = dvui.Rect.all(1),
                 });
                 defer branch.deinit();
@@ -428,7 +428,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
 
                 const t = 1.0 - (distance / max_distance);
 
-                color = dvui.themeGet().color(.control, .fill_hover).lerp(color, t);
+                color = dvui.themeGet().color(.window, .fill).lerp(color, t);
 
                 if (branch.floating()) {
                     if (dvui.dataGetSlice(null, inner_unique_id, "removed_path", []u8) == null)
