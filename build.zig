@@ -145,6 +145,8 @@ pub fn build(b: *std.Build) !void {
         })) |dep| {
             exe.root_module.addImport("objc", dep.module("objc"));
         }
+        // Custom NSVisualEffectView subclass that forwards right-click to the content view (SDL).
+        exe.addCSourceFile(.{ .file = std.Build.path(b, "src/objc/PixiVisualEffectView.m") });
     } else if (target.result.os.tag == .windows) {
         if (b.lazyDependency("zigwin32", .{})) |dep| {
             exe.root_module.addImport("win32", dep.module("win32"));

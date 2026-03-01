@@ -52,37 +52,52 @@ const ns_visual_effect_material: c_long = 15;
 /// vibrancy (blur of the desktop behind it). Safe to call multiple times;
 /// only wraps once per window. Caller should set full-size content view style
 /// mask and titlebarAppearsTransparent before calling so the effect covers the titlebar.
+/// Uses PixiVisualEffectView (custom subclass) when available so right-click is forwarded to the content view.
 fn wrapContentViewWithVibrancy(window: objc.Object) void {
     const content_view = window.msgSend(objc.Object, "contentView", .{});
     if (content_view.value == 0) return;
 
     const NSVisualEffectViewClass = objc.getClass("NSVisualEffectView") orelse return;
-    const already_wrapped = content_view.msgSend(bool, "isKindOfClass:", .{NSVisualEffectViewClass.value});
-    if (already_wrapped) {
+    const fill_mask: c_ulong = 18; // NSViewWidthSizable | NSViewHeightSizable
+
+    const is_effect_view = content_view.msgSend(bool, "isKindOfClass:", .{NSVisualEffectViewClass.value});
+    if (is_effect_view) {
         content_view.msgSend(void, "setMaterial:", .{ns_visual_effect_material});
+        content_view.msgSend(void, "setMenu:", .{@as(usize, 0)});
+        // Keep the content subview's nextResponder pointing at the window delegate so rightMouseDown reaches SDL.
+        const subviews = content_view.msgSend(objc.Object, "subviews", .{});
+        const count: usize = subviews.msgSend(usize, "count", .{});
+        if (count > 0) {
+            const sub = subviews.msgSend(objc.Object, "objectAtIndex:", .{@as(c_ulong, 0)});
+            const delegate = window.msgSend(objc.Object, "delegate", .{});
+            if (delegate.value != 0) sub.msgSend(void, "setNextResponder:", .{delegate.value});
+        }
         return;
     }
 
-    // [[NSVisualEffectView alloc] init]
-    const effect_view = NSVisualEffectViewClass.msgSend(objc.Object, "alloc", .{}).msgSend(objc.Object, "init", .{});
+    // Prefer custom subclass that forwards rightMouseDown to the content view (see vibrancy_rightclick_fix.m).
+    const EffectViewClass = objc.getClass("PixiVisualEffectView") orelse NSVisualEffectViewClass;
+    const effect_view = EffectViewClass.msgSend(objc.Object, "alloc", .{}).msgSend(objc.Object, "init", .{});
     if (effect_view.value == 0) return;
 
-    // Blur content behind the window (desktop, other windows).
-    // NSVisualEffectBlendingModeBehindWindow = 0
-    effect_view.msgSend(void, "setBlendingMode:", .{@as(c_long, 0)});
-    // NSVisualEffectStateActive = 1 — keep vibrant when window loses focus (0 = followsWindowActiveState).
-    effect_view.msgSend(void, "setState:", .{@as(c_long, 1)});
+    effect_view.msgSend(void, "setBlendingMode:", .{@as(c_long, 0)}); // NSVisualEffectBlendingModeBehindWindow
+    effect_view.msgSend(void, "setState:", .{@as(c_long, 1)}); // NSVisualEffectStateActive
     effect_view.msgSend(void, "setMaterial:", .{ns_visual_effect_material});
+    effect_view.msgSend(void, "setMenu:", .{@as(usize, 0)}); // no context menu so right-click can reach subview
 
-    // Replace window's content view with the effect view, then put the original view inside it.
     window.msgSend(void, "setContentView:", .{effect_view.value});
     effect_view.msgSend(void, "addSubview:", .{content_view.value});
+    content_view.msgSend(void, "setMenu:", .{@as(usize, 0)}); // no context menu so rightMouseDown is delivered
+    // SDL sets the content view's nextResponder to the window delegate (listener) so rightMouseDown reaches the handler.
+    // Adding the view as our subview made its nextResponder us; restore it so right-click events reach the app.
+    const delegate = window.msgSend(objc.Object, "delegate", .{});
+    if (delegate.value != 0) {
+        content_view.msgSend(void, "setNextResponder:", .{delegate.value});
+    }
 
-    // Make the original content view fill the effect view.
     const bounds = effect_view.msgSend(NSRect, "bounds", .{});
     content_view.msgSend(void, "setFrame:", .{bounds});
-    // NSViewWidthSizable | NSViewHeightSizable = 2 | 16 = 18
-    content_view.msgSend(void, "setAutoresizingMask:", .{@as(c_ulong, 18)});
+    content_view.msgSend(void, "setAutoresizingMask:", .{fill_mask});
 }
 
 // Window button action for custom-drawn title bar (app gets HTCLIENT there and calls this on click).
