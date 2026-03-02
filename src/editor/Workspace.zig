@@ -84,7 +84,7 @@ pub fn draw(self: *Workspace) !dvui.App.Result {
     // Canvas Area
     var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
-        .background = true,
+        .background = false,
         .gravity_y = 0.0,
         .id_extra = self.grouping,
         .color_fill = dvui.themeGet().color(.window, .fill).opacity(pixi.editor.settings.content_opacity),
@@ -140,7 +140,8 @@ fn drawTabs(self: *Workspace) void {
 
     var tabs_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .horizontal,
-        .color_fill = dvui.themeGet().color(.window, .fill).opacity(0.5),
+        .color_fill = dvui.themeGet().color(.window, .fill),
+        .background = false,
         .corner_radius = dvui.Rect.all(0),
         .margin = dvui.Rect.all(0),
         .padding = dvui.Rect.all(0),
@@ -156,159 +157,198 @@ fn drawTabs(self: *Workspace) void {
     });
     defer scroll_area.deinit();
 
-    var tabs = dvui.reorder(@src(), .{ .drag_name = "tab_drag" }, .{
-        .expand = .horizontal,
-    });
-    defer tabs.deinit();
+    {
+        var tabs = dvui.reorder(@src(), .{ .drag_name = "tab_drag" }, .{
+            .expand = .horizontal,
+        });
+        defer tabs.deinit();
 
-    var tabs_hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
-        .expand = .horizontal,
-        .background = false,
-        .corner_radius = dvui.Rect.all(0),
-        .margin = dvui.Rect.all(0),
-        .padding = dvui.Rect.all(0),
-        .id_extra = self.grouping,
-    });
-    defer tabs_hbox.deinit();
-
-    for (pixi.editor.open_files.values(), 0..) |file, i| {
-        const is_pixi_file = std.mem.endsWith(u8, file.path, ".pixi");
-
-        if (file.editor.grouping != self.grouping) continue;
-
-        var reorderable = tabs.reorderable(@src(), .{}, .{
-            .expand = .vertical,
-            .id_extra = i,
+        var tabs_hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            .expand = .horizontal,
+            .background = false,
+            .corner_radius = dvui.Rect.all(0),
+            .margin = dvui.Rect.all(0),
             .padding = dvui.Rect.all(0),
-            .margin = dvui.Rect.all(0),
+            .id_extra = self.grouping,
         });
-        defer reorderable.deinit();
+        defer tabs_hbox.deinit();
 
-        const selected = self.open_file_index == i and pixi.editor.open_workspace_grouping == self.grouping;
+        for (pixi.editor.open_files.values(), 0..) |file, i| {
+            const is_pixi_file = std.mem.endsWith(u8, file.path, ".pixi");
 
-        var hbox: dvui.BoxWidget = undefined;
-        hbox.init(@src(), .{ .dir = .horizontal }, .{
-            .expand = .none,
-            .border = .{ .h = 1 },
-            .color_border = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.window, .fill),
-            .color_fill = if (selected) dvui.themeGet().color(.control, .fill) else dvui.themeGet().color(.window, .fill),
-            .background = true,
-            .id_extra = i,
-            .padding = dvui.Rect.all(2),
-            .margin = dvui.Rect.all(0),
-        });
+            if (file.editor.grouping != self.grouping) continue;
 
-        defer hbox.deinit();
-
-        var hovered = false;
-        if (pixi.dvui.hovered(hbox.data())) {
-            hovered = true;
-            hbox.data().options.color_fill = dvui.themeGet().color(.control, .fill);
-            if (!selected)
-                hbox.data().options.color_border = dvui.themeGet().color(.control, .fill);
-        }
-        hbox.drawBackground();
-
-        if (reorderable.floating()) {
-            self.tabs_drag_index = i;
-        }
-
-        if (reorderable.removed()) {
-            self.tabs_removed_index = i;
-        } else if (reorderable.insertBefore()) {
-            self.tabs_insert_before_index = i;
-        }
-
-        if (is_pixi_file) {
-            _ = pixi.dvui.sprite(@src(), .{
-                .source = pixi.editor.atlas.source,
-                .sprite = pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default],
-                .scale = 2.0,
-            }, .{
-                .gravity_y = 0.5,
-                .padding = dvui.Rect.all(4),
-            });
-        } else {
-            dvui.icon(@src(), "file_icon", icons.tvg.lucide.file, .{
-                .stroke_color = if (is_pixi_file) .transparent else dvui.themeGet().color(.control, .text),
-            }, .{
-                .gravity_y = 0.5,
-                .padding = dvui.Rect.all(4),
-            });
-        }
-
-        dvui.label(@src(), "{s}", .{std.fs.path.basename(file.path)}, .{
-            .color_text = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
-            .padding = dvui.Rect.all(4),
-            .gravity_y = 0.5,
-        });
-
-        const status_close_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-            .min_size_content = .{ .w = 18, .h = 18 },
-            .max_size_content = .{ .w = 18, .h = 18 },
-            .expand = .none,
-            .padding = dvui.Rect.all(2),
-        });
-        defer status_close_box.deinit();
-
-        if (hovered) {
-            if (dvui.buttonIcon(@src(), "close", icons.tvg.lucide.x, .{ .draw_focus = false }, .{}, .{
-                .gravity_y = 0.5,
+            var reorderable = tabs.reorderable(@src(), .{}, .{
+                .expand = .vertical,
+                .id_extra = i,
                 .padding = dvui.Rect.all(0),
-                .corner_radius = dvui.Rect.all(1000),
-                .style = .err,
-                .expand = .both,
-            })) {
-                pixi.editor.closeFileID(file.id) catch |err| {
-                    dvui.log.err("closeFile: {d} failed: {s}", .{ i, @errorName(err) });
-                };
-                break;
+                .margin = dvui.Rect.all(0),
+            });
+            defer reorderable.deinit();
+
+            const selected = self.open_file_index == i and pixi.editor.open_workspace_grouping == self.grouping;
+
+            var hbox: dvui.BoxWidget = undefined;
+            hbox.init(@src(), .{ .dir = .horizontal }, .{
+                .expand = .none,
+                //.border = .{ .h = 1 },
+                .border = .all(0),
+                .color_fill = if (selected) .transparent else dvui.themeGet().color(.window, .fill),
+                .background = true,
+                .id_extra = i,
+                .padding = dvui.Rect.all(2),
+                .margin = dvui.Rect.all(0),
+            });
+
+            defer hbox.deinit();
+
+            var hovered = false;
+            if (pixi.dvui.hovered(hbox.data())) {
+                hovered = true;
             }
-        } else if (file.dirty()) {
-            dvui.icon(@src(), "dirty_icon", icons.tvg.lucide.@"circle-small", .{
-                .stroke_color = dvui.themeGet().color(.window, .text),
-            }, .{
-                .expand = .both,
+
+            if (selected) {
+                if (!reorderable.floating()) {
+                    dvui.Path.stroke(.{
+                        .points = &.{
+                            hbox.data().rectScale().r.bottomLeft(),
+                            hbox.data().rectScale().r.bottomRight(),
+                        },
+                    }, .{
+                        .color = dvui.themeGet().color(.window, .text),
+                        .thickness = 1,
+                    });
+                }
+            }
+
+            if (reorderable.floating()) {
+                self.tabs_drag_index = i;
+                hbox.data().options.color_fill = dvui.themeGet().color(.control, .fill);
+            }
+            hbox.drawBackground();
+
+            if (!selected) {
+                if (i > 0) {
+                    if (i - 1 == self.open_file_index and tabs.drag_point == null and self.grouping == pixi.editor.open_workspace_grouping) {
+                        pixi.dvui.drawEdgeShadow(hbox.data().rectScale(), .left, .{});
+                    }
+                } else {
+                    pixi.dvui.drawEdgeShadow(hbox.data().rectScale(), .left, .{});
+                }
+
+                if (i < pixi.editor.open_files.values().len - 1) {
+                    if (i + 1 == self.open_file_index and tabs.drag_point == null and self.grouping == pixi.editor.open_workspace_grouping) {
+                        pixi.dvui.drawEdgeShadow(hbox.data().rectScale(), .right, .{});
+                    }
+                } else {
+                    pixi.dvui.drawEdgeShadow(hbox.data().rectScale(), .right, .{});
+                }
+            }
+
+            if (reorderable.removed()) {
+                self.tabs_removed_index = i;
+            } else if (reorderable.insertBefore()) {
+                self.tabs_insert_before_index = i;
+            }
+
+            if (is_pixi_file) {
+                _ = pixi.dvui.sprite(@src(), .{
+                    .source = pixi.editor.atlas.source,
+                    .sprite = pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default],
+                    .scale = 2.0,
+                }, .{
+                    .gravity_y = 0.5,
+                    .padding = dvui.Rect.all(4),
+                });
+            } else {
+                dvui.icon(@src(), "file_icon", icons.tvg.lucide.file, .{
+                    .stroke_color = if (is_pixi_file) .transparent else dvui.themeGet().color(.control, .text),
+                }, .{
+                    .gravity_y = 0.5,
+                    .padding = dvui.Rect.all(4),
+                });
+            }
+
+            dvui.label(@src(), "{s}", .{std.fs.path.basename(file.path)}, .{
+                .color_text = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
+                .padding = dvui.Rect.all(4),
                 .gravity_y = 0.5,
+            });
+
+            const status_close_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .min_size_content = .{ .w = 18, .h = 18 },
+                .max_size_content = .{ .w = 18, .h = 18 },
+                .expand = .none,
                 .padding = dvui.Rect.all(2),
             });
-        }
+            defer status_close_box.deinit();
 
-        loop: for (dvui.events()) |*e| {
-            if (!hbox.matchEvent(e)) {
-                continue;
+            if (hovered) {
+                if (dvui.buttonIcon(@src(), "close", icons.tvg.lucide.x, .{ .draw_focus = false }, .{}, .{
+                    .gravity_y = 0.5,
+                    .padding = dvui.Rect.all(0),
+                    .corner_radius = dvui.Rect.all(1000),
+                    .style = .err,
+                    .expand = .both,
+                })) {
+                    pixi.editor.closeFileID(file.id) catch |err| {
+                        dvui.log.err("closeFile: {d} failed: {s}", .{ i, @errorName(err) });
+                    };
+                    break;
+                }
+            } else if (file.dirty()) {
+                dvui.icon(@src(), "dirty_icon", icons.tvg.lucide.@"circle-small", .{
+                    .stroke_color = dvui.themeGet().color(.window, .text),
+                }, .{
+                    .expand = .both,
+                    .gravity_y = 0.5,
+                    .padding = dvui.Rect.all(2),
+                });
             }
 
-            switch (e.evt) {
-                .mouse => |me| {
-                    if (me.action == .press and me.button.pointer()) {
-                        pixi.editor.setActiveFile(i);
-                        dvui.refresh(null, @src(), hbox.data().id);
+            loop: for (dvui.events()) |*e| {
+                if (!hbox.matchEvent(e)) {
+                    continue;
+                }
 
-                        e.handle(@src(), hbox.data());
-                        dvui.captureMouse(hbox.data(), e.num);
-                        dvui.dragPreStart(me.p, .{ .size = reorderable.data().rectScale().r.size(), .offset = reorderable.data().rectScale().r.topLeft().diff(me.p) });
-                    } else if (me.action == .release and me.button.pointer()) {
-                        dvui.captureMouse(null, e.num);
-                        dvui.dragEnd();
-                    } else if (me.action == .motion) {
-                        if (dvui.captured(hbox.data().id)) {
+                switch (e.evt) {
+                    .mouse => |me| {
+                        if (me.action == .press and me.button.pointer()) {
+                            pixi.editor.setActiveFile(i);
+                            dvui.refresh(null, @src(), hbox.data().id);
+
                             e.handle(@src(), hbox.data());
-                            if (dvui.dragging(me.p, null)) |_| {
-                                reorderable.reorder.dragStart(reorderable.data().id.asUsize(), me.p, 0); // reorder grabs capture
-                                break :loop;
+                            dvui.captureMouse(hbox.data(), e.num);
+                            dvui.dragPreStart(me.p, .{ .size = reorderable.data().rectScale().r.size(), .offset = reorderable.data().rectScale().r.topLeft().diff(me.p) });
+                        } else if (me.action == .release and me.button.pointer()) {
+                            dvui.captureMouse(null, e.num);
+                            dvui.dragEnd();
+                        } else if (me.action == .motion) {
+                            if (dvui.captured(hbox.data().id)) {
+                                e.handle(@src(), hbox.data());
+                                if (dvui.dragging(me.p, null)) |_| {
+                                    reorderable.reorder.dragStart(reorderable.data().id.asUsize(), me.p, 0); // reorder grabs capture
+                                    break :loop;
+                                }
                             }
                         }
-                    }
-                },
+                    },
 
-                else => {},
+                    else => {},
+                }
             }
         }
+        if (tabs.finalSlot()) {
+            self.tabs_insert_before_index = pixi.editor.open_files.values().len;
+        }
     }
-    if (tabs.finalSlot()) {
-        self.tabs_insert_before_index = pixi.editor.open_files.values().len;
-    }
+    var box = dvui.box(@src(), .{
+        .dir = .horizontal,
+    }, .{
+        .background = true,
+        .color_fill = .red,
+    });
+    box.deinit();
 }
 
 pub fn processTabsDrag(self: *Workspace) void {
@@ -483,18 +523,21 @@ pub fn drawCanvas(self: *Workspace) !void {
             .center = self.center,
         }, .{
             .expand = .both,
-            .background = false,
-            .color_fill = dvui.themeGet().color(.window, .fill).opacity(0.5),
+            .background = true,
+            .color_fill = dvui.themeGet().color(.window, .fill).opacity(pixi.editor.settings.content_opacity),
         });
 
         defer file_widget.deinit();
         file_widget.processEvents();
     } else {
+        var box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            .expand = .both,
+            .background = true,
+            .color_fill = dvui.themeGet().color(.window, .fill).opacity(pixi.editor.settings.content_opacity),
+        });
+        defer box.deinit();
+
         try self.drawHomePage(canvas_vbox);
-        //pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .bottom, .{});
-        //pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .left, .{});
-        //pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .right, .{});
-        //pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .top, .{});
     }
 }
 
@@ -1104,6 +1147,7 @@ pub fn drawHomePage(_: *Workspace, canvas_vbox: *dvui.BoxWidget) !void {
         .expand = .none,
         .gravity_x = 0.5,
         .gravity_y = 0.5,
+        .background = false,
         .padding = dvui.Rect.all(10),
     });
     defer logo_vbox.deinit();
