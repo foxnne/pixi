@@ -27,8 +27,8 @@
         },
         .dvui = .{
             //.path = "../dvui-dev",
-            .url = "git+https://github.com/foxnne/dvui-dev#6efef1e91cfe7bdb72ad9ed6e76201c471552636",
-            .hash = "dvui-0.4.0-dev-AQFJmS9J2wCdF4bFs5oD_YVcvnW6QAXn2giThuhkJrJB",
+            .url = "git+https://github.com/foxnne/dvui-dev#cf0a66faa6d86be0ab09c59943d680986dbb81d9",
+            .hash = "dvui-0.4.0-dev-AQFJmW0U3ACqpgV0rZ3vcBsBOiZsOR_lLeoKOpMCYPsw",
         },
         .assetpack = .{
             //.path = "../assetpack",
@@ -38,6 +38,10 @@
         .known_folders = .{
             .url = "git+https://github.com/ziglibs/known-folders.git#83d39161eac2ed6f37ad3cb4d9dd518696ce90bb",
             .hash = "known_folders-0.0.0-Fy-PJv3LAAABBRVoZWVrKZdyLoUfl5VRY5fqRRRdnF5L",
+        },
+        .mach_objc = .{
+            .url = "git+https://github.com/foxnne/mach-objc#e5bff6819205ac523b4a07898a8046af6c2f345d",
+            .hash = "mach_objc-0.0.0-hSeUK_0xDQAUDvMlrxtixoue1J3h4N3IzzL-AKvL0S29",
         },
     },
 }

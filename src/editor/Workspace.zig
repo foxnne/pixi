@@ -173,7 +173,44 @@ fn drawTabs(self: *Workspace) void {
         });
         defer tabs_hbox.deinit();
 
-        for (pixi.editor.open_files.values(), 0..) |file, i| {
+        const files = pixi.editor.open_files.values();
+        const files_len = files.len;
+
+        // Find the neighbouring tabs (within this workspace grouping) of the active tab.
+        var prev_same_group_index: ?usize = null;
+        var next_same_group_index: ?usize = null;
+
+        const active_in_this_group = blk: {
+            if (pixi.editor.open_workspace_grouping != self.grouping) break :blk false;
+            if (self.open_file_index >= files_len) break :blk false;
+            if (files[self.open_file_index].editor.grouping != self.grouping) break :blk false;
+            break :blk true;
+        };
+
+        if (active_in_this_group) {
+            const active_index = self.open_file_index;
+
+            // Scan left from the active tab to find the previous tab in this grouping.
+            var j: usize = active_index;
+            while (j > 0) {
+                j -= 1;
+                if (files[j].editor.grouping == self.grouping) {
+                    prev_same_group_index = j;
+                    break;
+                }
+            }
+
+            // Scan right from the active tab to find the next tab in this grouping.
+            j = active_index + 1;
+            while (j < files_len) : (j += 1) {
+                if (files[j].editor.grouping == self.grouping) {
+                    next_same_group_index = j;
+                    break;
+                }
+            }
+        }
+
+        for (files, 0..) |file, i| {
             const is_pixi_file = std.mem.endsWith(u8, file.path, ".pixi");
 
             if (file.editor.grouping != self.grouping) continue;
@@ -191,7 +228,6 @@ fn drawTabs(self: *Workspace) void {
             var hbox: dvui.BoxWidget = undefined;
             hbox.init(@src(), .{ .dir = .horizontal }, .{
                 .expand = .none,
-                //.border = .{ .h = 1 },
                 .border = .all(0),
                 .color_fill = if (selected) .transparent else dvui.themeGet().color(.window, .fill),
                 .background = true,
@@ -227,21 +263,20 @@ fn drawTabs(self: *Workspace) void {
             }
             hbox.drawBackground();
 
-            if (!selected) {
-                if (i > 0) {
-                    if (i - 1 == self.open_file_index and tabs.drag_point == null and self.grouping == pixi.editor.open_workspace_grouping) {
-                        pixi.dvui.drawEdgeShadow(hbox.data().rectScale(), .left, .{});
-                    }
-                } else {
-                    pixi.dvui.drawEdgeShadow(hbox.data().rectScale(), .left, .{});
-                }
-
-                if (i < pixi.editor.open_files.values().len - 1) {
-                    if (i + 1 == self.open_file_index and tabs.drag_point == null and self.grouping == pixi.editor.open_workspace_grouping) {
+            if (!selected and active_in_this_group and tabs.drag_point == null) {
+                // Draw edge shadow between the active tab and its neighbours within this grouping.
+                if (prev_same_group_index) |prev_index| {
+                    if (i == prev_index) {
+                        // This tab is directly to the left of the active tab.
                         pixi.dvui.drawEdgeShadow(hbox.data().rectScale(), .right, .{});
                     }
-                } else {
-                    pixi.dvui.drawEdgeShadow(hbox.data().rectScale(), .right, .{});
+                }
+
+                if (next_same_group_index) |next_index| {
+                    if (i == next_index) {
+                        // This tab is directly to the right of the active tab.
+                        pixi.dvui.drawEdgeShadow(hbox.data().rectScale(), .left, .{});
+                    }
                 }
             }
 

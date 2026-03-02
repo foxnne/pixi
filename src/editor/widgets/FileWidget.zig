@@ -2117,11 +2117,8 @@ pub fn processTransform(self: *FileWidget) void {
 
             // Here pass in the data rect, since we will be rendering directly to the low-res texture
 
-            // This is the previous target, we will be setting this back
+            transform.target_texture.clear();
             const previous_target = dvui.renderTarget(.{ .texture = transform.target_texture, .offset = image_rect_physical.topLeft() });
-
-            // Workaround to clear the target texture
-            _ = sdl3.SDL_RenderClear(dvui.currentWindow().backend.impl.renderer);
 
             // Make sure we clip to the image rect, if we don't  and the texture overlaps the canvas,
             // the rendering will be clipped incorrectly
