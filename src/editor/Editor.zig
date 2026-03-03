@@ -305,6 +305,9 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         defer overall_box.deinit();
 
         if (!pixi.backend.isMaximized(dvui.currentWindow())) {
+            var animation = dvui.animate(@src(), .{ .duration = 400_000, .kind = .vertical, .easing = dvui.easing.outBack }, .{});
+            defer animation.deinit();
+
             var titlebar_box = dvui.box(
                 @src(),
                 .{ .dir = .horizontal },
