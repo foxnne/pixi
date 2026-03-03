@@ -137,6 +137,9 @@ fn drawTabs(self: *Workspace) void {
     defer self.processTabsDrag();
 
     {
+        var tabs_anim = dvui.animate(@src(), .{ .duration = 500_000, .kind = .vertical, .easing = dvui.easing.outBack }, .{});
+        defer tabs_anim.deinit();
+
         var tabs_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
             .expand = .none,
             .id_extra = self.grouping,
@@ -506,15 +509,6 @@ pub fn processTabDrag(self: *Workspace, data: *dvui.WidgetData) void {
 }
 
 pub fn drawCanvas(self: *Workspace) !void {
-    var canvas_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
-        .expand = .both,
-    });
-    defer {
-        dvui.toastsShow(canvas_vbox.data().id, canvas_vbox.data().contentRectScale().r.toNatural());
-        canvas_vbox.deinit();
-    }
-    defer self.processTabDrag(canvas_vbox.data());
-
     var content_color = dvui.themeGet().color(.window, .fill);
 
     switch (builtin.os.tag) {
@@ -527,7 +521,19 @@ pub fn drawCanvas(self: *Workspace) !void {
         else => {},
     }
 
-    if (pixi.editor.open_files.values().len > 0) {
+    const has_files = pixi.editor.open_files.values().len > 0;
+    var canvas_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
+        .expand = .both,
+        .background = has_files,
+        .color_fill = content_color,
+    });
+    defer {
+        dvui.toastsShow(canvas_vbox.data().id, canvas_vbox.data().contentRectScale().r.toNatural());
+        canvas_vbox.deinit();
+    }
+    defer self.processTabDrag(canvas_vbox.data());
+
+    if (has_files) {
         if (self.open_file_index >= pixi.editor.open_files.values().len) {
             self.open_file_index = pixi.editor.open_files.values().len - 1;
         }
@@ -558,8 +564,8 @@ pub fn drawCanvas(self: *Workspace) !void {
             .center = self.center,
         }, .{
             .expand = .both,
-            .background = true,
-            .color_fill = content_color,
+            .background = false,
+            .color_fill = .transparent,
         });
 
         defer file_widget.deinit();
@@ -569,6 +575,7 @@ pub fn drawCanvas(self: *Workspace) !void {
             .expand = .both,
             .background = true,
             .color_fill = content_color,
+            .corner_radius = dvui.Rect.all(16),
         });
         defer box.deinit();
 
