@@ -81,25 +81,11 @@ pub fn draw(self: *Workspace) !dvui.App.Result {
     defer self.processColumnReorder();
     defer self.processRowReorder();
 
-    var content_color = dvui.themeGet().color(.window, .fill);
-
-    switch (builtin.os.tag) {
-        .macos => {
-            content_color = if (!pixi.backend.isMaximized(dvui.currentWindow())) content_color.opacity(pixi.editor.settings.content_opacity) else content_color;
-        },
-        .windows => {
-            content_color = if (!pixi.backend.isMaximized(dvui.currentWindow())) content_color.opacity(pixi.editor.settings.content_opacity) else content_color;
-        },
-        else => {},
-    }
-
     // Canvas Area
     var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
-        .background = false,
         .gravity_y = 0.0,
         .id_extra = self.grouping,
-        .color_fill = content_color,
     });
     defer vbox.deinit();
 
@@ -153,10 +139,6 @@ fn drawTabs(self: *Workspace) void {
     {
         var tabs_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
             .expand = .none,
-            .background = false,
-            .corner_radius = dvui.Rect.all(0),
-            .margin = dvui.Rect.all(0),
-            .padding = dvui.Rect.all(0),
             .id_extra = self.grouping,
         });
         defer tabs_box.deinit();
@@ -178,11 +160,6 @@ fn drawTabs(self: *Workspace) void {
 
             var tabs_hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .none,
-                .background = false,
-                .color_fill = dvui.themeGet().color(.window, .fill),
-                .corner_radius = dvui.Rect.all(0),
-                .margin = dvui.Rect.all(0),
-                .padding = dvui.Rect.all(0),
                 .id_extra = self.grouping,
             });
             defer tabs_hbox.deinit();
@@ -238,6 +215,9 @@ fn drawTabs(self: *Workspace) void {
                 defer reorderable.deinit();
 
                 const selected = self.open_file_index == i and pixi.editor.open_workspace_grouping == self.grouping;
+
+                var anim = dvui.animate(@src(), .{ .duration = 400_000, .kind = .horizontal, .easing = dvui.easing.outBack }, .{});
+                defer anim.deinit();
 
                 var hbox: dvui.BoxWidget = undefined;
                 hbox.init(@src(), .{ .dir = .horizontal }, .{
@@ -556,7 +536,7 @@ pub fn drawCanvas(self: *Workspace) !void {
         file.editor.canvas.id = canvas_vbox.data().id;
         file.editor.workspace = self;
 
-        if (pixi.editor.settings.show_rulers) {
+        if (pixi.editor.settings.show_rulers and !dvui.firstFrame(canvas_vbox.data().id)) {
             defer pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .top, .{});
             self.drawRuler(.horizontal);
         }
@@ -564,7 +544,7 @@ pub fn drawCanvas(self: *Workspace) !void {
         var canvas_hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .both });
         defer canvas_hbox.deinit();
 
-        if (pixi.editor.settings.show_rulers) {
+        if (pixi.editor.settings.show_rulers and !dvui.firstFrame(canvas_vbox.data().id)) {
             defer pixi.dvui.drawEdgeShadow(canvas_vbox.data().rectScale(), .left, .{});
             self.drawRuler(.vertical);
         }
