@@ -344,6 +344,11 @@ fn win32MicaSubclassProc(
     return win32.ui.shell.DefSubclassProc(hWnd, uMsg, wParam, lParam);
 }
 
+pub fn isMaximized(win: *dvui.Window) bool {
+    const flags = sdl3.SDL_GetWindowFlags(win.backend.impl.window);
+    return flags & sdl3.SDL_WINDOW_FULLSCREEN != 0 or flags & sdl3.SDL_WINDOW_BORDERLESS != 0;
+}
+
 pub fn setWindowStyle(win: *dvui.Window) void {
     if (builtin.os.tag == .macos) {
         const raw_ptr = sdl3.SDL_GetPointerProperty(

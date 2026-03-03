@@ -89,7 +89,7 @@ pub fn init(
     var pixi_dark = dvui.themeGet();
 
     pixi_dark.window = .{
-        .fill = .{ .r = 34, .g = 35, .b = 42, .a = 255 },
+        .fill = .{ .r = 28, .g = 29, .b = 36, .a = 255 },
         .border = .{ .r = 34, .g = 35, .b = 42, .a = 255 },
         .text = .{ .r = 206, .g = 163, .b = 127, .a = 255 },
     };
@@ -279,18 +279,32 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     // defer scaler.deinit();
 
     {
+
+        // First, window color is set to the opaque color.
+        var window_color = dvui.themeGet().color(.content, .fill);
+
+        switch (builtin.os.tag) {
+            .macos => {
+                window_color = if (!pixi.backend.isMaximized(dvui.currentWindow())) window_color.opacity(pixi.editor.settings.window_opacity).lighten((1.0 - pixi.editor.settings.window_opacity) * 4.0) else window_color;
+            },
+            .windows => {
+                window_color = if (!pixi.backend.isMaximized(dvui.currentWindow())) window_color.opacity(pixi.editor.settings.window_opacity).lighten((1.0 - pixi.editor.settings.window_opacity) * 4.0) else window_color;
+            },
+            else => {},
+        }
+
         var overall_box = dvui.box(
             @src(),
             .{ .dir = .vertical },
             .{
                 .expand = .both,
                 .background = true,
-                .color_fill = dvui.themeGet().color(.content, .fill).opacity(pixi.editor.settings.window_opacity).lighten((1.0 - pixi.editor.settings.window_opacity) * 4.0),
+                .color_fill = window_color,
             },
         );
         defer overall_box.deinit();
 
-        {
+        if (!pixi.backend.isMaximized(dvui.currentWindow())) {
             var titlebar_box = dvui.box(
                 @src(),
                 .{ .dir = .horizontal },
@@ -795,7 +809,6 @@ pub fn drawWorkspaces(editor: *Editor, index: usize) !dvui.App.Result {
     }, .{
         .expand = .both,
         .background = false,
-        .color_fill = dvui.themeGet().color(.window, .fill),
     });
     defer s.deinit();
 

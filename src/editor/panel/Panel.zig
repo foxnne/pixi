@@ -36,10 +36,22 @@ pub fn draw(panel: *Panel) !dvui.App.Result {
     // });
     // defer scroll_area.deinit();
 
+    var content_color = dvui.themeGet().color(.window, .fill);
+
+    switch (builtin.os.tag) {
+        .macos => {
+            content_color = if (!pixi.backend.isMaximized(dvui.currentWindow())) content_color.opacity(pixi.editor.settings.content_opacity) else content_color;
+        },
+        .windows => {
+            content_color = if (!pixi.backend.isMaximized(dvui.currentWindow())) content_color.opacity(pixi.editor.settings.content_opacity) else content_color;
+        },
+        else => {},
+    }
+
     var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
         .background = true,
-        .color_fill = dvui.themeGet().color(.window, .fill).opacity(pixi.editor.settings.content_opacity),
+        .color_fill = content_color,
     });
     defer vbox.deinit();
 

@@ -81,13 +81,25 @@ pub fn draw(self: *Workspace) !dvui.App.Result {
     defer self.processColumnReorder();
     defer self.processRowReorder();
 
+    var content_color = dvui.themeGet().color(.window, .fill);
+
+    switch (builtin.os.tag) {
+        .macos => {
+            content_color = if (!pixi.backend.isMaximized(dvui.currentWindow())) content_color.opacity(pixi.editor.settings.content_opacity) else content_color;
+        },
+        .windows => {
+            content_color = if (!pixi.backend.isMaximized(dvui.currentWindow())) content_color.opacity(pixi.editor.settings.content_opacity) else content_color;
+        },
+        else => {},
+    }
+
     // Canvas Area
     var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
         .background = false,
         .gravity_y = 0.0,
         .id_extra = self.grouping,
-        .color_fill = dvui.themeGet().color(.window, .fill).opacity(pixi.editor.settings.content_opacity),
+        .color_fill = content_color,
     });
     defer vbox.deinit();
 
@@ -138,252 +150,248 @@ fn drawTabs(self: *Workspace) void {
     // Handle dragging of tabs between workspace reorderables (tab bars)
     defer self.processTabsDrag();
 
-    var tabs_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-        .expand = .horizontal,
-        .color_fill = dvui.themeGet().color(.window, .fill),
-        .background = false,
-        .corner_radius = dvui.Rect.all(0),
-        .margin = dvui.Rect.all(0),
-        .padding = dvui.Rect.all(0),
-        .id_extra = self.grouping,
-    });
-    defer tabs_box.deinit();
-
-    var scroll_area = dvui.scrollArea(@src(), .{ .horizontal = .auto, .horizontal_bar = .hide }, .{
-        .expand = .horizontal,
-        .background = false,
-        .corner_radius = dvui.Rect.all(0),
-        .id_extra = self.grouping,
-    });
-    defer scroll_area.deinit();
-
     {
-        var tabs = dvui.reorder(@src(), .{ .drag_name = "tab_drag" }, .{
-            .expand = .horizontal,
-        });
-        defer tabs.deinit();
-
-        var tabs_hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
-            .expand = .horizontal,
+        var tabs_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            .expand = .none,
             .background = false,
             .corner_radius = dvui.Rect.all(0),
             .margin = dvui.Rect.all(0),
             .padding = dvui.Rect.all(0),
             .id_extra = self.grouping,
         });
-        defer tabs_hbox.deinit();
+        defer tabs_box.deinit();
 
-        const files = pixi.editor.open_files.values();
-        const files_len = files.len;
+        var scroll_area = dvui.scrollArea(@src(), .{ .horizontal = .auto, .horizontal_bar = .hide }, .{
+            .expand = .horizontal,
+            .background = false,
+            .corner_radius = dvui.Rect.all(0),
+            .id_extra = self.grouping,
+        });
+        defer scroll_area.deinit();
 
-        // Find the neighbouring tabs (within this workspace grouping) of the active tab.
-        var prev_same_group_index: ?usize = null;
-        var next_same_group_index: ?usize = null;
-
-        const active_in_this_group = blk: {
-            if (pixi.editor.open_workspace_grouping != self.grouping) break :blk false;
-            if (self.open_file_index >= files_len) break :blk false;
-            if (files[self.open_file_index].editor.grouping != self.grouping) break :blk false;
-            break :blk true;
-        };
-
-        if (active_in_this_group) {
-            const active_index = self.open_file_index;
-
-            // Scan left from the active tab to find the previous tab in this grouping.
-            var j: usize = active_index;
-            while (j > 0) {
-                j -= 1;
-                if (files[j].editor.grouping == self.grouping) {
-                    prev_same_group_index = j;
-                    break;
-                }
-            }
-
-            // Scan right from the active tab to find the next tab in this grouping.
-            j = active_index + 1;
-            while (j < files_len) : (j += 1) {
-                if (files[j].editor.grouping == self.grouping) {
-                    next_same_group_index = j;
-                    break;
-                }
-            }
-        }
-
-        for (files, 0..) |file, i| {
-            const is_pixi_file = std.mem.endsWith(u8, file.path, ".pixi");
-
-            if (file.editor.grouping != self.grouping) continue;
-
-            var reorderable = tabs.reorderable(@src(), .{}, .{
-                .expand = .vertical,
-                .id_extra = i,
-                .padding = dvui.Rect.all(0),
-                .margin = dvui.Rect.all(0),
-            });
-            defer reorderable.deinit();
-
-            const selected = self.open_file_index == i and pixi.editor.open_workspace_grouping == self.grouping;
-
-            var hbox: dvui.BoxWidget = undefined;
-            hbox.init(@src(), .{ .dir = .horizontal }, .{
+        {
+            var tabs = dvui.reorder(@src(), .{ .drag_name = "tab_drag" }, .{
                 .expand = .none,
-                .border = .all(0),
-                .color_fill = if (selected) .transparent else dvui.themeGet().color(.window, .fill),
-                .background = true,
-                .id_extra = i,
-                .padding = dvui.Rect.all(2),
-                .margin = dvui.Rect.all(0),
+                .background = false,
             });
+            defer tabs.deinit();
 
-            defer hbox.deinit();
+            var tabs_hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .expand = .none,
+                .background = false,
+                .color_fill = dvui.themeGet().color(.window, .fill),
+                .corner_radius = dvui.Rect.all(0),
+                .margin = dvui.Rect.all(0),
+                .padding = dvui.Rect.all(0),
+                .id_extra = self.grouping,
+            });
+            defer tabs_hbox.deinit();
 
-            var hovered = false;
-            if (pixi.dvui.hovered(hbox.data())) {
-                hovered = true;
+            const files = pixi.editor.open_files.values();
+            const files_len = files.len;
+
+            // Find the neighbouring tabs (within this workspace grouping) of the active tab.
+            var prev_same_group_index: ?usize = null;
+            var next_same_group_index: ?usize = null;
+
+            const active_in_this_group = blk: {
+                if (pixi.editor.open_workspace_grouping != self.grouping) break :blk false;
+                if (self.open_file_index >= files_len) break :blk false;
+                if (files[self.open_file_index].editor.grouping != self.grouping) break :blk false;
+                break :blk true;
+            };
+
+            if (active_in_this_group) {
+                const active_index = self.open_file_index;
+
+                // Scan left from the active tab to find the previous tab in this grouping.
+                var j: usize = active_index;
+                while (j > 0) {
+                    j -= 1;
+                    if (files[j].editor.grouping == self.grouping) {
+                        prev_same_group_index = j;
+                        break;
+                    }
+                }
+
+                // Scan right from the active tab to find the next tab in this grouping.
+                j = active_index + 1;
+                while (j < files_len) : (j += 1) {
+                    if (files[j].editor.grouping == self.grouping) {
+                        next_same_group_index = j;
+                        break;
+                    }
+                }
             }
 
-            if (selected) {
-                if (!reorderable.floating()) {
-                    dvui.Path.stroke(.{
-                        .points = &.{
-                            hbox.data().rectScale().r.bottomLeft(),
-                            hbox.data().rectScale().r.bottomRight(),
-                        },
+            for (files, 0..) |file, i| {
+                const is_pixi_file = std.mem.endsWith(u8, file.path, ".pixi");
+
+                if (file.editor.grouping != self.grouping) continue;
+
+                var reorderable = tabs.reorderable(@src(), .{}, .{
+                    .expand = .vertical,
+                    .id_extra = i,
+                    .padding = dvui.Rect.all(0),
+                    .margin = dvui.Rect.all(0),
+                });
+                defer reorderable.deinit();
+
+                const selected = self.open_file_index == i and pixi.editor.open_workspace_grouping == self.grouping;
+
+                var hbox: dvui.BoxWidget = undefined;
+                hbox.init(@src(), .{ .dir = .horizontal }, .{
+                    .expand = .none,
+                    .border = .all(0),
+                    .color_fill = if (selected) .transparent else dvui.themeGet().color(.window, .fill),
+                    .background = true,
+                    .id_extra = i,
+                    .padding = dvui.Rect.all(2),
+                    .margin = dvui.Rect.all(0),
+                });
+
+                defer hbox.deinit();
+
+                var hovered = false;
+                if (pixi.dvui.hovered(hbox.data())) {
+                    hovered = true;
+                }
+
+                if (selected) {
+                    if (!reorderable.floating()) {
+                        dvui.Path.stroke(.{
+                            .points = &.{
+                                hbox.data().rectScale().r.bottomLeft(),
+                                hbox.data().rectScale().r.bottomRight(),
+                            },
+                        }, .{
+                            .color = dvui.themeGet().color(.window, .text),
+                            .thickness = 1,
+                        });
+                    }
+                }
+
+                if (reorderable.floating()) {
+                    self.tabs_drag_index = i;
+                    hbox.data().options.color_fill = dvui.themeGet().color(.control, .fill);
+                }
+                hbox.drawBackground();
+
+                if (!selected and active_in_this_group and tabs.drag_point == null) {
+                    // Draw edge shadow between the active tab and its neighbours within this grouping.
+                    if (prev_same_group_index) |prev_index| {
+                        if (i == prev_index) {
+                            // This tab is directly to the left of the active tab.
+                            pixi.dvui.drawEdgeShadow(hbox.data().rectScale(), .right, .{});
+                        }
+                    }
+
+                    if (next_same_group_index) |next_index| {
+                        if (i == next_index) {
+                            // This tab is directly to the right of the active tab.
+                            pixi.dvui.drawEdgeShadow(hbox.data().rectScale(), .left, .{});
+                        }
+                    }
+                }
+
+                if (reorderable.removed()) {
+                    self.tabs_removed_index = i;
+                } else if (reorderable.insertBefore()) {
+                    self.tabs_insert_before_index = i;
+                }
+
+                if (is_pixi_file) {
+                    _ = pixi.dvui.sprite(@src(), .{
+                        .source = pixi.editor.atlas.source,
+                        .sprite = pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default],
+                        .scale = 2.0,
                     }, .{
-                        .color = dvui.themeGet().color(.window, .text),
-                        .thickness = 1,
+                        .gravity_y = 0.5,
+                        .padding = dvui.Rect.all(4),
+                    });
+                } else {
+                    dvui.icon(@src(), "file_icon", icons.tvg.lucide.file, .{
+                        .stroke_color = if (is_pixi_file) .transparent else dvui.themeGet().color(.control, .text),
+                    }, .{
+                        .gravity_y = 0.5,
+                        .padding = dvui.Rect.all(4),
                     });
                 }
-            }
 
-            if (reorderable.floating()) {
-                self.tabs_drag_index = i;
-                hbox.data().options.color_fill = dvui.themeGet().color(.control, .fill);
-            }
-            hbox.drawBackground();
-
-            if (!selected and active_in_this_group and tabs.drag_point == null) {
-                // Draw edge shadow between the active tab and its neighbours within this grouping.
-                if (prev_same_group_index) |prev_index| {
-                    if (i == prev_index) {
-                        // This tab is directly to the left of the active tab.
-                        pixi.dvui.drawEdgeShadow(hbox.data().rectScale(), .right, .{});
-                    }
-                }
-
-                if (next_same_group_index) |next_index| {
-                    if (i == next_index) {
-                        // This tab is directly to the right of the active tab.
-                        pixi.dvui.drawEdgeShadow(hbox.data().rectScale(), .left, .{});
-                    }
-                }
-            }
-
-            if (reorderable.removed()) {
-                self.tabs_removed_index = i;
-            } else if (reorderable.insertBefore()) {
-                self.tabs_insert_before_index = i;
-            }
-
-            if (is_pixi_file) {
-                _ = pixi.dvui.sprite(@src(), .{
-                    .source = pixi.editor.atlas.source,
-                    .sprite = pixi.editor.atlas.data.sprites[pixi.atlas.sprites.logo_default],
-                    .scale = 2.0,
-                }, .{
-                    .gravity_y = 0.5,
+                dvui.label(@src(), "{s}", .{std.fs.path.basename(file.path)}, .{
+                    .color_text = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
                     .padding = dvui.Rect.all(4),
+                    .gravity_y = 0.5,
                 });
-            } else {
-                dvui.icon(@src(), "file_icon", icons.tvg.lucide.file, .{
-                    .stroke_color = if (is_pixi_file) .transparent else dvui.themeGet().color(.control, .text),
-                }, .{
-                    .gravity_y = 0.5,
-                    .padding = dvui.Rect.all(4),
-                });
-            }
 
-            dvui.label(@src(), "{s}", .{std.fs.path.basename(file.path)}, .{
-                .color_text = if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
-                .padding = dvui.Rect.all(4),
-                .gravity_y = 0.5,
-            });
-
-            const status_close_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                .min_size_content = .{ .w = 18, .h = 18 },
-                .max_size_content = .{ .w = 18, .h = 18 },
-                .expand = .none,
-                .padding = dvui.Rect.all(2),
-            });
-            defer status_close_box.deinit();
-
-            if (hovered) {
-                if (dvui.buttonIcon(@src(), "close", icons.tvg.lucide.x, .{ .draw_focus = false }, .{}, .{
-                    .gravity_y = 0.5,
-                    .padding = dvui.Rect.all(0),
-                    .corner_radius = dvui.Rect.all(1000),
-                    .style = .err,
-                    .expand = .both,
-                })) {
-                    pixi.editor.closeFileID(file.id) catch |err| {
-                        dvui.log.err("closeFile: {d} failed: {s}", .{ i, @errorName(err) });
-                    };
-                    break;
-                }
-            } else if (file.dirty()) {
-                dvui.icon(@src(), "dirty_icon", icons.tvg.lucide.@"circle-small", .{
-                    .stroke_color = dvui.themeGet().color(.window, .text),
-                }, .{
-                    .expand = .both,
-                    .gravity_y = 0.5,
+                const status_close_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                    .min_size_content = .{ .w = 18, .h = 18 },
+                    .max_size_content = .{ .w = 18, .h = 18 },
+                    .expand = .none,
                     .padding = dvui.Rect.all(2),
                 });
-            }
+                defer status_close_box.deinit();
 
-            loop: for (dvui.events()) |*e| {
-                if (!hbox.matchEvent(e)) {
-                    continue;
+                if (hovered) {
+                    if (dvui.buttonIcon(@src(), "close", icons.tvg.lucide.x, .{ .draw_focus = false }, .{}, .{
+                        .gravity_y = 0.5,
+                        .padding = dvui.Rect.all(0),
+                        .corner_radius = dvui.Rect.all(1000),
+                        .style = .err,
+                        .expand = .both,
+                    })) {
+                        pixi.editor.closeFileID(file.id) catch |err| {
+                            dvui.log.err("closeFile: {d} failed: {s}", .{ i, @errorName(err) });
+                        };
+                        break;
+                    }
+                } else if (file.dirty()) {
+                    dvui.icon(@src(), "dirty_icon", icons.tvg.lucide.@"circle-small", .{
+                        .stroke_color = dvui.themeGet().color(.window, .text),
+                    }, .{
+                        .expand = .both,
+                        .gravity_y = 0.5,
+                        .padding = dvui.Rect.all(2),
+                    });
                 }
 
-                switch (e.evt) {
-                    .mouse => |me| {
-                        if (me.action == .press and me.button.pointer()) {
-                            pixi.editor.setActiveFile(i);
-                            dvui.refresh(null, @src(), hbox.data().id);
+                loop: for (dvui.events()) |*e| {
+                    if (!hbox.matchEvent(e)) {
+                        continue;
+                    }
 
-                            e.handle(@src(), hbox.data());
-                            dvui.captureMouse(hbox.data(), e.num);
-                            dvui.dragPreStart(me.p, .{ .size = reorderable.data().rectScale().r.size(), .offset = reorderable.data().rectScale().r.topLeft().diff(me.p) });
-                        } else if (me.action == .release and me.button.pointer()) {
-                            dvui.captureMouse(null, e.num);
-                            dvui.dragEnd();
-                        } else if (me.action == .motion) {
-                            if (dvui.captured(hbox.data().id)) {
+                    switch (e.evt) {
+                        .mouse => |me| {
+                            if (me.action == .press and me.button.pointer()) {
+                                pixi.editor.setActiveFile(i);
+                                dvui.refresh(null, @src(), hbox.data().id);
+
                                 e.handle(@src(), hbox.data());
-                                if (dvui.dragging(me.p, null)) |_| {
-                                    reorderable.reorder.dragStart(reorderable.data().id.asUsize(), me.p, 0); // reorder grabs capture
-                                    break :loop;
+                                dvui.captureMouse(hbox.data(), e.num);
+                                dvui.dragPreStart(me.p, .{ .size = reorderable.data().rectScale().r.size(), .offset = reorderable.data().rectScale().r.topLeft().diff(me.p) });
+                            } else if (me.action == .release and me.button.pointer()) {
+                                dvui.captureMouse(null, e.num);
+                                dvui.dragEnd();
+                            } else if (me.action == .motion) {
+                                if (dvui.captured(hbox.data().id)) {
+                                    e.handle(@src(), hbox.data());
+                                    if (dvui.dragging(me.p, null)) |_| {
+                                        reorderable.reorder.dragStart(reorderable.data().id.asUsize(), me.p, 0); // reorder grabs capture
+                                        break :loop;
+                                    }
                                 }
                             }
-                        }
-                    },
+                        },
 
-                    else => {},
+                        else => {},
+                    }
                 }
             }
-        }
-        if (tabs.finalSlot()) {
-            self.tabs_insert_before_index = pixi.editor.open_files.values().len;
+            if (tabs.finalSlot()) {
+                self.tabs_insert_before_index = pixi.editor.open_files.values().len;
+            }
         }
     }
-    var box = dvui.box(@src(), .{
-        .dir = .horizontal,
-    }, .{
-        .background = true,
-        .color_fill = .red,
-    });
-    box.deinit();
 }
 
 pub fn processTabsDrag(self: *Workspace) void {
@@ -527,6 +535,18 @@ pub fn drawCanvas(self: *Workspace) !void {
     }
     defer self.processTabDrag(canvas_vbox.data());
 
+    var content_color = dvui.themeGet().color(.window, .fill);
+
+    switch (builtin.os.tag) {
+        .macos => {
+            content_color = if (!pixi.backend.isMaximized(dvui.currentWindow())) content_color.opacity(pixi.editor.settings.content_opacity) else content_color;
+        },
+        .windows => {
+            content_color = if (!pixi.backend.isMaximized(dvui.currentWindow())) content_color.opacity(pixi.editor.settings.content_opacity) else content_color;
+        },
+        else => {},
+    }
+
     if (pixi.editor.open_files.values().len > 0) {
         if (self.open_file_index >= pixi.editor.open_files.values().len) {
             self.open_file_index = pixi.editor.open_files.values().len - 1;
@@ -559,7 +579,7 @@ pub fn drawCanvas(self: *Workspace) !void {
         }, .{
             .expand = .both,
             .background = true,
-            .color_fill = dvui.themeGet().color(.window, .fill).opacity(pixi.editor.settings.content_opacity),
+            .color_fill = content_color,
         });
 
         defer file_widget.deinit();
@@ -568,7 +588,7 @@ pub fn drawCanvas(self: *Workspace) !void {
         var box = dvui.box(@src(), .{ .dir = .horizontal }, .{
             .expand = .both,
             .background = true,
-            .color_fill = dvui.themeGet().color(.window, .fill).opacity(pixi.editor.settings.content_opacity),
+            .color_fill = content_color,
         });
         defer box.deinit();
 

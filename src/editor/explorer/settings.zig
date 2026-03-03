@@ -39,6 +39,10 @@ pub fn draw() !void {
             pixi.backend.setTitlebarColor(dvui.currentWindow(), dvui.themeGet().color(.content, .fill).opacity(pixi.editor.settings.content_opacity));
             dvui.refresh(null, @src(), vbox.data().id);
         }
+
+        if (dvui.checkbox(@src(), &pixi.editor.settings.show_rulers, "Show Rulers", .{
+            .expand = .none,
+        })) {}
     }
 
     dvui.label(@src(), "{d:0>3.0} fps", .{dvui.FPS()}, .{});
