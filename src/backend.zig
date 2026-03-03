@@ -435,20 +435,24 @@ pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
             // This sets both the titlebar and the window background color.
             window.msgSend(void, "setBackgroundColor:", .{new_color.value});
 
-            // TODO: Figure out how to use the constants for the appearance name
-            // This currently causes a segfault and doesnt work
-            // const NSAppearance = objc.getClass("NSAppearance").?;
-            // const NSString = objc.getClass("NSString").?;
-            // const appearance_name_str = if (dvui.themeGet().dark)
-            //     NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"NSAppearanceNameVibrantDark"})
-            // else
-            //     NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"NSAppearanceNameVibrantLight"});
-            // const appearance = NSAppearance.msgSend(?objc.c.id, "appearanceNamed:", .{appearance_name_str.value});
-            // if (appearance) |app| {
-            //     window.msgSend(void, "setAppearance:", .{app});
-            // }
+            // Set window NSAppearance so the app (title bar, traffic lights, vibrancy) matches dvui theme.
+            if (objc.getClass("NSAppearance")) |NSAppearance| {
+                if (objc.getClass("NSString")) |NSString| {
+                    const name_c: [*c]const u8 = if (dvui.themeGet().dark)
+                        "NSAppearanceNameVibrantDark"
+                    else
+                        "NSAppearanceNameVibrantLight";
+                    const name_obj = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{name_c});
+                    if (name_obj.value != 0) {
+                        const appearance = NSAppearance.msgSend(objc.Object, "appearanceNamed:", .{name_obj.value});
+                        if (appearance.value != 0) {
+                            window.msgSend(void, "setAppearance:", .{appearance.value});
+                        }
+                    }
+                }
+            }
 
-            // // SDL3 currently removes the shadow when the transparency flag for the window is set. This brings it back.
+            // SDL3 currently removes the shadow when the transparency flag for the window is set. This brings it back.
             window.msgSend(void, "setHasShadow:", .{true});
         }
     } else if (builtin.os.tag == .windows) {
