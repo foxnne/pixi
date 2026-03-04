@@ -3709,6 +3709,21 @@ pub fn processResize(self: *FileWidget) void {
     const file = self.init_options.file;
     const file_rect = dvui.Rect.fromSize(.{ .w = @floatFromInt(file.width()), .h = @floatFromInt(file.height()) });
 
+    for (dvui.events()) |*e| {
+        if (!self.init_options.file.editor.canvas.scroll_container.matchEvent(e)) {
+            continue;
+        }
+
+        switch (e.evt) {
+            .mouse => |me| {
+                if (me.action == .release and me.button.pointer()) {
+                    dvui.refresh(null, @src(), self.init_options.file.editor.canvas.id);
+                }
+            },
+            else => {},
+        }
+    }
+
     {
         const min_size: f32 = @as(f32, @floatFromInt(@min(file.column_width, file.row_height)));
         const baseline_size: f32 = 64.0;
