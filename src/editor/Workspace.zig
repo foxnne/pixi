@@ -525,8 +525,15 @@ pub fn drawCanvas(self: *Workspace) !void {
 
     var anim: ?*dvui.AnimateWidget = null;
     if (has_files) {
-        anim = dvui.animate(@src(), .{ .duration = 200_000, .kind = .alpha, .easing = dvui.easing.outQuint }, .{
+        anim = dvui.animate(@src(), .{ .duration = 400_000, .kind = .alpha, .easing = dvui.easing.linear }, .{
             .expand = .both,
+            .gravity_x = 0.5,
+            .id_extra = self.grouping,
+        });
+    } else {
+        anim = dvui.animate(@src(), .{ .duration = 400_000, .kind = .alpha, .easing = dvui.easing.linear }, .{
+            .expand = .both,
+            .gravity_x = 0.5,
         });
     }
     defer if (anim) |a| a.deinit();

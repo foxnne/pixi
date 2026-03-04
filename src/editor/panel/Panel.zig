@@ -48,6 +48,13 @@ pub fn draw(panel: *Panel) !dvui.App.Result {
         else => {},
     }
 
+    var anim = dvui.animate(@src(), .{ .duration = 400_000, .kind = .alpha, .easing = dvui.easing.linear }, .{
+        .expand = .both,
+        .gravity_x = 0.5,
+    });
+
+    defer anim.deinit();
+
     var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
         .background = true,
