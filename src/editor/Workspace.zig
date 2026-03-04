@@ -523,7 +523,7 @@ pub fn drawCanvas(self: *Workspace) !void {
 
     const has_files = pixi.editor.open_files.values().len > 0;
 
-    var anim: ?*dvui.AnimateWidget = null;
+    var anim: *dvui.AnimateWidget = undefined;
     if (has_files) {
         anim = dvui.animate(@src(), .{ .duration = 400_000, .kind = .alpha, .easing = dvui.easing.linear }, .{
             .expand = .both,
@@ -536,7 +536,7 @@ pub fn drawCanvas(self: *Workspace) !void {
             .gravity_x = 0.5,
         });
     }
-    defer if (anim) |a| a.deinit();
+    defer anim.deinit();
 
     var canvas_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
@@ -594,6 +594,11 @@ pub fn drawCanvas(self: *Workspace) !void {
             .corner_radius = dvui.Rect.all(16),
         });
         defer box.deinit();
+
+        // Make sure alpha is 1 before we draw the homepage, as the logo hover animation breaks if alpha is not 1
+        const alpha = dvui.alpha(1.0);
+        dvui.alphaSet(1.0);
+        defer dvui.alphaSet(alpha);
 
         try self.drawHomePage(canvas_vbox);
     }
