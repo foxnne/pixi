@@ -146,8 +146,8 @@ fn drawTabs(self: *Workspace) void {
         });
         defer tabs_box.deinit();
 
-        var scroll_area = dvui.scrollArea(@src(), .{ .horizontal = .auto, .horizontal_bar = .hide }, .{
-            .expand = .horizontal,
+        var scroll_area = dvui.scrollArea(@src(), .{ .horizontal = .auto, .horizontal_bar = .hide, .vertical_bar = .hide }, .{
+            .expand = .none,
             .background = false,
             .corner_radius = dvui.Rect.all(0),
             .id_extra = self.grouping,
@@ -226,7 +226,7 @@ fn drawTabs(self: *Workspace) void {
                 hbox.init(@src(), .{ .dir = .horizontal }, .{
                     .expand = .none,
                     .border = .all(0),
-                    .color_fill = if (selected) .transparent else dvui.themeGet().color(.window, .fill),
+                    .color_fill = if (selected) .transparent else dvui.themeGet().color(.window, .fill).opacity(pixi.editor.settings.content_opacity),
                     .background = true,
                     .id_extra = i,
                     .padding = dvui.Rect.all(2),
@@ -522,6 +522,15 @@ pub fn drawCanvas(self: *Workspace) !void {
     }
 
     const has_files = pixi.editor.open_files.values().len > 0;
+
+    var anim: ?*dvui.AnimateWidget = null;
+    if (has_files) {
+        anim = dvui.animate(@src(), .{ .duration = 200_000, .kind = .alpha, .easing = dvui.easing.outQuint }, .{
+            .expand = .both,
+        });
+    }
+    defer if (anim) |a| a.deinit();
+
     var canvas_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
         .background = has_files,

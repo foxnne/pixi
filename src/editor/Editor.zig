@@ -72,6 +72,8 @@ file_id_counter: u64 = 0,
 
 sprite_clipboard: ?SpriteClipboard = null,
 
+window_opacity: f32 = 1.0,
+
 pub const SpriteClipboard = struct {
     source: dvui.ImageSource,
     offset: dvui.Point,
@@ -225,7 +227,7 @@ pub fn init(
         .folders = .init(app.allocator),
     };
 
-    pixi.backend.setTitlebarColor(dvui.currentWindow(), pixi_dark.fill.opacity(editor.settings.window_opacity));
+    pixi.backend.setTitlebarColor(dvui.currentWindow(), pixi_dark.fill.opacity(if (dvui.themeGet().dark) editor.settings.window_opacity_dark else editor.settings.window_opacity_light));
 
     editor.explorer.* = .init();
     editor.panel.* = .init();
@@ -262,6 +264,8 @@ const handle_size = 10;
 const handle_dist = 60;
 
 pub fn tick(editor: *Editor) !dvui.App.Result {
+    editor.window_opacity = if (dvui.themeGet().dark) editor.settings.window_opacity_dark else editor.settings.window_opacity_light;
+
     defer editor.dim_titlebar = false;
     editor.setTitlebarColor();
     editor.setWindowStyle();
@@ -285,10 +289,10 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
 
         switch (builtin.os.tag) {
             .macos => {
-                window_color = if (!pixi.backend.isMaximized(dvui.currentWindow())) window_color.opacity(pixi.editor.settings.window_opacity).lighten((1.0 - pixi.editor.settings.window_opacity) * 4.0) else window_color;
+                window_color = if (!pixi.backend.isMaximized(dvui.currentWindow())) window_color.opacity(editor.window_opacity).lighten((1.0 - editor.window_opacity) * 4.0) else window_color;
             },
             .windows => {
-                window_color = if (!pixi.backend.isMaximized(dvui.currentWindow())) window_color.opacity(pixi.editor.settings.window_opacity).lighten((1.0 - pixi.editor.settings.window_opacity) * 4.0) else window_color;
+                window_color = if (!pixi.backend.isMaximized(dvui.currentWindow())) window_color.opacity(editor.window_opacity).lighten((1.0 - editor.window_opacity) * 4.0) else window_color;
             },
             else => {},
         }
@@ -528,7 +532,7 @@ pub fn setTitlebarColor(editor: *Editor) void {
 
     if (!std.mem.eql(u8, &editor.last_titlebar_color.toRGBA(), &color.toRGBA())) {
         editor.last_titlebar_color = color;
-        pixi.backend.setTitlebarColor(dvui.currentWindow(), color.opacity(editor.settings.window_opacity));
+        pixi.backend.setTitlebarColor(dvui.currentWindow(), color.opacity(if (dvui.themeGet().dark) editor.settings.window_opacity_dark else editor.settings.window_opacity_light));
     }
 }
 
