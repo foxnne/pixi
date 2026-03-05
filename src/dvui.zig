@@ -921,113 +921,72 @@ const ShadowOptions = struct {
     opacity: f32 = 0.25,
     offset: dvui.Rect = .{},
     thickness: f32 = 20.0,
+    radius: f32 = 0.0,
 };
 
+const EdgeGradient = struct {
+    axis: enum { x, y },
+    opaque_at_zero: bool,
+};
+
+fn drawGradientRect(r: dvui.Rect.Physical, corner_radius: dvui.Rect.Physical, opts: ShadowOptions, gradient: EdgeGradient) void {
+    var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
+    path.addRect(r, corner_radius);
+    var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = r.center(), .color = .white }) catch {
+        path.deinit();
+        return;
+    };
+    defer {
+        triangles.deinit(dvui.currentWindow().arena());
+        path.deinit();
+    }
+
+    const ca0 = opts.color.opacity(if (gradient.opaque_at_zero) opts.opacity else 0.0);
+    const ca1 = opts.color.opacity(if (gradient.opaque_at_zero) 0.0 else opts.opacity);
+
+    const t_scale_x = if (r.w > 0) 1.0 / r.w else 0.0;
+    const t_scale_y = if (r.h > 0) 1.0 / r.h else 0.0;
+
+    for (triangles.vertexes) |*v| {
+        const t = std.math.clamp(
+            if (gradient.axis == .y)
+                (v.pos.y - r.y) * t_scale_y
+            else
+                (v.pos.x - r.x) * t_scale_x,
+            0.0,
+            1.0,
+        );
+        v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
+    }
+    dvui.renderTriangles(triangles, null) catch {
+        dvui.log.err("Failed to render triangles", .{});
+    };
+}
+
 pub fn drawEdgeShadow(container: dvui.RectScale, shadow: Shadow, opts: ShadowOptions) void {
+    var rs = container;
     switch (shadow) {
         .top => {
-            var rs = container;
             rs.r.h = opts.thickness;
-
             rs.r = rs.r.plus(.cast(opts.offset));
-
-            var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
-            path.addRect(rs.r, dvui.Rect.Physical.all(5));
-
-            var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white }) catch return;
-
-            const ca0 = opts.color.opacity(opts.opacity);
-            const ca1 = opts.color.opacity(0);
-
-            for (triangles.vertexes) |*v| {
-                const t = std.math.clamp((v.pos.y - rs.r.y) / rs.r.h, 0.0, 1.0);
-                v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
-            }
-            dvui.renderTriangles(triangles, null) catch {
-                dvui.log.err("Failed to render triangles", .{});
-            };
-
-            triangles.deinit(dvui.currentWindow().arena());
-            path.deinit();
+            drawGradientRect(rs.r, dvui.Rect.Physical.all(opts.radius), opts, .{ .axis = .y, .opaque_at_zero = true });
         },
-
         .bottom => {
-            var rs = container;
             rs.r.y += rs.r.h - opts.thickness;
             rs.r.h = opts.thickness;
-
             rs.r = rs.r.plus(.cast(opts.offset));
-
-            var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
-            path.addRect(rs.r, dvui.Rect.Physical.all(5));
-
-            var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white }) catch return;
-
-            const ca0 = opts.color.opacity(0.0);
-            const ca1 = opts.color.opacity(opts.opacity);
-
-            for (triangles.vertexes) |*v| {
-                const t = std.math.clamp((v.pos.y - rs.r.y) / rs.r.h, 0.0, 1.0);
-                v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
-            }
-            dvui.renderTriangles(triangles, null) catch {
-                dvui.log.err("Failed to render triangles", .{});
-            };
-
-            triangles.deinit(dvui.currentWindow().arena());
-            path.deinit();
+            drawGradientRect(rs.r, dvui.Rect.Physical.all(opts.radius), opts, .{ .axis = .y, .opaque_at_zero = false });
         },
-
         .right => {
-            var rs = container;
             rs.r.x += rs.r.w - opts.thickness;
             rs.r.w = opts.thickness;
-
             rs.r = rs.r.plus(.cast(opts.offset));
-
-            var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
-            path.addRect(rs.r, dvui.Rect.Physical.all(5));
-
-            var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white }) catch return;
-
-            const ca0 = opts.color.opacity(0.0);
-            const ca1 = opts.color.opacity(opts.opacity);
-
-            for (triangles.vertexes) |*v| {
-                const t = std.math.clamp((v.pos.x - rs.r.x) / rs.r.w, 0.0, 1.0);
-                v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
-            }
-            dvui.renderTriangles(triangles, null) catch {
-                dvui.log.err("Failed to render triangles", .{});
-            };
-
-            triangles.deinit(dvui.currentWindow().arena());
-            path.deinit();
+            drawGradientRect(rs.r, dvui.Rect.Physical.all(opts.radius), opts, .{ .axis = .x, .opaque_at_zero = false });
         },
         .left => {
-            var rs = container;
             rs.r.w = opts.thickness;
-
             rs.r = rs.r.plus(.cast(opts.offset));
-
-            var path: dvui.Path.Builder = .init(dvui.currentWindow().arena());
-            path.addRect(rs.r, dvui.Rect.Physical.all(5));
-
-            var triangles = path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .center = rs.r.center(), .color = .white }) catch return;
-
-            const ca0 = opts.color.opacity(opts.opacity);
-            const ca1 = opts.color.opacity(0.0);
-
-            for (triangles.vertexes) |*v| {
-                const t = std.math.clamp((v.pos.x - rs.r.x) / rs.r.w, 0.0, 1.0);
-                v.col = v.col.multiply(.fromColor(dvui.Color.lerp(ca0, ca1, t)));
-            }
-            dvui.renderTriangles(triangles, null) catch {
-                dvui.log.err("Failed to render triangles", .{});
-            };
-
-            triangles.deinit(dvui.currentWindow().arena());
-            path.deinit();
+            drawGradientRect(rs.r, dvui.Rect.Physical.all(opts.radius), opts, .{ .axis = .x, .opaque_at_zero = true });
         },
     }
 }

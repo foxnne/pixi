@@ -122,18 +122,17 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
     scroll.deinit();
 
     if (vertical_scroll > 0.0) {
-        pixi.dvui.drawEdgeShadow(pane_vbox.data().contentRectScale(), .top, .{ .offset = .{} });
+        pixi.dvui.drawEdgeShadow(pane_vbox.data().contentRectScale(), .top, .{});
     }
 
     if (explorer.scroll_info.virtual_size.h > explorer.scroll_info.viewport.h) {
-        pixi.dvui.drawEdgeShadow(pane_vbox.data().contentRectScale(), .bottom, .{ .offset = .{} });
+        pixi.dvui.drawEdgeShadow(pane_vbox.data().contentRectScale(), .bottom, .{});
     }
 
     pane_vbox.deinit();
 
     if (explorer.scroll_info.virtual_size.w > explorer.scroll_info.viewport.w) {
-        const offset: dvui.Rect = .{};
-        pixi.dvui.drawEdgeShadow(vbox.data().contentRectScale(), .right, .{ .offset = offset });
+        pixi.dvui.drawEdgeShadow(vbox.data().contentRectScale(), .right, .{});
     }
 
     if (horizontal_scroll > 0.0) {
