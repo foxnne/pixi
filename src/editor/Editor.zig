@@ -410,7 +410,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
 
         if (dvui.firstFrame(editor.explorer.paned.wd.id)) {
             editor.explorer.paned.split_ratio.* = 0.0;
-            editor.explorer.paned.animateSplit(pixi.editor.settings.explorer_ratio);
+            editor.explorer.paned.animateSplit(pixi.editor.settings.explorer_ratio, dvui.easing.outBack);
 
             if (pixi.editor.settings.explorer_ratio < 0.01) {
                 editor.explorer.closed = true;
@@ -463,11 +463,11 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             if (!editor.panel.paned.dragging) {
                 if (editor.activeFile()) |_| {
                     if ((editor.panel.paned.split_ratio.* == 1.0 and !editor.panel.paned.collapsed()) and pixi.editor.settings.panel_ratio > 0.0) {
-                        editor.panel.paned.animateSplit(1.0 - pixi.editor.settings.panel_ratio);
+                        editor.panel.paned.animateSplit(1.0 - pixi.editor.settings.panel_ratio, dvui.easing.outQuint);
                     }
                 } else {
                     if (!editor.panel.paned.animating and editor.panel.paned.split_ratio.* < 1.0) {
-                        editor.panel.paned.animateSplit(1.0);
+                        editor.panel.paned.animateSplit(1.0, dvui.easing.outQuint);
                     }
                 }
             } else {
@@ -831,18 +831,18 @@ pub fn drawWorkspaces(editor: *Editor, index: usize) !dvui.App.Result {
 
     // Ens
     if (s.collapsing and s.split_ratio.* < 0.5) {
-        s.animateSplit(1.0);
+        s.animateSplit(1.0, dvui.easing.outBack);
     }
 
     if (!s.dragging and !s.animating and !s.collapsing and !s.collapsed_state) {
         if (index == editor.workspaces.count() - 1) {
             if (s.split_ratio.* != 1.0) {
-                s.animateSplit(1.0);
+                s.animateSplit(1.0, dvui.easing.outBack);
             }
         } else {
             if (dvui.firstFrame(s.wd.id)) {
                 s.split_ratio.* = 1.0;
-                s.animateSplit(0.5);
+                s.animateSplit(0.5, dvui.easing.outBack);
             }
         }
     }

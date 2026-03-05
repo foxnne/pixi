@@ -128,9 +128,9 @@ pub fn init(self: *PanedWidget, src: std.builtin.SourceLocation, init_options: I
         // collapsing
         self.collapsing = true;
         if (self.split_ratio.* >= 0.5) {
-            self.animateSplit(1.0);
+            self.animateSplit(1.0, dvui.easing.outBack);
         } else {
-            self.animateSplit(0.0);
+            self.animateSplit(0.0, dvui.easing.outBack);
         }
     }
 
@@ -139,13 +139,13 @@ pub fn init(self: *PanedWidget, src: std.builtin.SourceLocation, init_options: I
         self.collapsing = false;
         self.collapsed_state = false;
         if (self.init_opts.uncollapse_ratio) |ratio| {
-            self.animateSplit(ratio);
+            self.animateSplit(ratio, dvui.easing.outBack);
         } else if (self.split_ratio.* > 0.5) {
-            self.animateSplit(0.5);
+            self.animateSplit(0.5, dvui.easing.outBack);
         } else {
             // we were on the second widget, this will
             // "remember" we were on it
-            self.animateSplit(0.4999);
+            self.animateSplit(0.4999, dvui.easing.outBack);
         }
     }
 
@@ -296,7 +296,7 @@ pub fn showSecond(self: *PanedWidget) bool {
     return ret;
 }
 
-pub fn animateSplit(self: *PanedWidget, end_val: f32) void {
+pub fn animateSplit(self: *PanedWidget, end_val: f32, easing: *const dvui.easing.EasingFn) void {
     if (dvui.animationGet(self.data().id, "_split_ratio")) |animation| {
         if (animation.end_val != end_val) {
             _ = dvui.currentWindow().animations.remove(dvui.Id.update(self.data().id, "_split_ratio"));
@@ -304,7 +304,7 @@ pub fn animateSplit(self: *PanedWidget, end_val: f32) void {
                 .start_val = animation.value(),
                 .end_val = end_val,
                 .end_time = if (end_val < 0.1) 350_000 else 500_000,
-                .easing = if (end_val < 0.1) dvui.easing.outQuint else dvui.easing.outBack,
+                .easing = if (end_val < 0.1) dvui.easing.outQuint else easing,
             });
         }
     } else if (self.split_ratio.* != end_val) {
@@ -312,7 +312,7 @@ pub fn animateSplit(self: *PanedWidget, end_val: f32) void {
             .start_val = self.split_ratio.*,
             .end_val = end_val,
             .end_time = if (end_val < 0.1) 350_000 else 500_000,
-            .easing = if (end_val < 0.1) dvui.easing.outQuint else dvui.easing.outBack,
+            .easing = if (end_val < 0.1) dvui.easing.outQuint else easing,
         });
     }
 }

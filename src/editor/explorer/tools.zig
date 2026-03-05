@@ -65,7 +65,7 @@ pub fn draw(self: *Tools) !void {
         const diff = @abs(ratio - paned.split_ratio.*);
 
         if (diff > 0.000001 and layer_count > 0) {
-            paned.animateSplit(ratio);
+            paned.animateSplit(ratio, dvui.easing.outBack);
         }
     } else {
         if (dvui.firstFrame(paned.data().id)) {

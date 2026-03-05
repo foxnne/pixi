@@ -54,7 +54,7 @@ pub fn init(grouping: u64) Workspace {
 const handle_size = 10;
 const handle_dist = 60;
 
-const opacity = 128;
+const opacity = 60;
 
 const color_0 = pixi.math.Color.initBytes(0, 0, 0, 0);
 const color_1 = pixi.math.Color.initBytes(230, 175, 137, opacity);

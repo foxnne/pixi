@@ -68,7 +68,7 @@ pub fn title(pane: Pane, all_caps: bool) []const u8 {
 }
 
 pub fn close(explorer: *Explorer) void {
-    explorer.paned.animateSplit(0.0);
+    explorer.paned.animateSplit(0.0, dvui.easing.outQuint);
     explorer.closed = true;
 }
 
@@ -76,9 +76,9 @@ pub fn open(explorer: *Explorer) void {
     if (explorer.paned.collapsed()) return;
 
     if (pixi.editor.settings.explorer_ratio > 0.0) {
-        explorer.paned.animateSplit(pixi.editor.settings.explorer_ratio);
+        explorer.paned.animateSplit(pixi.editor.settings.explorer_ratio, dvui.easing.outBack);
     } else {
-        explorer.paned.animateSplit(0.2);
+        explorer.paned.animateSplit(0.2, dvui.easing.outBack);
     }
 
     explorer.closed = false;
@@ -122,22 +122,17 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
     scroll.deinit();
 
     if (vertical_scroll > 0.0) {
-        pixi.dvui.drawEdgeShadow(pane_vbox.data().contentRectScale(), .top, .{ .offset = .{ .w = -10.0 * dvui.currentWindow().natural_scale } });
+        pixi.dvui.drawEdgeShadow(pane_vbox.data().contentRectScale(), .top, .{ .offset = .{} });
     }
 
     if (explorer.scroll_info.virtual_size.h > explorer.scroll_info.viewport.h) {
-        pixi.dvui.drawEdgeShadow(pane_vbox.data().contentRectScale(), .bottom, .{ .offset = .{ .w = -10.0 * dvui.currentWindow().natural_scale } });
+        pixi.dvui.drawEdgeShadow(pane_vbox.data().contentRectScale(), .bottom, .{ .offset = .{} });
     }
 
     pane_vbox.deinit();
 
     if (explorer.scroll_info.virtual_size.w > explorer.scroll_info.viewport.w) {
-        var offset: dvui.Rect = .{};
-
-        if (explorer.scroll_info.virtual_size.h > explorer.scroll_info.viewport.h) {
-            offset.x -= 10.0 * dvui.currentWindow().natural_scale;
-        }
-
+        const offset: dvui.Rect = .{};
         pixi.dvui.drawEdgeShadow(vbox.data().contentRectScale(), .right, .{ .offset = offset });
     }
 
