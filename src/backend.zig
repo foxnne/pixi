@@ -48,6 +48,32 @@ const ACCENT_POLICY = struct {
 const NSWindowStyleMaskFullSizeContentView: c_ulong = 1 << 15;
 const ns_visual_effect_material: c_long = 15;
 
+// macOS native menu bar (top bar): action ids match PixiMenuTarget.m
+pub const NativeMenuAction = enum(c_int) {
+    open_folder = 0,
+    open_files = 1,
+    save = 2,
+};
+
+var pending_native_menu_action: ?NativeMenuAction = null;
+
+/// Called from PixiMenuTarget.m when user picks a native menu item. Runs on main thread.
+export fn PixiNativeMenuAction(id: c_int) void {
+    pending_native_menu_action = @enumFromInt(id);
+}
+
+// Only referenced on macOS (from setupMacOSMenuBar).
+const pixi_get_selector = if (builtin.os.tag == .macos) struct {
+    extern fn PixiGetSelector(name: [*c]const u8) ?*anyopaque;
+    fn get(name: [*c]const u8) ?*anyopaque {
+        return PixiGetSelector(name);
+    }
+}.get else struct {
+    fn get(_: [*c]const u8) ?*anyopaque {
+        return null;
+    }
+}.get;
+
 /// Wraps the window's content view in an NSVisualEffectView so the window gets
 /// vibrancy (blur of the desktop behind it). Safe to call multiple times;
 /// only wraps once per window. Caller should set full-size content view style
@@ -475,6 +501,91 @@ pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
             win32.ui.windows_and_messaging.LWA_ALPHA,
         );
     }
+}
+
+var macos_menu_bar_set_up: bool = false;
+
+/// Inserts a "File" menu into the macOS app menu bar (between Apple and Window). Safe to call multiple times; runs once.
+pub fn setupMacOSMenuBar() void {
+    if (builtin.os.tag != .macos) return;
+    if (macos_menu_bar_set_up) return;
+    const NSApplication = objc.getClass("NSApplication") orelse return;
+    const ns_app = NSApplication.msgSend(objc.Object, "sharedApplication", .{});
+    if (ns_app.value == 0) return;
+    const main_menu = ns_app.msgSend(objc.Object, "mainMenu", .{});
+    if (main_menu.value == 0) return;
+
+    const NSString = objc.getClass("NSString") orelse return;
+    const NSMenu = objc.getClass("NSMenu") orelse return;
+    const NSMenuItem = objc.getClass("NSMenuItem") orelse return;
+    const PixiMenuTargetClass = objc.getClass("PixiMenuTarget") orelse return;
+    const target = PixiMenuTargetClass.msgSend(objc.Object, "alloc", .{}).msgSend(objc.Object, "init", .{});
+    if (target.value == 0) return;
+
+    const file_menu_title_str = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"File".ptr});
+    const file_menu = NSMenu.msgSend(objc.Object, "alloc", .{}).msgSend(objc.Object, "initWithTitle:", .{file_menu_title_str.value});
+    if (file_menu.value == 0) return;
+
+    const empty = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"".ptr});
+    const k = empty.value;
+
+    {
+        const open_folder_title = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"Open Folder".ptr});
+        const open_folder_sel = pixi_get_selector("openFolder:") orelse return;
+        const open_folder_item = file_menu.msgSend(objc.Object, "addItemWithTitle:action:keyEquivalent:", .{
+            open_folder_title.value,
+            open_folder_sel,
+            k,
+        });
+        if (open_folder_item.value != 0) {
+            open_folder_item.msgSend(void, "setTarget:", .{target.value});
+        }
+    }
+    {
+        const open_files_title = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"Open Files".ptr});
+        const open_files_sel = pixi_get_selector("openFiles:") orelse return;
+        const open_files_item = file_menu.msgSend(objc.Object, "addItemWithTitle:action:keyEquivalent:", .{
+            open_files_title.value,
+            open_files_sel,
+            k,
+        });
+        if (open_files_item.value != 0) {
+            open_files_item.msgSend(void, "setTarget:", .{target.value});
+        }
+    }
+
+    const separator = NSMenuItem.msgSend(objc.Object, "separatorItem", .{});
+    file_menu.msgSend(void, "addItem:", .{separator.value});
+
+    const save_title = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"Save".ptr});
+    const save_sel = pixi_get_selector("save:") orelse return;
+    const save_item = file_menu.msgSend(objc.Object, "addItemWithTitle:action:keyEquivalent:", .{
+        save_title.value,
+        save_sel,
+        k,
+    });
+    if (save_item.value != 0) {
+        save_item.msgSend(void, "setTarget:", .{target.value});
+    }
+
+    const file_title = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"File".ptr});
+    const file_item = NSMenuItem.msgSend(objc.Object, "alloc", .{}).msgSend(objc.Object, "initWithTitle:action:keyEquivalent:", .{
+        file_title.value,
+        @as(usize, 0),
+        k,
+    });
+    if (file_item.value == 0) return;
+    file_item.msgSend(void, "setSubmenu:", .{file_menu.value});
+    main_menu.msgSend(void, "insertItem:atIndex:", .{ file_item.value, @as(c_ulong, 1) });
+
+    macos_menu_bar_set_up = true;
+}
+
+/// Returns and clears a pending native menu action (macOS menu bar). Call once per frame; on non-macOS always returns null.
+pub fn pollPendingNativeMenuAction() ?NativeMenuAction {
+    const a = pending_native_menu_action;
+    pending_native_menu_action = null;
+    return a;
 }
 
 pub fn showSimpleMessage(title: [:0]const u8, message: [:0]const u8) void {

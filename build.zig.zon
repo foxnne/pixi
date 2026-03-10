@@ -16,8 +16,8 @@
             .lazy = true,
         },
         .zigwin32 = .{
-            .url = "git+https://github.com/marlersoft/zigwin32#26f3ccffb5630dfe23fcda1f00d75d46147b5a60",
-            .hash = "zigwin32-25.0.28-preview-AAAAAIMW5QN6mjC6PSZmBowvhalmYcMRnztDdKvJXAUz",
+            .url = "git+https://github.com/marlersoft/zigwin32#fd6ebce3ebfe48f291069c0ddc518b2cc83be450",
+            .hash = "zigwin32-25.0.28-preview-AAAAALYs5QNcI6U4YMngK-zET_wKAM10AWdbIcWEUaYV",
             .lazy = true,
         },
         .icons = .{
@@ -27,8 +27,8 @@
         },
         .dvui = .{
             //.path = "../dvui-dev",
-            .url = "git+https://github.com/foxnne/dvui-dev#edb2d5a4cd2981fca74ee5f096277b91333c1316",
-            .hash = "dvui-0.4.0-dev-AQFJmeGB3QAwun9qF76CDE5IopA4nUVRgD-IwwTsOo4H",
+            .url = "git+https://github.com/foxnne/dvui-dev#442d577dcfbf8e8e3bdc679ec2f2c499f1217726",
+            .hash = "dvui-0.4.0-dev-AQFJmaNr3gAqunr8xZGmYr9_69zv0RyiRZbKOkN0cHQB",
         },
         .assetpack = .{
             //.path = "../assetpack",

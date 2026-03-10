@@ -147,9 +147,10 @@ pub fn init(
     pixi_light.dark = false;
     pixi_light.name = "Pixi Light";
     pixi_light.window = dvui.Theme.builtin.adwaita_light.window;
-    pixi_light.window.text = .{ .r = 170, .g = 130, .b = 140, .a = 255 };
+    pixi_light.window.text = .{ .r = 40, .g = 40, .b = 50, .a = 255 };
+    //pixi_light.window.text = .{ .r = 170, .g = 130, .b = 140, .a = 255 };
     pixi_light.control = dvui.Theme.builtin.adwaita_light.control;
-    pixi_light.control.text = .black;
+    pixi_light.control.text = .{ .r = 90, .g = 80, .b = 80, .a = 255 };
     pixi_light.highlight = .{
         .fill = .{ .r = 170, .g = 130, .b = 140, .a = 255 },
         .text = .white,
@@ -265,6 +266,12 @@ const handle_dist = 60;
 
 pub fn tick(editor: *Editor) !dvui.App.Result {
     editor.window_opacity = if (dvui.themeGet().dark) editor.settings.window_opacity_dark else editor.settings.window_opacity_light;
+
+    if (pixi.backend.pollPendingNativeMenuAction()) |action| {
+        editor.handleNativeMenuAction(action) catch |err| {
+            dvui.log.err("Native menu action failed: {any}", .{err});
+        };
+    }
 
     defer editor.dim_titlebar = false;
     editor.setTitlebarColor();
@@ -525,6 +532,36 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     _ = editor.arena.reset(.retain_capacity);
 
     return .ok;
+}
+
+pub fn handleNativeMenuAction(editor: *Editor, action: pixi.backend.NativeMenuAction) !void {
+    switch (action) {
+        .open_folder => {
+            if (try dvui.dialogNativeFolderSelect(dvui.currentWindow().arena(), .{ .title = "Open Project Folder" })) |folder| {
+                try editor.setProjectFolder(folder);
+            }
+        },
+        .open_files => {
+            if (try dvui.dialogNativeFileOpenMultiple(dvui.currentWindow().arena(), .{
+                .title = "Open Files...",
+                .filter_description = ".pixi, .png",
+                .filters = &.{ "*.pixi", "*.png" },
+            })) |files| {
+                for (files) |file| {
+                    _ = editor.openFilePath(file, editor.open_workspace_grouping) catch {
+                        std.log.err("Failed to open file: {s}", .{file});
+                    };
+                }
+            }
+        },
+        .save => {
+            if (editor.activeFile()) |file| {
+                file.saveAsync() catch {
+                    std.log.err("Failed to save", .{});
+                };
+            }
+        },
+    }
 }
 
 pub fn setTitlebarColor(editor: *Editor) void {
