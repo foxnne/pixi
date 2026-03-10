@@ -48,6 +48,12 @@ const ACCENT_POLICY = struct {
 const NSWindowStyleMaskFullSizeContentView: c_ulong = 1 << 15;
 const ns_visual_effect_material: c_long = 15;
 
+// NSEventModifierFlag for menu key equivalents (right-justified grey hotkey in menu)
+const NSEventModifierFlagCommand: c_ulong = 1 << 20;
+const NSEventModifierFlagShift: c_ulong = 1 << 17;
+const NSEventModifierFlagOption: c_ulong = 1 << 18;
+const NSEventModifierFlagControl: c_ulong = 1 << 19;
+
 // macOS native menu bar (top bar): action ids match PixiMenuTarget.m
 pub const NativeMenuAction = enum(c_int) {
     open_folder = 0,
@@ -527,52 +533,58 @@ pub fn setupMacOSMenuBar() void {
     if (file_menu.value == 0) return;
 
     const empty = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"".ptr});
-    const k = empty.value;
+    const key_o = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"o".ptr});
+    const key_s = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"s".ptr});
 
+    // Open Folder — no hotkey
     {
         const open_folder_title = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"Open Folder".ptr});
         const open_folder_sel = pixi_get_selector("openFolder:") orelse return;
         const open_folder_item = file_menu.msgSend(objc.Object, "addItemWithTitle:action:keyEquivalent:", .{
             open_folder_title.value,
             open_folder_sel,
-            k,
+            empty.value,
         });
         if (open_folder_item.value != 0) {
             open_folder_item.msgSend(void, "setTarget:", .{target.value});
         }
     }
+    // Open Files — ⌘O
     {
         const open_files_title = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"Open Files".ptr});
         const open_files_sel = pixi_get_selector("openFiles:") orelse return;
         const open_files_item = file_menu.msgSend(objc.Object, "addItemWithTitle:action:keyEquivalent:", .{
             open_files_title.value,
             open_files_sel,
-            k,
+            key_o.value,
         });
         if (open_files_item.value != 0) {
             open_files_item.msgSend(void, "setTarget:", .{target.value});
+            open_files_item.msgSend(void, "setKeyEquivalentModifierMask:", .{NSEventModifierFlagCommand});
         }
     }
 
     const separator = NSMenuItem.msgSend(objc.Object, "separatorItem", .{});
     file_menu.msgSend(void, "addItem:", .{separator.value});
 
+    // Save — ⌘S
     const save_title = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"Save".ptr});
     const save_sel = pixi_get_selector("save:") orelse return;
     const save_item = file_menu.msgSend(objc.Object, "addItemWithTitle:action:keyEquivalent:", .{
         save_title.value,
         save_sel,
-        k,
+        key_s.value,
     });
     if (save_item.value != 0) {
         save_item.msgSend(void, "setTarget:", .{target.value});
+        save_item.msgSend(void, "setKeyEquivalentModifierMask:", .{NSEventModifierFlagCommand});
     }
 
     const file_title = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"File".ptr});
     const file_item = NSMenuItem.msgSend(objc.Object, "alloc", .{}).msgSend(objc.Object, "initWithTitle:action:keyEquivalent:", .{
         file_title.value,
         @as(usize, 0),
-        k,
+        empty.value,
     });
     if (file_item.value == 0) return;
     file_item.msgSend(void, "setSubmenu:", .{file_menu.value});
