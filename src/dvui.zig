@@ -941,8 +941,10 @@ fn drawGradientRect(r: dvui.Rect.Physical, corner_radius: dvui.Rect.Physical, op
         path.deinit();
     }
 
-    const ca0 = opts.color.opacity(if (gradient.opaque_at_zero) opts.opacity else 0.0);
-    const ca1 = opts.color.opacity(if (gradient.opaque_at_zero) 0.0 else opts.opacity);
+    const total_opacity = if (dvui.themeGet().dark) opts.opacity else opts.opacity * 0.5;
+
+    const ca0 = opts.color.opacity(if (gradient.opaque_at_zero) total_opacity else 0.0);
+    const ca1 = opts.color.opacity(if (gradient.opaque_at_zero) 0.0 else total_opacity);
 
     const t_scale_x = if (r.w > 0) 1.0 / r.w else 0.0;
     const t_scale_y = if (r.h > 0) 1.0 / r.h else 0.0;
