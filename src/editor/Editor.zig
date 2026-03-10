@@ -445,7 +445,8 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             const bg_box = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both });
             defer bg_box.deinit();
 
-            {
+            // On macOS, the menu is handled natively, so we don't need to draw it here
+            if (builtin.os.tag != .macos) {
                 const result = try Menu.draw();
                 if (result != .ok) {
                     return result;

@@ -592,6 +592,7 @@ pub fn drawCanvas(self: *Workspace) !void {
             .background = true,
             .color_fill = content_color,
             .corner_radius = dvui.Rect.all(16),
+            .margin = .{ .y = 10 },
         });
         defer box.deinit();
 
