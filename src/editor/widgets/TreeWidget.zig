@@ -20,6 +20,10 @@ branch_size: Size = .{},
 current_branch_focus_id: ?dvui.Id = null,
 init_options: InitOptions = undefined,
 group: dvui.FocusGroupWidget = undefined,
+/// Drop indicator: last branch that contains the mouse wins
+drop_target_branch_id: ?usize = null,
+drop_target_rs: ?dvui.RectScale = null,
+drop_target_drop_into: bool = false,
 
 pub const InitOptions = struct {
     enable_reordering: bool = true,
@@ -139,6 +143,18 @@ pub fn deinit(self: *TreeWidget) void {
 
     self.group.deinit();
 
+    // Draw drop indicator once; last branch that contained the mouse set drop_target_rs
+    if (self.drag_point != null) {
+        if (self.drop_target_rs) |*rs| {
+            if (self.drop_target_drop_into) {
+                rs.r.stroke(.all(12), .{ .color = dvui.themeGet().focus, .thickness = 2.0 });
+            } else {
+                rs.r.h = 6.0;
+                rs.r.fill(.all(3), .{ .color = dvui.themeGet().focus, .fade = 1.0 });
+            }
+        }
+    }
+
     if (self.drag_ending) {
         self.id_branch = null;
         self.drag_point = null;
@@ -196,6 +212,9 @@ pub const Branch = struct {
         // if non-null, must be unique among reorderables in a single reorder
         branch_id: ?usize = null,
 
+        /// When true, dragging over this row can show "drop into" (as child) instead of only "insert before"
+        can_accept_children: bool = false,
+
         // If animation duration is greater than 0, the expander will animate accordingly
         animation_duration: i32 = 100_000,
 
@@ -214,7 +233,6 @@ pub const Branch = struct {
     options: Options = undefined,
     installed: bool = false,
     floating_widget: ?dvui.FloatingWidget = null,
-    target_rs: ?dvui.RectScale = null,
     expanded: bool = false,
     can_expand: bool = false,
     anim: ?*dvui.AnimateWidget = null,
@@ -298,28 +316,24 @@ pub const Branch = struct {
 
                 var rs = self.wd.rectScale();
 
-                var dragRect = Rect.Physical.fromPoint(topleft).toSize(self.tree.branch_size.scale(rs.s, Size.Physical));
-                dragRect.h = 2.0;
-
-                if (!rs.r.intersect(dragRect).empty()) {
-                    // user is dragging a reorderable over this rect
+                // Hit-test by mouse position; last branch that contains the cursor wins
+                if (rs.r.contains(dp)) {
+                    const branch_id = self.init_options.branch_id orelse self.data().id.asUsize();
                     if (!self.expanded) {
+                        // Auto-expand after timer so hover over closed folder opens it.
+                        // Also update init_options.expanded so the expander animation logic
+                        // agrees with the current state and doesn't immediately collapse.
                         if (dvui.timerDone(self.data().id)) {
                             self.expanded = true;
+                            self.init_options.expanded = true;
                         } else {
                             _ = dvui.timer(self.data().id, 500_000);
                         }
-                    }
-
-                    if (!self.expanded) {
-                        self.target_rs = rs;
+                        self.tree.drop_target_branch_id = branch_id;
+                        // drop_target_rs set after button.init() so we use full row (incl. expander)
+                        self.tree.drop_target_drop_into = self.init_options.can_accept_children;
                     } else {
                         check_button_hovered = true;
-                    }
-
-                    if (self.target_rs != null) {
-                        rs.r.h = 2.0;
-                        rs.r.fill(.{}, .{ .color = dvui.themeGet().focus, .fade = 1.0 });
                     }
                 }
             }
@@ -337,13 +351,39 @@ pub const Branch = struct {
         self.button.drawBackground();
         self.button.drawFocus();
 
-        // Check if the button is hovered if we are expanded, this allows us to set the target rs when
-        // the entry is expanded
-        if (self.button.hovered() and check_button_hovered) {
-            var rs = self.data().rectScale();
-            self.target_rs = rs;
-            rs.r.h = 2.0;
-            rs.r.fill(.{}, .{ .color = dvui.themeGet().focus, .fade = 1.0 });
+        // Full row rect: branch x/w; when expanded the expander/padding can extend above the button so use branch top -> button bottom
+        const button_rs = self.button.data().borderRectScale();
+        const branch_rs = self.data().rectScale();
+        var row_rs = button_rs;
+        row_rs.r.x = branch_rs.r.x;
+        row_rs.r.w = branch_rs.r.w;
+        if (self.expanded) {
+            row_rs.r.y = branch_rs.r.y;
+            row_rs.r.h = (button_rs.r.y + button_rs.r.h) - branch_rs.r.y;
+        }
+
+        if (self.tree.drop_target_branch_id == (self.init_options.branch_id orelse self.data().id.asUsize())) {
+            self.tree.drop_target_rs = row_rs;
+        }
+
+        // Hit-test: when over this branch's header row, claim the drop target.
+        // Expanded + can_accept_children: draw indicator around the entire branch and always drop-into (no insert strip).
+        // Otherwise: use row_rs and thin insert-before strip at top.
+        if (check_button_hovered and self.tree.drag_point != null) {
+            const dp = self.tree.drag_point.?;
+            if (row_rs.r.contains(dp)) {
+                const branch_id = self.init_options.branch_id orelse self.data().id.asUsize();
+                self.tree.drop_target_branch_id = branch_id;
+                if (self.expanded and self.init_options.can_accept_children) {
+                    self.tree.drop_target_rs = branch_rs;
+                    self.tree.drop_target_drop_into = true;
+                } else {
+                    self.tree.drop_target_rs = row_rs;
+                    const insert_before_zone_h = @min(row_rs.r.h * 0.12, 5.0 * row_rs.s);
+                    const in_insert_before_strip = dp.y < row_rs.r.y + insert_before_zone_h;
+                    self.tree.drop_target_drop_into = self.init_options.can_accept_children and !in_insert_before_strip;
+                }
+            }
         }
 
         self.tree.branch_size = self.button.data().rect.size();
@@ -470,7 +510,11 @@ pub const Branch = struct {
     }
 
     pub fn targetRectScale(self: *Branch) ?dvui.RectScale {
-        return self.target_rs;
+        const bid = self.init_options.branch_id orelse self.data().id.asUsize();
+        if (self.tree.drop_target_branch_id == bid) {
+            return self.tree.drop_target_rs;
+        }
+        return null;
     }
 
     pub fn removed(self: *Branch) bool {
@@ -489,7 +533,23 @@ pub const Branch = struct {
             std.debug.assert(false);
         }
 
-        if (self.tree.drag_ending and self.target_rs != null) {
+        const bid = self.init_options.branch_id orelse self.data().id.asUsize();
+        if (self.tree.drag_ending and self.tree.drop_target_branch_id == bid and !self.tree.drop_target_drop_into) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /// True when drop would add as first child of this branch (only when can_accept_children and pointer in drop-into zone).
+    pub fn dropInto(self: *Branch) bool {
+        if (!self.installed) {
+            dvui.log.err("Branch.dropInto() must be called after install()", .{});
+            std.debug.assert(false);
+        }
+
+        const bid = self.init_options.branch_id orelse self.data().id.asUsize();
+        if (self.tree.drag_ending and self.tree.drop_target_branch_id == bid and self.tree.drop_target_drop_into) {
             return true;
         }
 

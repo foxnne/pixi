@@ -374,11 +374,12 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                     .animation_duration = 450_000,
                     .animation_easing = dvui.easing.outBack,
                     .process_events = !editing,
+                    .can_accept_children = entry.kind == .directory,
                 }, .{
                     .id_extra = inner_id_extra.*,
                     .expand = .horizontal,
                     //.color_fill_hover = .fill,
-                    .color_fill_hover = dvui.themeGet().color(.window, .fill_hover),
+                    .color_fill_hover = .transparent,
                     .color_fill_press = dvui.themeGet().color(.window, .fill_press),
                     .color_fill = if (selected) dvui.themeGet().color(.control, .fill_hover) else .transparent,
                     .padding = dvui.Rect.all(1),
@@ -455,6 +456,29 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
 
                         dvui.dataRemove(null, inner_unique_id, "removed_path");
                     }
+                }
+
+                if (branch.dropInto() and entry.kind == .directory) {
+                    if (dvui.dataGetSlice(null, inner_unique_id, "removed_path", []u8)) |removed_path| {
+                        const old_sub_path = std.fs.path.basename(removed_path);
+                        const new_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{ abs_path, old_sub_path });
+
+                        if (!std.mem.eql(u8, removed_path, new_path)) {
+                            std.fs.renameAbsolute(removed_path, new_path) catch dvui.log.err("Failed to move {s} to {s}", .{ removed_path, new_path });
+
+                            if (pixi.editor.getFileFromPath(removed_path)) |file| {
+                                pixi.app.allocator.free(file.path);
+                                file.path = pixi.app.allocator.dupe(u8, new_path) catch {
+                                    dvui.log.err("Failed to duplicate path: {s}", .{new_path});
+                                    return error.FailedToDuplicatePath;
+                                };
+                            }
+                        }
+
+                        dvui.dataRemove(null, inner_unique_id, "removed_path");
+                    }
+                    // Expand the folder so the dropped item is visible
+                    pixi.editor.explorer.open_branches.put(branch_id, {}) catch {};
                 }
 
                 { // Add right click context menu for item options
@@ -711,6 +735,10 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                             if (pixi.editor.explorer.open_branches.contains(branch_id)) {
                                 _ = pixi.editor.explorer.open_branches.remove(branch_id);
                             }
+                        }
+                        // Keep open_branches in sync so hover-expand and drop-into expand persist next frame
+                        if (branch.expanded) {
+                            pixi.editor.explorer.open_branches.put(branch_id, {}) catch {};
                         }
                         color_id.* = color_id.* + 1;
                     },

@@ -74,6 +74,9 @@ sprite_clipboard: ?SpriteClipboard = null,
 
 window_opacity: f32 = 1.0,
 
+pending_native_menu_actions: [16]pixi.backend.NativeMenuAction = undefined,
+pending_native_menu_actions_len: u8 = 0,
+
 pub const SpriteClipboard = struct {
     source: dvui.ImageSource,
     offset: dvui.Point,
@@ -268,9 +271,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     editor.window_opacity = if (dvui.themeGet().dark) editor.settings.window_opacity_dark else editor.settings.window_opacity_light;
 
     if (pixi.backend.pollPendingNativeMenuAction()) |action| {
-        editor.handleNativeMenuAction(action) catch |err| {
-            dvui.log.err("Native menu action failed: {any}", .{err});
-        };
+        editor.queueNativeMenuAction(action);
     }
 
     defer editor.dim_titlebar = false;
@@ -415,6 +416,8 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         });
         defer editor.explorer.paned.deinit();
 
+        editor.flushQueuedNativeMenuActions();
+
         if (dvui.firstFrame(editor.explorer.paned.wd.id)) {
             editor.explorer.paned.split_ratio.* = 0.0;
             editor.explorer.paned.animateSplit(pixi.editor.settings.explorer_ratio, dvui.easing.outBack);
@@ -528,11 +531,33 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     }
 
     // look at demo() for examples of dvui widgets, shows in a floating window
-    dvui.Examples.demo();
+    dvui.Examples.demo(.full);
 
     _ = editor.arena.reset(.retain_capacity);
 
     return .ok;
+}
+
+fn queueNativeMenuAction(editor: *Editor, action: pixi.backend.NativeMenuAction) void {
+    if (editor.pending_native_menu_actions_len >= editor.pending_native_menu_actions.len) {
+        // If we ever overflow, drop the action rather than crashing.
+        return;
+    }
+    editor.pending_native_menu_actions[editor.pending_native_menu_actions_len] = action;
+    editor.pending_native_menu_actions_len += 1;
+}
+
+fn flushQueuedNativeMenuActions(editor: *Editor) void {
+    if (editor.pending_native_menu_actions_len == 0) return;
+    const len: usize = editor.pending_native_menu_actions_len;
+    editor.pending_native_menu_actions_len = 0;
+
+    var i: usize = 0;
+    while (i < len) : (i += 1) {
+        editor.handleNativeMenuAction(editor.pending_native_menu_actions[i]) catch |err| {
+            dvui.log.err("Native menu action failed: {any}", .{err});
+        };
+    }
 }
 
 pub fn handleNativeMenuAction(editor: *Editor, action: pixi.backend.NativeMenuAction) !void {
@@ -561,6 +586,52 @@ pub fn handleNativeMenuAction(editor: *Editor, action: pixi.backend.NativeMenuAc
                     std.log.err("Failed to save", .{});
                 };
             }
+        },
+        .copy => {
+            if (editor.activeFile() != null) {
+                editor.copy() catch {
+                    std.log.err("Failed to copy", .{});
+                };
+            }
+        },
+        .paste => {
+            if (editor.activeFile() != null) {
+                editor.paste() catch {
+                    std.log.err("Failed to paste", .{});
+                };
+            }
+        },
+        .undo => {
+            if (editor.activeFile()) |file| {
+                file.history.undoRedo(file, .undo) catch {
+                    std.log.err("Failed to undo", .{});
+                };
+            }
+        },
+        .redo => {
+            if (editor.activeFile()) |file| {
+                file.history.undoRedo(file, .redo) catch {
+                    std.log.err("Failed to redo", .{});
+                };
+            }
+        },
+        .transform => {
+            if (editor.activeFile() != null) {
+                editor.transform() catch {
+                    std.log.err("Failed to transform", .{});
+                };
+            }
+        },
+        .toggle_explorer => {
+            // Use .closed, not paned.split_ratio — split_ratio is only valid during draw
+            if (editor.explorer.closed) {
+                editor.explorer.open();
+            } else {
+                editor.explorer.close();
+            }
+        },
+        .show_dvui_demo => {
+            dvui.Examples.show_demo_window = !dvui.Examples.show_demo_window;
         },
     }
 }
