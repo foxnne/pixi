@@ -2642,6 +2642,65 @@ fn checkerboardVertexColor(
     return tone.lerp(c_corner, t);
 }
 
+/// Animation color for transparency tint; matches bubble arc palette lookup order (selected animation first, else first containing animation).
+fn spriteAnimationPaletteColor(file: *pixi.Internal.File, sprite_index: usize) ?dvui.Color {
+    if (pixi.editor.colors.file_tree_palette) |*palette| {
+        var animation_index: ?usize = null;
+
+        if (file.selected_animation_index) |selected_animation_index| {
+            for (file.animations.items(.frames)[selected_animation_index]) |frame| {
+                if (frame.sprite_index == sprite_index) {
+                    animation_index = selected_animation_index;
+                    break;
+                }
+            }
+        }
+
+        if (animation_index == null) {
+            anim_blk: for (file.animations.items(.frames), 0..) |frames, i| {
+                for (frames) |frame| {
+                    if (frame.sprite_index == sprite_index) {
+                        animation_index = i;
+                        break :anim_blk;
+                    }
+                }
+            }
+        }
+
+        if (animation_index) |ai| {
+            const id = file.animations.get(ai).id;
+            return palette.getDVUIColor(id);
+        }
+    }
+    return null;
+}
+
+fn checkerboardCellCornerColor(
+    effect: pixi.Editor.Settings.TransparencyEffect,
+    file: *pixi.Internal.File,
+    sprite_index: usize,
+    c_tl: dvui.Color,
+    c_tr: dvui.Color,
+    c_bl: dvui.Color,
+    c_br: dvui.Color,
+    u: f32,
+    v: f32,
+    mu: f32,
+    mv: f32,
+    tone: dvui.Color,
+) dvui.Color {
+    switch (effect) {
+        .none => return tone,
+        .rainbow => return checkerboardVertexColor(c_tl, c_tr, c_bl, c_br, u, v, mu, mv, tone),
+        .animation => {
+            if (spriteAnimationPaletteColor(file, sprite_index)) |ac| {
+                return tone.lerp(ac, 0.4);
+            }
+            return tone;
+        },
+    }
+}
+
 fn checkerboardGridPalette() struct { tone: dvui.Color, c_tl: dvui.Color, c_tr: dvui.Color, c_bl: dvui.Color, c_br: dvui.Color } {
     const tone = dvui.themeGet().color(.content, .fill).lighten(6.0).opacity(0.5).opacity(dvui.currentWindow().alpha);
     const c_tl = tone.lerp(.green, 0.15);
@@ -2654,14 +2713,26 @@ fn checkerboardGridPalette() struct { tone: dvui.Color, c_tl: dvui.Color, c_tr: 
 /// Same tint as the batched checkerboard for the cell under `sprite_index` (center UV), for bubbles etc.
 fn checkerboardTintAtSpriteCellCenter(file: *pixi.Internal.File, sprite_index: usize) dvui.Color {
     const pal = checkerboardGridPalette();
-    const mu_mv = dvui.dataGet(null, file.editor.canvas.id, "checkerboard_mouse_uv", dvui.Point) orelse dvui.Point{ .x = 0.5, .y = 0.5 };
-    const cols_f = @max(@as(f32, @floatFromInt(file.columns)), 1.0);
-    const rows_f = @max(@as(f32, @floatFromInt(file.rows)), 1.0);
-    const col = file.columnFromIndex(sprite_index);
-    const row = file.rowFromIndex(sprite_index);
-    const u = (@as(f32, @floatFromInt(col)) + 0.5) / cols_f;
-    const v = (@as(f32, @floatFromInt(row)) + 0.5) / rows_f;
-    return checkerboardVertexColor(pal.c_tl, pal.c_tr, pal.c_bl, pal.c_br, u, v, mu_mv.x, mu_mv.y, pal.tone);
+    const tone = pal.tone;
+    switch (pixi.editor.settings.transparency_effect) {
+        .none => return tone,
+        .rainbow => {
+            const mu_mv = dvui.dataGet(null, file.editor.canvas.id, "checkerboard_mouse_uv", dvui.Point) orelse dvui.Point{ .x = 0.5, .y = 0.5 };
+            const cols_f = @max(@as(f32, @floatFromInt(file.columns)), 1.0);
+            const rows_f = @max(@as(f32, @floatFromInt(file.rows)), 1.0);
+            const col = file.columnFromIndex(sprite_index);
+            const row = file.rowFromIndex(sprite_index);
+            const u = (@as(f32, @floatFromInt(col)) + 0.5) / cols_f;
+            const v = (@as(f32, @floatFromInt(row)) + 0.5) / rows_f;
+            return checkerboardVertexColor(pal.c_tl, pal.c_tr, pal.c_bl, pal.c_br, u, v, mu_mv.x, mu_mv.y, tone);
+        },
+        .animation => {
+            if (spriteAnimationPaletteColor(file, sprite_index)) |ac| {
+                return tone.lerp(ac, 0.4);
+            }
+            return tone;
+        },
+    }
 }
 
 /// One quad per sprite cell with full UVs so the checkerboard alpha texture tiles per cell (not stretched across the canvas).
@@ -2683,6 +2754,7 @@ fn drawCheckerboardCellsBatched(file: *pixi.Internal.File) void {
     const c_tr = pal.c_tr;
     const c_bl = pal.c_bl;
     const c_br = pal.c_br;
+    const te = pixi.editor.settings.transparency_effect;
 
     const cols_f = @max(@as(f32, @floatFromInt(file.columns)), 1.0);
     const rows_f = @max(@as(f32, @floatFromInt(file.rows)), 1.0);
@@ -2721,10 +2793,10 @@ fn drawCheckerboardCellsBatched(file: *pixi.Internal.File) void {
         const v_top = @as(f32, @floatFromInt(row)) / rows_f;
         const v_bot = @as(f32, @floatFromInt(row + 1)) / rows_f;
 
-        const pma_tl = dvui.Color.PMA.fromColor(checkerboardVertexColor(c_tl, c_tr, c_bl, c_br, u_left, v_top, mu, mv, tone));
-        const pma_tr = dvui.Color.PMA.fromColor(checkerboardVertexColor(c_tl, c_tr, c_bl, c_br, u_right, v_top, mu, mv, tone));
-        const pma_br = dvui.Color.PMA.fromColor(checkerboardVertexColor(c_tl, c_tr, c_bl, c_br, u_right, v_bot, mu, mv, tone));
-        const pma_bl = dvui.Color.PMA.fromColor(checkerboardVertexColor(c_tl, c_tr, c_bl, c_br, u_left, v_bot, mu, mv, tone));
+        const pma_tl = dvui.Color.PMA.fromColor(checkerboardCellCornerColor(te, file, i, c_tl, c_tr, c_bl, c_br, u_left, v_top, mu, mv, tone));
+        const pma_tr = dvui.Color.PMA.fromColor(checkerboardCellCornerColor(te, file, i, c_tl, c_tr, c_bl, c_br, u_right, v_top, mu, mv, tone));
+        const pma_br = dvui.Color.PMA.fromColor(checkerboardCellCornerColor(te, file, i, c_tl, c_tr, c_bl, c_br, u_right, v_bot, mu, mv, tone));
+        const pma_bl = dvui.Color.PMA.fromColor(checkerboardCellCornerColor(te, file, i, c_tl, c_tr, c_bl, c_br, u_left, v_bot, mu, mv, tone));
 
         builder.appendVertex(.{ .pos = tl, .col = pma_tl, .uv = .{ 0, 0 } });
         builder.appendVertex(.{ .pos = tr, .col = pma_tr, .uv = .{ 1, 0 } });
@@ -3290,6 +3362,7 @@ fn drawCheckerboardReorderFloatingStrip(
     const c_tr = pal.c_tr;
     const c_bl = pal.c_bl;
     const c_br = pal.c_br;
+    const te = pixi.editor.settings.transparency_effect;
 
     const cols_f = @max(@as(f32, @floatFromInt(file.columns)), 1.0);
     const rows_f = @max(@as(f32, @floatFromInt(file.rows)), 1.0);
@@ -3315,10 +3388,10 @@ fn drawCheckerboardReorderFloatingStrip(
         const v_top = @as(f32, @floatFromInt(row)) / rows_f;
         const v_bot = @as(f32, @floatFromInt(row + 1)) / rows_f;
 
-        const pma_tl = dvui.Color.PMA.fromColor(checkerboardVertexColor(c_tl, c_tr, c_bl, c_br, u_left, v_top, mu, mv, tone)).multiply(half_op);
-        const pma_tr = dvui.Color.PMA.fromColor(checkerboardVertexColor(c_tl, c_tr, c_bl, c_br, u_right, v_top, mu, mv, tone)).multiply(half_op);
-        const pma_br = dvui.Color.PMA.fromColor(checkerboardVertexColor(c_tl, c_tr, c_bl, c_br, u_right, v_bot, mu, mv, tone)).multiply(half_op);
-        const pma_bl = dvui.Color.PMA.fromColor(checkerboardVertexColor(c_tl, c_tr, c_bl, c_br, u_left, v_bot, mu, mv, tone)).multiply(half_op);
+        const pma_tl = dvui.Color.PMA.fromColor(checkerboardCellCornerColor(te, file, si, c_tl, c_tr, c_bl, c_br, u_left, v_top, mu, mv, tone)).multiply(half_op);
+        const pma_tr = dvui.Color.PMA.fromColor(checkerboardCellCornerColor(te, file, si, c_tl, c_tr, c_bl, c_br, u_right, v_top, mu, mv, tone)).multiply(half_op);
+        const pma_br = dvui.Color.PMA.fromColor(checkerboardCellCornerColor(te, file, si, c_tl, c_tr, c_bl, c_br, u_right, v_bot, mu, mv, tone)).multiply(half_op);
+        const pma_bl = dvui.Color.PMA.fromColor(checkerboardCellCornerColor(te, file, si, c_tl, c_tr, c_bl, c_br, u_left, v_bot, mu, mv, tone)).multiply(half_op);
 
         const tl = phys.topLeft();
         const tr = phys.topRight();

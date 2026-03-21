@@ -629,6 +629,8 @@ pub fn handleNativeMenuAction(editor: *Editor, action: pixi.backend.NativeMenuAc
             } else {
                 editor.explorer.close();
             }
+            // Native menu does not go through SDL events; request a frame so the paned animates immediately.
+            dvui.refresh(null, @src(), dvui.currentWindow().data().id);
         },
         .show_dvui_demo => {
             dvui.Examples.show_demo_window = !dvui.Examples.show_demo_window;

@@ -10,6 +10,16 @@ pub const InputScheme = enum { mouse, trackpad };
 pub const FlipbookView = enum { sequential, grid };
 pub const Compatibility = enum { none, ldtk };
 
+/// How sprite-cell transparency (checkerboard) is tinted behind the canvas.
+pub const TransparencyEffect = enum {
+    /// Uniform default tone only (no hue gradient).
+    none,
+    /// Mouse-smoothed corner gradient (current default).
+    rainbow,
+    /// Per-cell tone shifted toward the animation’s palette color (when the sprite belongs to an animation).
+    animation,
+};
+
 /// The ratio of the explorer to the artboard.
 explorer_ratio: f32 = 0.35,
 
@@ -62,6 +72,9 @@ checker_color_odd: [4]u8 = .{ 175, 175, 175, 255 },
 window_opacity_dark: f32 = 0.7,
 window_opacity_light: f32 = 0.3,
 content_opacity: f32 = 0.7,
+
+/// Checkerboard / transparency tint behind sprites (grid cells).
+transparency_effect: TransparencyEffect = .none,
 
 titlebar_height: f32 = 30.0, // This is the height of the titlebar in pixels
 

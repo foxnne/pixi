@@ -10,7 +10,9 @@ const nfd = @import("nfd");
 // const imgui = @import("zig-imgui");
 
 pub fn draw() !void {
-    var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{});
+    var vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
+        .expand = .horizontal,
+    });
     defer vbox.deinit();
 
     if (dvui.Theme.picker(@src(), pixi.editor.themes.items, .{})) {}
@@ -38,6 +40,60 @@ pub fn draw() !void {
         })) {
             pixi.backend.setTitlebarColor(dvui.currentWindow(), dvui.themeGet().color(.content, .fill).opacity(pixi.editor.settings.content_opacity));
             dvui.refresh(null, @src(), vbox.data().id);
+        }
+
+        {
+            const oldt = dvui.themeGet();
+            var t = oldt;
+            t.control.fill = t.window.fill;
+            dvui.themeSet(t);
+            defer dvui.themeSet(oldt);
+
+            var dropdown: dvui.DropdownWidget = undefined;
+            dropdown.init(@src(), .{ .label = "Transparency effect" }, .{
+                .expand = .horizontal,
+                .corner_radius = dvui.Rect.all(1000),
+            });
+            defer dropdown.deinit();
+
+            var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .expand = .vertical,
+                .gravity_x = 1.0,
+            });
+
+            const label_text = switch (pixi.editor.settings.transparency_effect) {
+                .none => "None",
+                .rainbow => "Rainbow",
+                .animation => "Animation",
+            };
+            dvui.label(@src(), "{s}", .{label_text}, .{ .margin = .all(0), .padding = .all(0) });
+
+            dvui.icon(
+                @src(),
+                "dropdown_triangle",
+                dvui.entypo.triangle_down,
+                .{},
+                .{ .gravity_y = 0.5 },
+            );
+
+            hbox.deinit();
+
+            if (dropdown.dropped()) {
+                if (dropdown.addChoiceLabel("None")) {
+                    pixi.editor.settings.transparency_effect = .none;
+                    dvui.refresh(null, @src(), vbox.data().id);
+                }
+                if (dropdown.addChoiceLabel("Rainbow")) {
+                    pixi.editor.settings.transparency_effect = .rainbow;
+                    dvui.refresh(null, @src(), vbox.data().id);
+                }
+                if (dropdown.addChoiceLabel("Animation")) {
+                    pixi.editor.settings.transparency_effect = .animation;
+                    dvui.refresh(null, @src(), vbox.data().id);
+                }
+            }
+
+            _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 10, .h = 10 } });
         }
 
         if (dvui.checkbox(@src(), &pixi.editor.settings.show_rulers, "Show Rulers", .{
