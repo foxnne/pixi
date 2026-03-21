@@ -394,6 +394,8 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
                 .expanded = false,
                 .process_events = false,
                 .can_accept_children = false,
+                .animation_duration = 250_000,
+                .animation_easing = dvui.easing.outBack,
             }, .{
                 .id_extra = layer_id,
                 .expand = .horizontal,
@@ -458,16 +460,28 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
             });
             defer hbox.deinit();
 
-            _ = dvui.icon(
-                @src(),
-                "LayerIcon",
-                icons.tvg.heroicons.solid.@"square-3-stack-3d",
-                .{
-                    .stroke_color = if (!(selected or row_hovered)) dvui.themeGet().color(.control, .fill) else if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.window, .fill),
-                    .fill_color = if (!(selected or row_hovered)) dvui.themeGet().color(.control, .fill) else if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.window, .fill),
-                },
-                .{ .expand = .none, .gravity_y = 0.5, .margin = .{ .x = 4, .w = 4 } },
-            );
+            // _ = dvui.icon(
+            //     @src(),
+            //     "LayerIcon",
+            //     icons.tvg.heroicons.solid.@"square-3-stack-3d",
+            //     .{
+            //         .stroke_color = if (!(selected or row_hovered)) dvui.themeGet().color(.control, .fill) else if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.window, .fill),
+            //         .fill_color = if (!(selected or row_hovered)) dvui.themeGet().color(.control, .fill) else if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.window, .fill),
+            //     },
+            //     .{ .expand = .none, .gravity_y = 0.5, .margin = .{ .x = 4, .w = 4 } },
+            // );
+
+            var color_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .expand = .none,
+                .background = true,
+                .gravity_y = 0.5,
+                .min_size_content = .{ .w = 8.0, .h = 8.0 },
+                .color_fill = color,
+                .corner_radius = dvui.Rect.all(1000),
+                .margin = .{ .x = 4, .w = 4 },
+                .padding = dvui.Rect.all(0),
+            });
+            color_box.deinit();
 
             if (edit_layer_id != layer_id) {
                 if (file.selected_layer_index == layer_index) {
