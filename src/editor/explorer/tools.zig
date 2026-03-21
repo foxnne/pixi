@@ -942,7 +942,7 @@ pub fn drawPalettes() !void {
 
                 var box_widget = dvui.box(@src(), .{ .dir = .horizontal }, .{
                     .expand = .none,
-                    .min_size_content = .{ .w = 24.0, .h = 24.0 },
+                    .min_size_content = .{ .w = 18.0, .h = 18.0 },
                     .id_extra = i,
                     .background = false,
                     .margin = dvui.Rect.all(1),

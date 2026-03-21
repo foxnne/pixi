@@ -667,35 +667,35 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                         const folder_name = std.fs.path.basename(abs_path);
                         const icon_color = color;
 
-                        _ = dvui.icon(
-                            @src(),
-                            "DropIcon",
-                            if (branch.expanded) icons.tvg.entypo.@"down-open" else icons.tvg.entypo.@"right-open",
-                            .{
-                                .fill_color = icon_color,
-                                .stroke_color = icon_color,
-                                .stroke_width = 2,
-                            },
-                            .{
-                                .gravity_y = 0.5,
-                                .padding = padding,
-                            },
-                        );
+                        if (dvui.parentGet().data().rectScale().r.h > 10) {
+                            _ = dvui.icon(
+                                @src(),
+                                "DropIcon",
+                                if (branch.expanded) icons.tvg.entypo.@"down-open" else icons.tvg.entypo.@"right-open",
+                                .{
+                                    .fill_color = icon_color,
+                                    .stroke_color = icon_color,
+                                },
+                                .{
+                                    .gravity_y = 0.5,
+                                    .padding = padding,
+                                },
+                            );
 
-                        _ = dvui.icon(
-                            @src(),
-                            "FolderIcon",
-                            if (branch.expanded) icons.tvg.entypo.folder else icons.tvg.entypo.folder,
-                            .{
-                                .fill_color = icon_color,
-                                .stroke_color = icon_color,
-                                .stroke_width = 2,
-                            },
-                            .{
-                                .gravity_y = 0.5,
-                                .padding = padding,
-                            },
-                        );
+                            _ = dvui.icon(
+                                @src(),
+                                "FolderIcon",
+                                if (branch.expanded) icons.tvg.entypo.folder else icons.tvg.entypo.folder,
+                                .{
+                                    .fill_color = icon_color,
+                                    .stroke_color = icon_color,
+                                },
+                                .{
+                                    .gravity_y = 0.5,
+                                    .padding = padding,
+                                },
+                            );
+                        }
 
                         editableLabel(
                             inner_id_extra.*,
