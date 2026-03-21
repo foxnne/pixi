@@ -2612,6 +2612,19 @@ fn doubleStroke(points: []const dvui.Point.Physical, color: dvui.Color, thicknes
     });
 }
 
+/// True if a horizontal segment at y from x0..x1 overlaps `visible` in data space.
+fn dataRectOverlapsHorizontalLine(y: f32, x0: f32, x1: f32, visible: dvui.Rect) bool {
+    if (y < visible.y or y > visible.y + visible.h) return false;
+    const minx = @min(x0, x1);
+    const maxx = @max(x0, x1);
+    return maxx >= visible.x and minx <= visible.x + visible.w;
+}
+
+/// True if a vertical line at x (infinite height) overlaps `visible` in data space.
+fn dataRectOverlapsVerticalLine(x: f32, visible: dvui.Rect) bool {
+    return x >= visible.x and x <= visible.x + visible.w;
+}
+
 fn checkerboardGridColorBilinear(c_tl: dvui.Color, c_tr: dvui.Color, c_bl: dvui.Color, c_br: dvui.Color, u: f32, v: f32) dvui.Color {
     const top = c_tl.lerp(c_tr, u);
     const bottom = c_bl.lerp(c_br, u);
@@ -2741,8 +2754,16 @@ fn drawCheckerboardCellsBatched(file: *pixi.Internal.File) void {
     const n = file.spriteCount();
     if (n == 0) return;
 
+    const visible_data = file.editor.canvas.dataFromScreenRect(file.editor.canvas.rect);
+
+    var vis_quads: usize = 0;
+    for (0..n) |i| {
+        if (!visible_data.intersect(file.spriteRect(i)).empty()) vis_quads += 1;
+    }
+    if (vis_quads == 0) return;
+
     const arena = dvui.currentWindow().arena();
-    var builder = dvui.Triangles.Builder.init(arena, n * 4, n * 6) catch {
+    var builder = dvui.Triangles.Builder.init(arena, vis_quads * 4, vis_quads * 6) catch {
         dvui.log.err("Failed to allocate checkerboard batch", .{});
         return;
     };
@@ -2778,8 +2799,11 @@ fn drawCheckerboardCellsBatched(file: *pixi.Internal.File) void {
     dvui.dataSet(null, canvas.id, "checkerboard_mouse_uv", dvui.Point{ .x = mu, .y = mv });
 
     const rs = file.editor.canvas.screen_rect_scale;
+    var quad_idx: usize = 0;
     for (0..n) |i| {
         const sr = file.spriteRect(i);
+        if (visible_data.intersect(sr).empty()) continue;
+
         const r = rs.rectToPhysical(sr);
         const tl = r.topLeft();
         const tr = r.topRight();
@@ -2803,8 +2827,9 @@ fn drawCheckerboardCellsBatched(file: *pixi.Internal.File) void {
         builder.appendVertex(.{ .pos = br, .col = pma_br, .uv = .{ 1, 1 } });
         builder.appendVertex(.{ .pos = bl, .col = pma_bl, .uv = .{ 0, 1 } });
 
-        const quad_base: dvui.Vertex.Index = @intCast(i * 4);
+        const quad_base: dvui.Vertex.Index = @intCast(quad_idx * 4);
         builder.appendTriangles(&.{ quad_base + 1, quad_base + 0, quad_base + 3, quad_base + 1, quad_base + 3, quad_base + 2 });
+        quad_idx += 1;
     }
 
     const triangles = builder.build();
@@ -3211,9 +3236,11 @@ pub fn drawLayers(self: *FileWidget) void {
         const grid_thickness = std.math.clamp(dvui.currentWindow().natural_scale * self.init_options.file.editor.canvas.scale, 0, dvui.currentWindow().natural_scale);
         const vertical_inner = @min(columns, file.columns);
         for (1..vertical_inner) |i| {
+            const x = @as(f32, @floatFromInt(i * file.column_width));
+            if (!dataRectOverlapsVerticalLine(x, layer_rect)) continue;
             dvui.Path.stroke(.{ .points = &.{
-                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
-                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = canvas_rect.h }),
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = x, .y = 0 }),
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = x, .y = canvas_rect.h }),
             } }, .{ .thickness = grid_thickness, .color = grid_color });
         }
 
@@ -3221,6 +3248,7 @@ pub fn drawLayers(self: *FileWidget) void {
         if (columns > file.columns) {
             for (file.columns..columns) |k| {
                 const x = @as(f32, @floatFromInt(k * file.column_width));
+                if (!dataRectOverlapsVerticalLine(x, layer_rect)) continue;
                 dvui.Path.stroke(.{ .points = &.{
                     self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = x, .y = 0 }),
                     self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = x, .y = canvas_rect.h }),
@@ -3235,6 +3263,7 @@ pub fn drawLayers(self: *FileWidget) void {
                 if (file.rowFromIndex(si) == 0) continue;
                 if (self.spriteDrawsBubbleTopEdge(si)) continue;
                 const sr = file.spriteRect(si);
+                if (!dataRectOverlapsHorizontalLine(sr.y, sr.x, sr.x + sr.w, layer_rect)) continue;
                 dvui.Path.stroke(.{ .points = &.{
                     self.init_options.file.editor.canvas.screenFromDataPoint(sr.topLeft()),
                     self.init_options.file.editor.canvas.screenFromDataPoint(sr.topRight()),
@@ -3249,6 +3278,7 @@ pub fn drawLayers(self: *FileWidget) void {
             const row_horiz_end = if (rows > file.rows) file.rows else rows;
             for (1..row_horiz_end) |k| {
                 const y = @as(f32, @floatFromInt(k * file.row_height));
+                if (!dataRectOverlapsHorizontalLine(y, x_strip, canvas_rect.w, layer_rect)) continue;
                 dvui.Path.stroke(.{ .points = &.{
                     self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = x_strip, .y = y }),
                     self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = canvas_rect.w, .y = y }),
@@ -3260,6 +3290,7 @@ pub fn drawLayers(self: *FileWidget) void {
         if (rows > file.rows) {
             for (file.rows..rows) |k| {
                 const y = @as(f32, @floatFromInt(k * file.row_height));
+                if (!dataRectOverlapsHorizontalLine(y, 0, canvas_rect.w, layer_rect)) continue;
                 dvui.Path.stroke(.{ .points = &.{
                     self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = y }),
                     self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = canvas_rect.w, .y = y }),
