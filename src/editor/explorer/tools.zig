@@ -140,7 +140,8 @@ pub fn drawTools() !void {
             .id_extra = id_extra,
             .background = true,
             .corner_radius = dvui.Rect.all(1000),
-            .color_fill = if (selected) dvui.themeGet().color(.control, .fill).lighten(4.0) else dvui.themeGet().color(.control, .fill),
+            .color_fill = if (selected) dvui.themeGet().color(.content, .fill) else .transparent,
+            .color_fill_hover = if (!selected) dvui.themeGet().color(.content, .fill_hover) else null,
             .box_shadow = if (selected) .{
                 .color = .black,
                 .offset = .{ .x = -2.5, .y = 2.5 },

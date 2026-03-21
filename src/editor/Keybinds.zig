@@ -62,23 +62,27 @@ pub fn tick() !void {
 
         switch (e.evt) {
             .key => |ke| {
-                if (ke.matchBind("open_folder") and ke.action == .down) {
-                    if (try dvui.dialogNativeFolderSelect(dvui.currentWindow().arena(), .{
-                        .title = "Open Project Folder",
-                    })) |folder| {
-                        try pixi.editor.setProjectFolder(folder);
+                // macOS: NSMenu key equivalents already call `PixiNativeMenuAction` (see Editor.flushQueuedNativeMenuActions).
+                // SDL still delivers the same key events, so handling them here too would run the action twice.
+                if (builtin.os.tag != .macos) {
+                    if (ke.matchBind("open_folder") and ke.action == .down) {
+                        if (try dvui.dialogNativeFolderSelect(dvui.currentWindow().arena(), .{
+                            .title = "Open Project Folder",
+                        })) |folder| {
+                            try pixi.editor.setProjectFolder(folder);
+                        }
                     }
-                }
 
-                if (ke.matchBind("open_files") and ke.action == .down) {
-                    if (try dvui.dialogNativeFileOpenMultiple(
-                        dvui.currentWindow().arena(),
-                        .{ .title = "Open Files...", .filter_description = ".pixi, .png", .filters = &.{ "*.pixi", "*.png" } },
-                    )) |files| {
-                        for (files) |file| {
-                            _ = pixi.editor.openFilePath(file, pixi.editor.open_workspace_grouping) catch {
-                                std.log.err("Failed to open file: {s}", .{file});
-                            };
+                    if (ke.matchBind("open_files") and ke.action == .down) {
+                        if (try dvui.dialogNativeFileOpenMultiple(
+                            dvui.currentWindow().arena(),
+                            .{ .title = "Open Files...", .filter_description = ".pixi, .png", .filters = &.{ "*.pixi", "*.png" } },
+                        )) |files| {
+                            for (files) |file| {
+                                _ = pixi.editor.openFilePath(file, pixi.editor.open_workspace_grouping) catch {
+                                    std.log.err("Failed to open file: {s}", .{file});
+                                };
+                            }
                         }
                     }
                 }
@@ -122,11 +126,13 @@ pub fn tick() !void {
                     pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
                 }
 
-                if (ke.matchBind("explorer") and ke.action == .down) {
-                    if (pixi.editor.explorer.closed) {
-                        pixi.editor.explorer.open();
-                    } else {
-                        pixi.editor.explorer.close();
+                if (builtin.os.tag != .macos) {
+                    if (ke.matchBind("explorer") and ke.action == .down) {
+                        if (pixi.editor.explorer.closed) {
+                            pixi.editor.explorer.open();
+                        } else {
+                            pixi.editor.explorer.close();
+                        }
                     }
                 }
 
@@ -142,40 +148,42 @@ pub fn tick() !void {
                     };
                 }
 
-                if (ke.matchBind("undo") and (ke.action == .down or ke.action == .repeat)) {
-                    pixi.editor.undo() catch {
-                        std.log.err("Failed to undo", .{});
-                    };
-                }
+                if (builtin.os.tag != .macos) {
+                    if (ke.matchBind("undo") and (ke.action == .down or ke.action == .repeat)) {
+                        pixi.editor.undo() catch {
+                            std.log.err("Failed to undo", .{});
+                        };
+                    }
 
-                if (ke.matchBind("copy") and ke.action == .down) {
-                    pixi.editor.copy() catch {
-                        std.log.err("Failed to copy", .{});
-                    };
-                }
+                    if (ke.matchBind("copy") and ke.action == .down) {
+                        pixi.editor.copy() catch {
+                            std.log.err("Failed to copy", .{});
+                        };
+                    }
 
-                if (ke.matchBind("paste") and ke.action == .down) {
-                    pixi.editor.paste() catch {
-                        std.log.err("Failed to paste", .{});
-                    };
-                }
+                    if (ke.matchBind("paste") and ke.action == .down) {
+                        pixi.editor.paste() catch {
+                            std.log.err("Failed to paste", .{});
+                        };
+                    }
 
-                if (ke.matchBind("redo") and (ke.action == .down or ke.action == .repeat)) {
-                    pixi.editor.redo() catch {
-                        std.log.err("Failed to redo", .{});
-                    };
-                }
+                    if (ke.matchBind("redo") and (ke.action == .down or ke.action == .repeat)) {
+                        pixi.editor.redo() catch {
+                            std.log.err("Failed to redo", .{});
+                        };
+                    }
 
-                if (ke.matchBind("save") and ke.action == .down) {
-                    pixi.editor.save() catch {
-                        std.log.err("Failed to save", .{});
-                    };
-                }
+                    if (ke.matchBind("save") and ke.action == .down) {
+                        pixi.editor.save() catch {
+                            std.log.err("Failed to save", .{});
+                        };
+                    }
 
-                if (ke.matchBind("transform") and ke.action == .down) {
-                    pixi.editor.transform() catch {
-                        std.log.err("Failed to transform", .{});
-                    };
+                    if (ke.matchBind("transform") and ke.action == .down) {
+                        pixi.editor.transform() catch {
+                            std.log.err("Failed to transform", .{});
+                        };
+                    }
                 }
 
                 if (ke.matchBind("pencil") and ke.action == .down) {

@@ -656,7 +656,7 @@ pub fn drawRadialMenu(editor: *Editor) !void {
     });
     defer fw.deinit();
 
-    const menu_color = dvui.themeGet().color(.control, .fill).lighten(4.0);
+    const menu_color = dvui.themeGet().color(.content, .fill).lighten(4.0);
 
     if (dvui.firstFrame(fw.data().id)) {
         editor.tools.radial_menu.center = editor.tools.radial_menu.mouse_position;
@@ -748,7 +748,7 @@ pub fn drawRadialMenu(editor: *Editor) !void {
             .rect = rect,
             .id_extra = i,
             .corner_radius = dvui.Rect.all(1000.0),
-            .color_fill = if (tool == editor.tools.current) dvui.themeGet().color(.control, .fill_hover) else menu_color,
+            .color_fill = if (tool == editor.tools.current) dvui.themeGet().color(.control, .fill) else .transparent,
             .box_shadow = if (tool == editor.tools.current) .{
                 .color = .black,
                 .offset = .{ .x = -2.5, .y = 2.5 },
