@@ -341,7 +341,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
 
                 inner_id_extra.* = dvui.Id.update(tree.data().id, abs_path).asUsize();
 
-                var color = dvui.themeGet().color(.window, .fill);
+                var color = dvui.themeGet().color(.control, .fill);
                 if (pixi.editor.colors.palette) |*palette| {
                     color = palette.getDVUIColor(color_id.*);
                 }
@@ -379,12 +379,16 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                     .id_extra = inner_id_extra.*,
                     .expand = .horizontal,
                     //.color_fill_hover = .fill,
-                    .color_fill_hover = .transparent,
-                    .color_fill_press = dvui.themeGet().color(.window, .fill_press),
-                    .color_fill = if (selected) dvui.themeGet().color(.control, .fill_hover) else .transparent,
+                    .color_fill_hover = dvui.themeGet().color(.control, .fill).opacity(0.5),
+                    .color_fill_press = dvui.themeGet().color(.control, .fill_press),
+                    .color_fill = if (selected) dvui.themeGet().color(.control, .fill).opacity(0.5) else .transparent,
                     .padding = dvui.Rect.all(1),
                 });
                 defer branch.deinit();
+
+                if (branch.floating()) {
+                    branch.data().options.color_fill = dvui.themeGet().color(.control, .fill).opacity(0.75);
+                }
 
                 if (new_file_path) |path| {
                     if (std.mem.eql(u8, path, abs_path)) {

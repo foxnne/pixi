@@ -191,6 +191,13 @@ pub fn dragStart(self: *TreeWidget, branch_id: usize, p: dvui.Point.Physical) vo
     }
 }
 
+/// True while a row reorder interaction is active: `dragStart` ran and/or this tree holds capture.
+/// Callers that bypass `TreeWidget.processEvents` (e.g. layer list in `tools.zig`) must still drive
+/// `matchEvent` on motion while this is true so `drag_point` / `scrollDrag` stay updated.
+pub fn reorderDragActive(self: *TreeWidget) bool {
+    return self.drag_point != null or dvui.captured(self.data().id);
+}
+
 pub fn branch(self: *TreeWidget, src: std.builtin.SourceLocation, init_opts: Branch.InitOptions, opts: Options) *Branch {
     const ret = dvui.widgetAlloc(Branch);
     ret.init(src, self, init_opts, opts);

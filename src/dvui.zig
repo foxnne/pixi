@@ -589,7 +589,7 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
         const subdivisions = 32;
 
         if (init_opts.alpha_source) |alpha_source| {
-            const reflection_triangles = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = subdivisions, .color_mod = dvui.themeGet().color(.control, .fill).lighten(4.0), .vertical_fade = true }) catch unreachable;
+            const reflection_triangles = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = subdivisions, .color_mod = dvui.themeGet().color(.content, .fill).lighten(4.0), .vertical_fade = true }) catch unreachable;
             dvui.renderTriangles(reflection_triangles, alpha_source.getTexture() catch null) catch {
                 dvui.log.err("Failed to render triangles", .{});
             };
@@ -628,11 +628,11 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
     }
 
     if (init_opts.alpha_source) |alpha_source| {
-        wd.contentRectScale().r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
+        wd.contentRectScale().r.fill(.all(0), .{ .color = dvui.themeGet().color(.content, .fill), .fade = 1.5 });
 
         const alpha_triangles = pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{
             .subdivisions = 8,
-            .color_mod = dvui.themeGet().color(.control, .fill).lighten(4.0).opacity(0.5),
+            .color_mod = dvui.themeGet().color(.content, .fill).lighten(6.0).opacity(0.5),
         }) catch unreachable;
         dvui.renderTriangles(alpha_triangles, alpha_source.getTexture() catch null) catch {
             dvui.log.err("Failed to render triangles", .{});

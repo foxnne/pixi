@@ -12,6 +12,22 @@ var edit_layer_id: ?u64 = null;
 var prev_layer_count: usize = 0;
 var max_split_ratio: f32 = 0.4;
 
+/// In-flight primary-button gesture for the active file's layer list (reorder / click / rename).
+/// Not stored in `dvui.data`: a single path at end of `drawLayers` processes events after rename `textEntry`.
+const LayerRowGesture = struct {
+    file_id: u64,
+    press_idx: usize,
+    press_p: dvui.Point.Physical,
+    drag_branch: ?usize,
+    moved: bool,
+    reorder_drag: bool,
+};
+var layer_row_gesture: ?LayerRowGesture = null;
+
+/// Filled while the layer rename text entry exists so `processLayerTreePointerEvents` can skip those hits.
+var layer_rename_hit_te_id: ?dvui.Id = null;
+var layer_rename_hit_rect: ?dvui.Rect.Physical = null;
+
 layers_rect: ?dvui.Rect.Physical = null,
 
 pub fn init() Tools {
@@ -283,6 +299,9 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
     defer vbox.deinit();
 
     if (pixi.editor.activeFile()) |file| {
+        layer_rename_hit_te_id = null;
+        layer_rename_hit_rect = null;
+
         var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.editor.layers_scroll_info }, .{
             .expand = .both,
             .background = false,
@@ -293,11 +312,14 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
 
         const vertical_scroll = file.editor.layers_scroll_info.offset(.vertical);
 
-        var reorderable = pixi.dvui.reorder(@src(), .{ .drag_name = "layer_drag" }, .{
+        var tree = pixi.dvui.TreeWidget.tree(@src(), .{ .enable_reordering = true }, .{
             .expand = .horizontal,
             .background = false,
         });
-        defer reorderable.deinit();
+        defer tree.deinit();
+
+        var layer_hits_buf: [256]LayerRowHit = undefined;
+        var layer_hits_len: usize = 0;
 
         // Drag and drop is completing
         if (insert_before_index) |insert_before| {
@@ -350,64 +372,48 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
             .expand = .horizontal,
             .background = false,
             .corner_radius = dvui.Rect.all(1000),
-            .margin = dvui.Rect.all(4),
+            .margin = dvui.Rect.rect(4, 0, 4, 4),
         });
         defer box.deinit();
 
-        const total_duration: i32 = 600_000;
-        const max_step_duration: i32 = @divTrunc(total_duration, 3);
-
-        const duration_step: i32 = std.math.clamp(@divTrunc(total_duration, @as(i32, @intCast(file.layers.len))), 0, max_step_duration);
-
         for (file.layers.items(.id), 0..) |layer_id, layer_index| {
-            const duration = max_step_duration + (duration_step * @as(i32, @intCast(layer_index + 1)));
-
+            var row_label_r: ?dvui.Rect.Physical = null;
             const selected = if (edit_layer_id) |id| id == layer_id else file.selected_layer_index == layer_index;
             const visible = file.layers.items(.visible)[layer_index];
-            const font = if (visible) dvui.Font.theme(.mono).larger(-2.0) else dvui.Font.theme(.mono).withStyle(.italic).larger(-2.0);
+            const font = if (visible) dvui.Font.theme(.body) else dvui.Font.theme(.body).withStyle(.italic);
 
             var color = dvui.themeGet().color(.control, .fill_hover);
             if (pixi.editor.colors.file_tree_palette) |*palette| {
                 color = palette.getDVUIColor(layer_id);
             }
 
-            var r = reorderable.reorderable(@src(), .{}, .{
+            // `process_events` must be false: Tree Branch's header `ButtonWidget.processEvents` runs
+            // `dvui.clicked`, which captures on press + dragPreStart for the full button rect (~row height),
+            // stealing presses before label/sink (dvui `clickedEx` press handler).
+            var branch = tree.branch(@src(), .{
+                .expanded = false,
+                .process_events = false,
+                .can_accept_children = false,
+            }, .{
                 .id_extra = layer_id,
                 .expand = .horizontal,
                 .corner_radius = dvui.Rect.all(1000),
-                .min_size_content = .{ .w = 0.0, .h = reorderable.reorderable_size.h },
+                .background = false,
+                .margin = .all(0),
+                .padding = .all(2),
             });
-            defer r.deinit();
+            defer branch.deinit();
 
-            if (dvui.firstFrame(r.data().id) or prev_layer_count != file.layers.len) {
-                dvui.animation(r.data().id, "expand", .{
-                    .start_val = 0.2,
-                    .end_val = 1.0,
-                    .end_time = duration,
-                    .easing = dvui.easing.outBack,
-                });
-            }
-
-            if (dvui.animationGet(r.data().id, "expand")) |a| {
-                if (dvui.minSizeGet(r.data().id)) |ms| {
-                    if (r.data().rect.w > ms.w + 0.001) {
-                        // we are bigger than our min size (maybe expanded) - account for floating point
-                        const w = r.data().rect.w;
-                        r.data().rect.w *= @max(a.value(), 0);
-                        r.data().rect.x += r.data().options.gravityGet().x * (w - r.data().rect.w);
-                    }
-                }
-            }
-
-            if (r.removed()) {
+            if (branch.removed()) {
                 removed_index = layer_index;
-            } else if (r.insertBefore()) {
+            } else if (branch.insertBefore()) {
                 insert_before_index = layer_index;
             }
 
-            const hovered = pixi.dvui.hovered(r.data());
+            const row_r = branch.data().borderRectScale().r;
+            const row_hovered = row_r.contains(dvui.currentWindow().mouse_pt);
 
-            if (hovered) {
+            if (row_hovered) {
                 file.peek_layer_index = layer_index;
             }
 
@@ -420,7 +426,7 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
                 }
             }
 
-            const below_mouse = dvui.currentWindow().mouse_pt.y > r.data().contentRectScale().r.y + r.data().contentRectScale().r.h;
+            const below_mouse = dvui.currentWindow().mouse_pt.y > branch.data().contentRectScale().r.y + branch.data().contentRectScale().r.h;
 
             var alpha: f32 = dvui.alpha(1.0);
             if (file.editor.isolate_layer and (layer_index < min_layer_index or (below_mouse and tools.layersHovered()))) {
@@ -428,16 +434,21 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
             }
             defer dvui.alphaSet(alpha);
 
+            const ctrl_hover = dvui.themeGet().color(.control, .fill).opacity(0.5);
             var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .both,
                 .background = true,
-                .color_fill = if (selected or hovered) dvui.themeGet().color(.control, .fill_hover) else if (!visible) dvui.themeGet().color(.window, .fill) else dvui.themeGet().color(.control, .fill),
-                .corner_radius = dvui.Rect.all(1000),
-                .margin = dvui.Rect.all(2),
+                .color_fill = if (branch.floating())
+                    dvui.themeGet().color(.control, .fill_hover)
+                else if (selected or (row_hovered and tree.drag_point == null))
+                    ctrl_hover
+                else
+                    .transparent,
+                .color_fill_hover = if (branch.floating()) ctrl_hover else .transparent,
+                .margin = dvui.Rect{},
                 .padding = dvui.Rect.all(0),
-                .border = dvui.Rect.all(1.0),
-                .color_border = if (selected) color else if (!visible) dvui.themeGet().color(.window, .fill) else dvui.themeGet().color(.control, .fill),
-                .box_shadow = if (!r.floating()) .{
+                .corner_radius = dvui.Rect.all(8),
+                .box_shadow = if (branch.floating()) .{
                     .color = .black,
                     .offset = .{ .x = -2.0, .y = 2.0 },
                     .fade = 6.0,
@@ -447,31 +458,43 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
             });
             defer hbox.deinit();
 
-            _ = pixi.dvui.ReorderWidget.draggable(@src(), .{
-                .reorderable = r,
-                .tvg_bytes = icons.tvg.lucide.@"grip-horizontal",
-                .color = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
-            }, .{
-                .expand = .none,
-                .gravity_y = 0.5,
-                .margin = .{ .x = 4, .w = 4 },
-            });
+            _ = dvui.icon(
+                @src(),
+                "LayerIcon",
+                icons.tvg.heroicons.solid.@"square-3-stack-3d",
+                .{
+                    .stroke_color = if (!(selected or row_hovered)) dvui.themeGet().color(.control, .fill) else if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.window, .fill),
+                    .fill_color = if (!(selected or row_hovered)) dvui.themeGet().color(.control, .fill) else if (selected) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.window, .fill),
+                },
+                .{ .expand = .none, .gravity_y = 0.5, .margin = .{ .x = 4, .w = 4 } },
+            );
 
             if (edit_layer_id != layer_id) {
                 if (file.selected_layer_index == layer_index) {
-                    if (dvui.labelClick(@src(), "{s}", .{file.layers.items(.name)[layer_index]}, .{}, .{
+                    var name_label_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                        .expand = .none,
+                        .background = false,
                         .gravity_y = 0.5,
+                        .margin = dvui.Rect.rect(2, 0, 2, 0),
+                        .padding = dvui.Rect.all(0),
+                    });
+                    defer name_label_box.deinit();
+
+                    dvui.labelNoFmt(@src(), file.layers.items(.name)[layer_index], .{}, .{
+                        .expand = .none,
+                        .gravity_y = 0.5,
+                        .margin = dvui.Rect{},
                         .font = font,
-                        .margin = dvui.Rect.all(2),
                         .padding = dvui.Rect.all(0),
                         .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
-                    })) {
-                        edit_layer_id = layer_id;
-                    }
+                    });
+
+                    row_label_r = name_label_box.data().borderRectScale().r;
                 } else {
                     dvui.labelNoFmt(@src(), file.layers.items(.name)[layer_index], .{}, .{
+                        .expand = .none,
                         .gravity_y = 0.5,
-                        .margin = dvui.Rect.all(2),
+                        .margin = dvui.Rect.rect(2, 0, 2, 0),
                         .font = font,
                         .padding = dvui.Rect.all(0),
                         .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
@@ -493,7 +516,11 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
                     dvui.focusWidget(te.data().id, null, null);
                 }
 
-                if (te.enter_pressed or dvui.focusedWidgetId() != te.data().id) {
+                layer_rename_hit_te_id = te.data().id;
+                layer_rename_hit_rect = te.data().borderRectScale().r;
+
+                const should_commit_rename = te.enter_pressed or dvui.focusedWidgetId() != te.data().id;
+                if (should_commit_rename) {
                     if (!std.mem.eql(u8, file.layers.items(.name)[layer_index], te.getText()) and te.getText().len > 0) {
                         file.history.append(.{
                             .layer_name = .{
@@ -506,16 +533,90 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
                         pixi.app.allocator.free(file.layers.items(.name)[layer_index]);
                         file.layers.items(.name)[layer_index] = try pixi.app.allocator.dupe(u8, te.getText());
                     }
+                    if (te.enter_pressed) {
+                        file.selected_layer_index = layer_index;
+                    }
+                    dvui.captureMouse(null, 0);
+                    dvui.focusWidget(null, null, null);
                     edit_layer_id = null;
+                    dvui.refresh(null, @src(), tree.data().id);
                 }
             }
 
-            if (true) {
+            if (edit_layer_id != layer_id) {
+                var drag_sink = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                    .expand = .both,
+                    .background = false,
+                    .min_size_content = .{ .w = 0, .h = 0 },
+                    .gravity_y = 0.5,
+                });
+                defer drag_sink.deinit();
+
                 var button_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
                     .expand = .none,
                     .background = false,
                     .gravity_x = 1.0,
-                    //.min_size_content = .{ .w = 15.0, .h = 15.0 },
+                    .gravity_y = 0.5,
+                });
+                defer button_box.deinit();
+
+                if (dvui.buttonIcon(
+                    @src(),
+                    "collapse_button",
+                    if (file.layers.items(.collapse)[layer_index]) icons.tvg.lucide.@"arrow-down-to-line" else icons.tvg.lucide.package,
+                    .{ .draw_focus = false },
+                    .{},
+                    .{
+                        .expand = .ratio,
+                        .min_size_content = .{ .w = 1.0, .h = 11.0 },
+                        .id_extra = layer_index,
+                        .corner_radius = dvui.Rect.all(1000),
+                        .margin = dvui.Rect.all(1),
+                    },
+                )) {
+                    file.layers.items(.collapse)[layer_index] = !file.layers.items(.collapse)[layer_index];
+                }
+
+                if (dvui.buttonIcon(
+                    @src(),
+                    "hide_button",
+                    if (file.layers.items(.visible)[layer_index]) icons.tvg.lucide.eye else icons.tvg.lucide.@"eye-closed",
+                    .{ .draw_focus = false },
+                    .{},
+                    .{
+                        .expand = .ratio,
+                        .min_size_content = .{ .w = 1.0, .h = 11.0 },
+                        .id_extra = layer_index,
+                        .corner_radius = dvui.Rect.all(1000),
+                        .margin = dvui.Rect.all(1),
+                    },
+                )) {
+                    file.layers.items(.visible)[layer_index] = !file.layers.items(.visible)[layer_index];
+                }
+
+                if (layer_hits_len < layer_hits_buf.len) {
+                    layer_hits_buf[layer_hits_len] = .{
+                        .label_r = row_label_r,
+                        .row_r = branch.data().borderRectScale().r,
+                        .buttons_r = button_box.data().borderRectScale().r,
+                        .branch_usize = branch.data().id.asUsize(),
+                        .layer_index = layer_index,
+                        .hbox_tl = hbox.data().rectScale().r.topLeft(),
+                    };
+                    layer_hits_len += 1;
+                }
+
+                if (row_hovered) {
+                    const mp = dvui.currentWindow().mouse_pt;
+                    if (!button_box.data().borderRectScale().r.contains(mp)) {
+                        dvui.cursorSet(.hand);
+                    }
+                }
+            } else {
+                var button_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                    .expand = .none,
+                    .background = false,
+                    .gravity_x = 1.0,
                 });
                 defer button_box.deinit();
 
@@ -553,15 +654,27 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
                     file.layers.items(.visible)[layer_index] = !file.layers.items(.visible)[layer_index];
                 }
             }
-
-            // This consumes the click event, so we need to do this last
-            if (dvui.clicked(hbox.data(), .{ .hover_cursor = .hand })) {
-                file.selected_layer_index = layer_index;
-            }
         }
 
-        if (reorderable.finalSlot(.default, dvui.Rect.all(1000))) {
-            insert_before_index = file.layers.len;
+        processLayerTreePointerEvents(tree, file, layer_hits_buf[0..layer_hits_len]);
+
+        if (tree.drag_point != null) {
+            const tail = tree.branch(@src(), .{
+                .expanded = false,
+                .process_events = false,
+                .can_accept_children = false,
+            }, .{
+                .id_extra = 0x7fff_fffe,
+                .expand = .horizontal,
+                .min_size_content = .{ .w = 0, .h = 14 },
+                .color_fill = .transparent,
+                .color_fill_hover = .transparent,
+                .color_fill_press = .transparent,
+            });
+            defer tail.deinit();
+            if (tail.insertBefore()) {
+                insert_before_index = file.layers.len;
+            }
         }
 
         // Only draw shadow if the scroll bar has been scrolled some
@@ -907,7 +1020,6 @@ pub fn drawPalettes() !void {
         }
     }
 }
-
 fn searchPalettes(dropdown: *dvui.DropdownWidget) !void {
     var dir_opt = std.fs.cwd().openDir(pixi.editor.palette_folder, .{ .access_sub_paths = false, .iterate = true }) catch null;
     if (dir_opt) |*dir| {
@@ -931,6 +1043,221 @@ fn searchPalettes(dropdown: *dvui.DropdownWidget) !void {
                     }
                 }
             }
+        }
+    }
+}
+
+/// Geometry for one layer row, collected while drawing; used for a single chronological pointer pass.
+const LayerRowHit = struct {
+    row_r: dvui.Rect.Physical,
+    buttons_r: dvui.Rect.Physical,
+    branch_usize: usize,
+    layer_index: usize,
+    hbox_tl: dvui.Point.Physical,
+    /// When non-null, selected row's name label rect (press+release here without a drag opens rename).
+    label_r: ?dvui.Rect.Physical,
+};
+
+fn layerGestureMatches(file: *const pixi.Internal.File) bool {
+    return layer_row_gesture != null and layer_row_gesture.?.file_id == file.id;
+}
+
+/// Clear in-flight gesture only (no `dragEnd`). Used before arming a new row press.
+fn layerTreeClearGestureKeysOnly(_: *const pixi.Internal.File) void {
+    layer_row_gesture = null;
+}
+
+/// Clear gesture and global `Dragging` (stale prestart/drag from other widgets).
+fn layerTreeResetRowPointerGesture(_: *const pixi.Internal.File) void {
+    dvui.dragEnd();
+    layer_row_gesture = null;
+}
+
+/// Rename `textEntry` is drawn above the row; skip layer-tree handling when it already consumed the event
+/// or the pointer maps to its rect (runs after `textEntry()` so rects/targets are valid this frame).
+fn layerPointerRenameConsumes(e: *const dvui.Event, me: dvui.Event.Mouse) bool {
+    if (e.handled) return true;
+    if (layer_rename_hit_te_id) |rid| {
+        if (e.target_widgetId) |tid| {
+            if (tid == rid) return true;
+        }
+    }
+    if (layer_rename_hit_rect) |r| {
+        if (r.contains(me.p)) return true;
+    }
+    return false;
+}
+
+fn layerTreePointerInTreeSurface(tree: *pixi.dvui.TreeWidget, p: dvui.Point.Physical, floating_win: dvui.Id) bool {
+    if (floating_win != dvui.subwindowCurrentId()) return false;
+    const tr = tree.data().borderRectScale().r;
+    if (!tr.contains(p)) return false;
+    if (!dvui.clipGet().contains(p)) return false;
+    return true;
+}
+
+fn layerTreePointerInTreeBorder(tree: *pixi.dvui.TreeWidget, p: dvui.Point.Physical, floating_win: dvui.Id) bool {
+    if (floating_win != dvui.subwindowCurrentId()) return false;
+    return tree.data().borderRectScale().r.contains(p);
+}
+
+/// While another widget holds capture, `target_widgetId` may not be the tree. Allow starting a reorder drag
+/// when the pointer is over the tree border (scroll clip can disagree with visible row geometry).
+fn layerTreeMotionAllowsLayerReorder(tree: *pixi.dvui.TreeWidget, e: *dvui.Event) bool {
+    if (e.target_widgetId) |fwid| {
+        if (fwid == tree.data().id) return true;
+    }
+    const cw = dvui.currentWindow();
+    if (cw.dragging.state == .dragging and cw.dragging.name != null) return false;
+    const me = e.evt.mouse;
+    const in_surface = layerTreePointerInTreeSurface(tree, me.p, me.floating_win);
+    const in_border = layerTreePointerInTreeBorder(tree, me.p, me.floating_win);
+    return in_surface or in_border;
+}
+
+/// One pass over `events()` in frame order: press → motion → release.
+/// Runs after layer rows (and rename `textEntry`) are built so geometry and `e.handled` reflect z-order.
+fn processLayerTreePointerEvents(tree: *pixi.dvui.TreeWidget, file: *pixi.Internal.File, hits: []const LayerRowHit) void {
+    if (!tree.init_options.enable_reordering) return;
+
+    for (dvui.events()) |*e| {
+        switch (e.evt) {
+            .mouse => |me| {
+                if (me.action == .press and me.button.pointer()) {
+                    if (layerPointerRenameConsumes(e, me)) continue;
+
+                    var row_hit: ?LayerRowHit = null;
+                    var ri = hits.len;
+                    while (ri > 0) {
+                        ri -= 1;
+                        const h = hits[ri];
+                        if (h.row_r.contains(me.p) and !h.buttons_r.contains(me.p)) {
+                            row_hit = h;
+                            break;
+                        }
+                    }
+                    if (row_hit) |h| {
+                        const cw = dvui.currentWindow();
+                        if (cw.dragging.state != .none) dvui.dragEnd();
+                        layerTreeClearGestureKeysOnly(file);
+                        dvui.dragPreStart(me.p, .{ .offset = h.hbox_tl.diff(me.p) });
+                        layer_row_gesture = .{
+                            .file_id = file.id,
+                            .press_idx = h.layer_index,
+                            .press_p = me.p,
+                            .drag_branch = h.branch_usize,
+                            .moved = false,
+                            .reorder_drag = false,
+                        };
+                    } else {
+                        layerTreeResetRowPointerGesture(file);
+                    }
+                    continue;
+                }
+
+                if (me.action == .motion) {
+                    if (layerPointerRenameConsumes(e, me)) continue;
+
+                    if (layer_row_gesture) |*g| {
+                        if (g.file_id == file.id) {
+                            const dx = me.p.x - g.press_p.x;
+                            const dy = me.p.y - g.press_p.y;
+                            if (dx * dx + dy * dy > 16.0) {
+                                g.moved = true;
+                            }
+                        }
+                    }
+
+                    // After `tree.dragStart`, `drag_branch` is cleared — do not gate `matchEvent` on it.
+                    if (tree.reorderDragActive()) {
+                        _ = tree.matchEvent(e);
+                        continue;
+                    }
+
+                    const branch_usize = if (layerGestureMatches(file)) layer_row_gesture.?.drag_branch else null;
+                    if (branch_usize == null) continue;
+                    _ = tree.matchEvent(e);
+                    if (!layerTreeMotionAllowsLayerReorder(tree, e)) continue;
+
+                    const prev_th = dvui.Dragging.threshold;
+                    dvui.Dragging.threshold = @max(prev_th, 8.0);
+                    defer dvui.Dragging.threshold = prev_th;
+                    if (dvui.dragging(me.p, null)) |_| {
+                        tree.dragStart(branch_usize.?, me.p);
+                        if (layer_row_gesture) |*g| {
+                            if (g.file_id == file.id) {
+                                g.reorder_drag = true;
+                                g.drag_branch = null;
+                            }
+                        }
+                    }
+                } else if (me.action == .release and me.button.pointer()) {
+                    if (layerPointerRenameConsumes(e, me)) continue;
+
+                    const sel_before = file.selected_layer_index;
+                    var release_layer: ?usize = null;
+                    var rj = hits.len;
+                    while (rj > 0) {
+                        rj -= 1;
+                        const h = hits[rj];
+                        if (h.row_r.contains(me.p) and !h.buttons_r.contains(me.p)) {
+                            release_layer = h.layer_index;
+                            break;
+                        }
+                    }
+
+                    const idx_opt: ?usize = if (layerGestureMatches(file)) layer_row_gesture.?.press_idx else null;
+                    const did_reorder = if (layerGestureMatches(file)) layer_row_gesture.?.reorder_drag else false;
+
+                    var selected_on_release = false;
+                    if (!did_reorder and !tree.drag_ending) {
+                        if (release_layer) |rh| {
+                            file.selected_layer_index = rh;
+                            selected_on_release = true;
+                        } else if (idx_opt) |idx| {
+                            file.selected_layer_index = idx;
+                            selected_on_release = true;
+                        }
+                    }
+
+                    var opened_layer_rename = false;
+                    const moved_while_armed = if (layerGestureMatches(file)) layer_row_gesture.?.moved else false;
+
+                    if (!did_reorder and !tree.drag_ending and !moved_while_armed) {
+                        if (idx_opt) |pi| {
+                            if (release_layer) |rl| {
+                                if (pi == rl and sel_before == pi) {
+                                    if (layerGestureMatches(file)) {
+                                        const pp = layer_row_gesture.?.press_p;
+                                        for (hits) |h| {
+                                            if (h.layer_index != pi) continue;
+                                            if (h.label_r) |lr| {
+                                                if (lr.contains(pp) and lr.contains(me.p)) {
+                                                    edit_layer_id = file.layers.items(.id)[pi];
+                                                    opened_layer_rename = true;
+                                                }
+                                            }
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (idx_opt != null) {
+                        layerTreeResetRowPointerGesture(file);
+                        if (!did_reorder and !dvui.captured(tree.data().id)) {
+                            dvui.captureMouse(null, e.num);
+                        }
+                    }
+
+                    if (selected_on_release or opened_layer_rename) {
+                        dvui.refresh(null, @src(), tree.data().id);
+                    }
+                }
+            },
+            else => {},
         }
     }
 }

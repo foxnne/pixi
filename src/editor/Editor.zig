@@ -100,8 +100,8 @@ pub fn init(
     };
 
     pixi_dark.control = .{
-        .fill = .{ .r = 42, .g = 44, .b = 54, .a = 255 },
-        .border = .{ .r = 42, .g = 44, .b = 54, .a = 255 },
+        .fill = .{ .r = 28, .g = 29, .b = 36, .a = 255 },
+        .border = .{ .r = 34, .g = 35, .b = 42, .a = 255 },
         .text = .{ .r = 134, .g = 138, .b = 148, .a = 255 },
     };
 
@@ -112,7 +112,7 @@ pub fn init(
     };
 
     // theme.content
-    pixi_dark.fill = pixi_dark.control.fill.?;
+    pixi_dark.fill = .{ .r = 42, .g = 44, .b = 54, .a = 255 };
     pixi_dark.text = pixi_dark.window.text.?;
     pixi_dark.focus = pixi_dark.highlight.fill.?;
 
