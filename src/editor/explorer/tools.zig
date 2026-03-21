@@ -484,35 +484,28 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
             color_box.deinit();
 
             if (edit_layer_id != layer_id) {
+                // Always use the same label wrapper so sibling widget ids (drag_sink, button_box) stay stable
+                // when selection changes — otherwise the extra box only on the selected row causes a layout flash.
+                var name_label_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                    .expand = .none,
+                    .background = false,
+                    .gravity_y = 0.5,
+                    .margin = dvui.Rect.rect(2, 0, 2, 0),
+                    .padding = dvui.Rect.all(0),
+                });
+                defer name_label_box.deinit();
+
+                dvui.labelNoFmt(@src(), file.layers.items(.name)[layer_index], .{}, .{
+                    .expand = .none,
+                    .gravity_y = 0.5,
+                    .margin = dvui.Rect{},
+                    .font = font,
+                    .padding = dvui.Rect.all(0),
+                    .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
+                });
+
                 if (file.selected_layer_index == layer_index) {
-                    var name_label_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                        .expand = .none,
-                        .background = false,
-                        .gravity_y = 0.5,
-                        .margin = dvui.Rect.rect(2, 0, 2, 0),
-                        .padding = dvui.Rect.all(0),
-                    });
-                    defer name_label_box.deinit();
-
-                    dvui.labelNoFmt(@src(), file.layers.items(.name)[layer_index], .{}, .{
-                        .expand = .none,
-                        .gravity_y = 0.5,
-                        .margin = dvui.Rect{},
-                        .font = font,
-                        .padding = dvui.Rect.all(0),
-                        .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
-                    });
-
                     row_label_r = name_label_box.data().borderRectScale().r;
-                } else {
-                    dvui.labelNoFmt(@src(), file.layers.items(.name)[layer_index], .{}, .{
-                        .expand = .none,
-                        .gravity_y = 0.5,
-                        .margin = dvui.Rect.rect(2, 0, 2, 0),
-                        .font = font,
-                        .padding = dvui.Rect.all(0),
-                        .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
-                    });
                 }
             } else {
                 var te = dvui.textEntry(@src(), .{}, .{
