@@ -694,7 +694,7 @@ pub fn drawRadialMenu(editor: *Editor) !void {
             .color = .black,
             .offset = .{ .x = -4.0, .y = 4.0 },
             .fade = 8.0,
-            .alpha = 0.25,
+            .alpha = 0.35,
         },
         .color_fill = menu_color.opacity(0.75),
         .border = dvui.Rect.all(0.0),
@@ -750,7 +750,7 @@ pub fn drawRadialMenu(editor: *Editor) !void {
             .rect = rect,
             .id_extra = i,
             .corner_radius = dvui.Rect.all(1000.0),
-            .color_fill = if (tool == editor.tools.current) dvui.themeGet().color(.control, .fill) else .transparent,
+            .color_fill = if (tool == editor.tools.current) dvui.themeGet().color(.content, .fill) else .transparent,
             .box_shadow = if (tool == editor.tools.current) .{
                 .color = .black,
                 .offset = .{ .x = -2.5, .y = 2.5 },

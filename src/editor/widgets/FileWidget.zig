@@ -996,14 +996,19 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
         if (shadow_only) { // Draw drop shadow
             const shadow_fade = arc_height * 0.66 * dvui.easing.outExpo(t);
-            const clip = dvui.clip(bubble_rect_scale.r.outset(.{
+            const ns = dvui.currentWindow().natural_scale;
+            const shadow_clip_base = bubble_rect_scale.r.outset(.{
                 .x = shadow_fade,
                 .y = shadow_fade,
                 .w = shadow_fade,
-            }).offsetPoint(.{
-                .x = 0.0,
-                .y = -dvui.currentWindow().natural_scale,
-            }));
+            });
+            // Expand upward for fade without moving the bottom edge (offset alone clipped the bubble bottom).
+            const clip = dvui.clip(.{
+                .x = shadow_clip_base.x,
+                .y = shadow_clip_base.y - ns,
+                .w = shadow_clip_base.w,
+                .h = shadow_clip_base.h + ns,
+            });
             defer dvui.clipSet(clip);
 
             const shadow_color = dvui.Color.black.opacity(0.25);
@@ -1016,10 +1021,15 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             return button_rect.contains(mouse_data_pt);
         }
 
-        const clip = dvui.clip(bubble_rect_scale.r.offsetPoint(.{
-            .x = 0.0,
-            .y = -dvui.currentWindow().natural_scale,
-        }));
+        const ns = dvui.currentWindow().natural_scale;
+        const br = bubble_rect_scale.r;
+        // Expand clip upward so fade has headroom; keep the same bottom edge so the fill isn’t clipped off the tile.
+        const clip = dvui.clip(.{
+            .x = br.x,
+            .y = br.y - ns,
+            .w = br.w,
+            .h = br.h + ns,
+        });
 
         if (self.init_options.file.editor.canvas.scale < 0.1) {
             built.fillConvex(.{ .color = cell_tint, .fade = 0.0 });
@@ -2707,6 +2717,13 @@ fn checkerboardCellCornerColor(
         .rainbow => return checkerboardVertexColor(c_tl, c_tr, c_bl, c_br, u, v, mu, mv, tone),
         .animation => {
             if (spriteAnimationPaletteColor(file, sprite_index)) |ac| {
+                const row = file.rowFromIndex(sprite_index);
+                const rows_f = @max(@as(f32, @floatFromInt(file.rows)), 1.0);
+                const v_cell_top = @as(f32, @floatFromInt(row)) / rows_f;
+                const v_cell_bot = @as(f32, @floatFromInt(row + 1)) / rows_f;
+                const v_mid = (v_cell_top + v_cell_bot) * 0.5;
+                // Top of cell: normal tone; bottom: animation tint (fade upward across the cell).
+                if (v <= v_mid) return tone;
                 return tone.lerp(ac, 0.4);
             }
             return tone;
@@ -2716,9 +2733,9 @@ fn checkerboardCellCornerColor(
 
 fn checkerboardGridPalette() struct { tone: dvui.Color, c_tl: dvui.Color, c_tr: dvui.Color, c_bl: dvui.Color, c_br: dvui.Color } {
     const tone = dvui.themeGet().color(.content, .fill).lighten(6.0).opacity(0.5).opacity(dvui.currentWindow().alpha);
-    const c_tl = tone.lerp(.green, 0.15);
-    const c_tr = tone.lerp(.red, 0.15);
-    const c_bl = tone.lerp(.blue, 0.15);
+    const c_tl = tone;
+    const c_tr = tone.lerp(.red, 0.18);
+    const c_bl = tone.lerp(.blue, 0.12);
     const c_br = c_tr.lerp(c_bl, 0.5);
     return .{ .tone = tone, .c_tl = c_tl, .c_tr = c_tr, .c_bl = c_bl, .c_br = c_br };
 }
@@ -2739,12 +2756,8 @@ fn checkerboardTintAtSpriteCellCenter(file: *pixi.Internal.File, sprite_index: u
             const v = (@as(f32, @floatFromInt(row)) + 0.5) / rows_f;
             return checkerboardVertexColor(pal.c_tl, pal.c_tr, pal.c_bl, pal.c_br, u, v, mu_mv.x, mu_mv.y, tone);
         },
-        .animation => {
-            if (spriteAnimationPaletteColor(file, sprite_index)) |ac| {
-                return tone.lerp(ac, 0.4);
-            }
-            return tone;
-        },
+        // Bubbles: base checkerboard tone only (no animation palette tint; that applies on the canvas grid).
+        .animation => return tone,
     }
 }
 
@@ -3115,11 +3128,12 @@ pub fn drawLayers(self: *FileWidget) void {
         if (resize_data_point.x < layer_rect.x + layer_rect.w or resize_data_point.y < layer_rect.y + layer_rect.h) {
             const grid_thickness = std.math.clamp(dvui.currentWindow().natural_scale * self.init_options.file.editor.canvas.scale, 0, dvui.currentWindow().natural_scale);
             self.init_options.file.editor.canvas.screenFromDataRect(layer_rect).fill(.all(0), .{ .color = dvui.themeGet().color(.err, .fill).opacity(0.5), .fade = 1.5 });
-            // Draw grid lines for the original layer_rect
+            // Draw grid lines for the original layer_rect (span using layer_rect origin so data↔screen matches at all zoom levels)
             for (1..columns) |i| {
+                const gx = @as(f32, @floatFromInt(i * file.column_width));
                 dvui.Path.stroke(.{ .points = &.{
-                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
-                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = layer_rect.h }),
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = gx, .y = layer_rect.y }),
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = gx, .y = layer_rect.y + layer_rect.h }),
                 } }, .{ .thickness = grid_thickness, .color = dvui.themeGet().color(.window, .fill) });
             }
 
@@ -3230,17 +3244,21 @@ pub fn drawLayers(self: *FileWidget) void {
         }
     }
 
-    // Draw the grid lines for the canvas
+    // Draw the grid lines for the canvas (cull against canvas_rect so resize preview draws lines in the extended area).
     {
         const grid_color = dvui.themeGet().color(.control, .fill);
         const grid_thickness = std.math.clamp(dvui.currentWindow().natural_scale * self.init_options.file.editor.canvas.scale, 0, dvui.currentWindow().natural_scale);
+        const grid_y0 = canvas_rect.y;
+        const grid_y1 = canvas_rect.y + canvas_rect.h;
+        const grid_x0 = canvas_rect.x;
+        const grid_x1 = canvas_rect.x + canvas_rect.w;
         const vertical_inner = @min(columns, file.columns);
         for (1..vertical_inner) |i| {
             const x = @as(f32, @floatFromInt(i * file.column_width));
-            if (!dataRectOverlapsVerticalLine(x, layer_rect)) continue;
+            if (!dataRectOverlapsVerticalLine(x, canvas_rect)) continue;
             dvui.Path.stroke(.{ .points = &.{
-                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = x, .y = 0 }),
-                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = x, .y = canvas_rect.h }),
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = x, .y = grid_y0 }),
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = x, .y = grid_y1 }),
             } }, .{ .thickness = grid_thickness, .color = grid_color });
         }
 
@@ -3248,10 +3266,10 @@ pub fn drawLayers(self: *FileWidget) void {
         if (columns > file.columns) {
             for (file.columns..columns) |k| {
                 const x = @as(f32, @floatFromInt(k * file.column_width));
-                if (!dataRectOverlapsVerticalLine(x, layer_rect)) continue;
+                if (!dataRectOverlapsVerticalLine(x, canvas_rect)) continue;
                 dvui.Path.stroke(.{ .points = &.{
-                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = x, .y = 0 }),
-                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = x, .y = canvas_rect.h }),
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = x, .y = grid_y0 }),
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = x, .y = grid_y1 }),
                 } }, .{ .thickness = grid_thickness, .color = grid_color });
             }
         }
@@ -3263,7 +3281,7 @@ pub fn drawLayers(self: *FileWidget) void {
                 if (file.rowFromIndex(si) == 0) continue;
                 if (self.spriteDrawsBubbleTopEdge(si)) continue;
                 const sr = file.spriteRect(si);
-                if (!dataRectOverlapsHorizontalLine(sr.y, sr.x, sr.x + sr.w, layer_rect)) continue;
+                if (!dataRectOverlapsHorizontalLine(sr.y, sr.x, sr.x + sr.w, canvas_rect)) continue;
                 dvui.Path.stroke(.{ .points = &.{
                     self.init_options.file.editor.canvas.screenFromDataPoint(sr.topLeft()),
                     self.init_options.file.editor.canvas.screenFromDataPoint(sr.topRight()),
@@ -3278,10 +3296,10 @@ pub fn drawLayers(self: *FileWidget) void {
             const row_horiz_end = if (rows > file.rows) file.rows else rows;
             for (1..row_horiz_end) |k| {
                 const y = @as(f32, @floatFromInt(k * file.row_height));
-                if (!dataRectOverlapsHorizontalLine(y, x_strip, canvas_rect.w, layer_rect)) continue;
+                if (!dataRectOverlapsHorizontalLine(y, x_strip, grid_x1, canvas_rect)) continue;
                 dvui.Path.stroke(.{ .points = &.{
                     self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = x_strip, .y = y }),
-                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = canvas_rect.w, .y = y }),
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = grid_x1, .y = y }),
                 } }, .{ .thickness = grid_thickness, .color = grid_color });
             }
         }
@@ -3290,23 +3308,23 @@ pub fn drawLayers(self: *FileWidget) void {
         if (rows > file.rows) {
             for (file.rows..rows) |k| {
                 const y = @as(f32, @floatFromInt(k * file.row_height));
-                if (!dataRectOverlapsHorizontalLine(y, 0, canvas_rect.w, layer_rect)) continue;
+                if (!dataRectOverlapsHorizontalLine(y, grid_x0, grid_x1, canvas_rect)) continue;
                 dvui.Path.stroke(.{ .points = &.{
-                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = y }),
-                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = canvas_rect.w, .y = y }),
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = grid_x0, .y = y }),
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = grid_x1, .y = y }),
                 } }, .{ .thickness = grid_thickness, .color = grid_color });
             }
         }
 
         if (self.resize_data_point) |resize_data_point| {
             dvui.Path.stroke(.{ .points = &.{
-                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = 0 }),
-                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = canvas_rect.h }),
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = grid_y0 }),
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = grid_y1 }),
             } }, .{ .thickness = grid_thickness, .color = grid_color });
 
             dvui.Path.stroke(.{ .points = &.{
-                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = resize_data_point.y }),
-                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = canvas_rect.w, .y = resize_data_point.y }),
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = grid_x0, .y = resize_data_point.y }),
+                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = grid_x1, .y = resize_data_point.y }),
             } }, .{ .thickness = grid_thickness, .color = grid_color });
         }
     }
@@ -3445,6 +3463,26 @@ fn drawCheckerboardReorderFloatingStrip(
     };
 }
 
+/// Content fill + batched checkerboard for the file canvas (same as the normal `drawLayers` path).
+fn drawCanvasCheckerboardBackground(self: *FileWidget) void {
+    const file = self.init_options.file;
+    const canvas = &file.editor.canvas;
+    const layer_rect = canvas.dataFromScreenRect(canvas.rect);
+    const bg_rect = dvui.Rect{
+        .x = layer_rect.x,
+        .y = layer_rect.y,
+        .w = layer_rect.w,
+        .h = layer_rect.h,
+    };
+    const bg_screen = canvas.screenFromDataRect(bg_rect);
+    if (canvas.scale < 0.1) {
+        bg_screen.fill(.all(0), .{ .color = dvui.themeGet().color(.content, .fill), .fade = 1.5 });
+    } else {
+        bg_screen.fill(.all(0), .{ .color = dvui.themeGet().color(.content, .fill), .fade = 1.5 });
+        drawCheckerboardCellsBatched(file);
+    }
+}
+
 fn drawColumnRowReorderPreview(self: *FileWidget) void {
     const file = self.init_options.file;
     const workspace = file.editor.workspace;
@@ -3567,6 +3605,17 @@ fn drawReorderPreviewForAxis(
     target_index: ?usize,
     removed_index: usize,
 ) void {
+    self.drawCanvasCheckerboardBackground();
+
+    const canvas = &file.editor.canvas;
+    const layer_rect = canvas.dataFromScreenRect(canvas.rect);
+    const grid_y0 = layer_rect.y;
+    const grid_y1 = layer_rect.y + layer_rect.h;
+    const grid_x0 = layer_rect.x;
+    const grid_x1 = layer_rect.x + layer_rect.w;
+    const grid_thickness = std.math.clamp(dvui.currentWindow().natural_scale * canvas.scale, 0, dvui.currentWindow().natural_scale);
+    const grid_color = dvui.themeGet().color(.control, .fill);
+
     const removed_rect = switch (axis) {
         .columns => file.columnRect(removed_index),
         .rows => file.rowRect(removed_index),
@@ -3576,19 +3625,20 @@ fn drawReorderPreviewForAxis(
         // Dragging but not over canvas: draw full layers unchanged, then dim removed slot only
 
         {
-            const grid_thickness = std.math.clamp(2 * self.init_options.file.editor.canvas.scale, 0, 2);
             for (1..file.columns) |i| {
+                const gx = @as(f32, @floatFromInt(i * file.column_width));
                 dvui.Path.stroke(.{ .points = &.{
-                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
-                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = @as(f32, @floatFromInt(file.height())) }),
-                } }, .{ .thickness = grid_thickness, .color = dvui.themeGet().color(.window, .fill) });
+                    canvas.screenFromDataPoint(.{ .x = gx, .y = grid_y0 }),
+                    canvas.screenFromDataPoint(.{ .x = gx, .y = grid_y1 }),
+                } }, .{ .thickness = grid_thickness, .color = grid_color });
             }
 
             for (1..file.rows) |i| {
+                const gy = @as(f32, @floatFromInt(i * file.row_height));
                 dvui.Path.stroke(.{ .points = &.{
-                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(file.width())), .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-                } }, .{ .thickness = grid_thickness, .color = dvui.themeGet().color(.window, .fill) });
+                    canvas.screenFromDataPoint(.{ .x = grid_x0, .y = gy }),
+                    canvas.screenFromDataPoint(.{ .x = grid_x1, .y = gy }),
+                } }, .{ .thickness = grid_thickness, .color = grid_color });
             }
         }
 
@@ -3836,7 +3886,6 @@ fn drawReorderPreviewForAxis(
     };
 
     const segments = reorderSegmentRects(axis, file, target_i, removed_index, target_rect, removed_rect);
-    const canvas = &file.editor.canvas;
 
     self.renderLayersInDataRect(file, segments.first, null);
     if (segments.middle) |middle_rect| {
@@ -3848,25 +3897,36 @@ fn drawReorderPreviewForAxis(
     }
 
     {
-        const grid_thickness = std.math.clamp(2 * self.init_options.file.editor.canvas.scale, 0, 2);
         for (1..file.columns) |i| {
+            const gx = @as(f32, @floatFromInt(i * file.column_width));
             dvui.Path.stroke(.{ .points = &.{
-                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
-                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = @as(f32, @floatFromInt(file.height())) }),
-            } }, .{ .thickness = grid_thickness, .color = dvui.themeGet().color(.window, .fill) });
+                canvas.screenFromDataPoint(.{ .x = gx, .y = grid_y0 }),
+                canvas.screenFromDataPoint(.{ .x = gx, .y = grid_y1 }),
+            } }, .{ .thickness = grid_thickness, .color = grid_color });
         }
 
         for (1..file.rows) |i| {
+            const gy = @as(f32, @floatFromInt(i * file.row_height));
             dvui.Path.stroke(.{ .points = &.{
-                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(file.width())), .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-            } }, .{ .thickness = grid_thickness, .color = dvui.themeGet().color(.window, .fill) });
+                canvas.screenFromDataPoint(.{ .x = grid_x0, .y = gy }),
+                canvas.screenFromDataPoint(.{ .x = grid_x1, .y = gy }),
+            } }, .{ .thickness = grid_thickness, .color = grid_color });
         }
     }
 }
 
 pub fn drawCellReorderPreview(self: *FileWidget) void {
     const file = self.init_options.file;
+    self.drawCanvasCheckerboardBackground();
+
+    const canvas = &file.editor.canvas;
+    const layer_rect = canvas.dataFromScreenRect(canvas.rect);
+    const grid_y0 = layer_rect.y;
+    const grid_y1 = layer_rect.y + layer_rect.h;
+    const grid_x0 = layer_rect.x;
+    const grid_x1 = layer_rect.x + layer_rect.w;
+    const grid_thickness = std.math.clamp(dvui.currentWindow().natural_scale * canvas.scale, 0, dvui.currentWindow().natural_scale);
+    const grid_color = dvui.themeGet().color(.control, .fill);
 
     if (self.removed_sprite_indices) |removed_sprite_indices| {
         const insert_before_sprite_indices = dvui.currentWindow().arena().alloc(usize, removed_sprite_indices.len) catch {
@@ -4016,19 +4076,19 @@ pub fn drawCellReorderPreview(self: *FileWidget) void {
             }
 
             {
-                const grid_color = dvui.themeGet().color(.content, .fill);
-                const grid_thickness = std.math.clamp(2 * self.init_options.file.editor.canvas.scale, 0, 2);
                 for (1..file.columns) |i| {
+                    const gx = @as(f32, @floatFromInt(i * file.column_width));
                     dvui.Path.stroke(.{ .points = &.{
-                        self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
-                        self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = file.editor.canvas.rect.h }),
+                        canvas.screenFromDataPoint(.{ .x = gx, .y = grid_y0 }),
+                        canvas.screenFromDataPoint(.{ .x = gx, .y = grid_y1 }),
                     } }, .{ .thickness = grid_thickness, .color = grid_color });
                 }
 
                 for (1..file.rows) |i| {
+                    const gy = @as(f32, @floatFromInt(i * file.row_height));
                     dvui.Path.stroke(.{ .points = &.{
-                        self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-                        self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = file.editor.canvas.rect.w, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
+                        canvas.screenFromDataPoint(.{ .x = grid_x0, .y = gy }),
+                        canvas.screenFromDataPoint(.{ .x = grid_x1, .y = gy }),
                     } }, .{ .thickness = grid_thickness, .color = grid_color });
                 }
             }

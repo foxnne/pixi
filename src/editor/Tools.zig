@@ -206,7 +206,7 @@ pub fn drawTooltip(_: Tools, tool: Tool, rect: dvui.Rect.Physical, id_extra: u64
         .delay = 1_000_000,
     }, .{
         .id_extra = id_extra,
-        .color_fill = dvui.themeGet().color(.window, .fill).opacity(0.75),
+        .color_fill = dvui.themeGet().color(.content, .fill).opacity(0.9),
         .border = dvui.Rect.all(0),
         .box_shadow = .{
             .color = .black,
