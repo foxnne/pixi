@@ -530,6 +530,87 @@ pub fn processSpriteSelection(self: *FileWidget) void {
     }
 }
 
+/// Returns whether `drawSpriteBubbles` will invoke `drawSpriteBubble` for this sprite (same
+/// conditions as the inner loop, without the shadow/bubble pass split). Used so horizontal grid
+/// can be drawn per cell: we skip the flat grid segment where the bubble arc replaces it.
+fn spriteDrawsBubbleTopEdge(self: *FileWidget, sprite_index: usize) bool {
+    if (self.init_options.file.editor.transform != null) return false;
+    if (self.resize_data_point != null) return false;
+    if (self.init_options.file.editor.workspace.columns_drag_index != null) return false;
+    if (self.init_options.file.editor.workspace.rows_drag_index != null) return false;
+    if (self.removed_sprite_indices != null) return false;
+    if (!(self.active() or self.hovered())) return false;
+
+    const sprite_rect = self.init_options.file.spriteRect(sprite_index);
+
+    var automatic_animation: bool = false;
+    var animation_index: ?usize = null;
+
+    if (self.init_options.file.selected_animation_index) |selected_animation_index| {
+        for (self.init_options.file.animations.items(.frames)[selected_animation_index], 0..) |frame, i| {
+            _ = i;
+            if (frame.sprite_index == sprite_index) {
+                animation_index = selected_animation_index;
+                break;
+            }
+        }
+    }
+
+    if (animation_index == null) {
+        anim_blk: for (self.init_options.file.animations.items(.frames), 0..) |frames, i| {
+            for (frames, 0..) |frame, j| {
+                _ = j;
+                if (frame.sprite_index == sprite_index) {
+                    animation_index = i;
+                    break :anim_blk;
+                }
+            }
+        }
+    }
+
+    if (animation_index) |ai| {
+        if (self.init_options.file.selected_animation_index == ai) {
+            automatic_animation = true;
+        }
+    }
+
+    if (self.init_options.file.editor.selected_sprites.count() > 0) {
+        if (self.init_options.file.editor.selected_sprites.isSet(sprite_index)) {
+            automatic_animation = true;
+        }
+    }
+
+    if (automatic_animation) {
+        return true;
+    }
+
+    if (self.init_options.file.editor.selected_sprites.count() > 0) {
+        if (!self.init_options.file.editor.selected_sprites.isSet(sprite_index) or (animation_index != self.init_options.file.selected_animation_index and !self.init_options.file.editor.selected_sprites.isSet(sprite_index))) {
+            return false;
+        }
+    }
+
+    const animation_id = self.init_options.file.editor.canvas.scroll_container.data().id;
+
+    var max_distance: f32 = sprite_rect.h * 1.2;
+
+    if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
+        max_distance += (max_distance * 0.5) * (1.0 - anim.value());
+    } else if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
+        max_distance += (max_distance * 0.5) * (1.0 - anim.value());
+    } else {
+        max_distance += (max_distance * 0.5) * if (!self.hide_distance_bubble) @as(f32, 0.0) else @as(f32, 1.0);
+    }
+
+    const current_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+
+    const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5));
+    const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.25));
+    const distance = @sqrt((dx * dx) * 0.5 + (dy * dy) * 2.0);
+
+    return distance < (max_distance * 2.0);
+}
+
 /// Responsible for drawing the indicators for animation frames as bubbles over each sprite.
 ///
 /// Bubbles contain a button that acts as a toggle for adding/removing a sprite from an animation.
@@ -960,7 +1041,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
         if (draw_transparency) {
             if (self.init_options.file.editor.canvas.scale < 0.1) {
-                built.fillConvex(.{ .color = fill_color, .fade = 3.0 });
+                built.fillConvex(.{ .color = fill_color, .fade = 0.0 });
             } else {
                 built.fillConvex(.{ .color = fill_color, .fade = 1.0 });
                 var triangles = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = fill_color.lighten(6.0).opacity(0.5), .fade = 0.0 }) catch {
@@ -983,7 +1064,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                 };
             }
         } else {
-            built.fillConvex(.{ .color = dvui.themeGet().color(.content, .fill).lighten(6.0).opacity(0.5), .fade = 3.0 });
+            built.fillConvex(.{ .color = dvui.themeGet().color(.content, .fill).lighten(6.0).opacity(0.5), .fade = 0.0 });
         }
         // Draw bubble outline
         built.stroke(.{ .color = color, .thickness = dvui.currentWindow().natural_scale });
@@ -2836,11 +2917,18 @@ pub fn drawLayers(self: *FileWidget) void {
                 } }, .{ .thickness = grid_thickness, .color = dvui.themeGet().color(.window, .fill) });
             }
 
-            for (1..rows) |i| {
-                dvui.Path.stroke(.{ .points = &.{
-                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = layer_rect.w, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-                } }, .{ .thickness = grid_thickness, .color = dvui.themeGet().color(.window, .fill) });
+            {
+                var si = file.spriteCount();
+                while (si > 0) {
+                    si -= 1;
+                    if (file.rowFromIndex(si) == 0) continue;
+                    if (self.spriteDrawsBubbleTopEdge(si)) continue;
+                    const sr = file.spriteRect(si);
+                    dvui.Path.stroke(.{ .points = &.{
+                        self.init_options.file.editor.canvas.screenFromDataPoint(sr.topLeft()),
+                        self.init_options.file.editor.canvas.screenFromDataPoint(sr.topRight()),
+                    } }, .{ .thickness = grid_thickness, .color = dvui.themeGet().color(.window, .fill) });
+                }
             }
         }
 
@@ -2986,11 +3074,18 @@ pub fn drawLayers(self: *FileWidget) void {
             } }, .{ .thickness = grid_thickness, .color = grid_color });
         }
 
-        for (1..rows) |i| {
-            dvui.Path.stroke(.{ .points = &.{
-                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-                self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = canvas_rect.w, .y = @as(f32, @floatFromInt(i * file.row_height)) }),
-            } }, .{ .thickness = grid_thickness, .color = grid_color });
+        {
+            var si = file.spriteCount();
+            while (si > 0) {
+                si -= 1;
+                if (file.rowFromIndex(si) == 0) continue;
+                if (self.spriteDrawsBubbleTopEdge(si)) continue;
+                const sr = file.spriteRect(si);
+                dvui.Path.stroke(.{ .points = &.{
+                    self.init_options.file.editor.canvas.screenFromDataPoint(sr.topLeft()),
+                    self.init_options.file.editor.canvas.screenFromDataPoint(sr.topRight()),
+                } }, .{ .thickness = grid_thickness, .color = grid_color });
+            }
         }
 
         if (self.resize_data_point) |resize_data_point| {
