@@ -523,21 +523,6 @@ pub fn drawCanvas(self: *Workspace) !void {
 
     const has_files = pixi.editor.open_files.values().len > 0;
 
-    var anim: *dvui.AnimateWidget = undefined;
-    if (has_files) {
-        anim = dvui.animate(@src(), .{ .duration = 400_000, .kind = .alpha, .easing = dvui.easing.linear }, .{
-            .expand = .both,
-            .gravity_x = 0.5,
-            .id_extra = self.grouping,
-        });
-    } else {
-        anim = dvui.animate(@src(), .{ .duration = 400_000, .kind = .alpha, .easing = dvui.easing.linear }, .{
-            .expand = .both,
-            .gravity_x = 0.5,
-        });
-    }
-    defer anim.deinit();
-
     var canvas_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
         .background = has_files,
@@ -592,6 +577,7 @@ pub fn drawCanvas(self: *Workspace) !void {
             .background = true,
             .color_fill = content_color,
             .corner_radius = dvui.Rect.all(16),
+            .margin = .{ .y = 10 },
         });
         defer box.deinit();
 
@@ -611,7 +597,7 @@ pub const RulerOrientation = enum {
 
 pub fn drawRuler(self: *Workspace, orientation: RulerOrientation) void {
     const file = &pixi.editor.open_files.values()[self.open_file_index];
-    const font = dvui.Font.theme(.mono).larger(-1);
+    const font = dvui.Font.theme(.body).larger(-1);
 
     const largest_label = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{file.rows - 1}) catch {
         dvui.log.err("Failed to allocate largest label", .{});

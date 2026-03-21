@@ -31,7 +31,7 @@ fn update_step(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
         GitDependency{
             // dvui
             .url = "https://github.com/foxnne/dvui-dev",
-            .branch = "main",
+            .branch = "defer_render",
         },
         GitDependency{
             // assetpack
@@ -88,7 +88,6 @@ pub fn build(b: *std.Build) !void {
             .optimize = optimize,
             .root_source_file = .{ .cwd_relative = "src/App.zig" },
         }),
-        //.use_llvm = true,
     });
 
     const assetpack = @import("assetpack");
@@ -147,6 +146,8 @@ pub fn build(b: *std.Build) !void {
         }
         // Custom NSVisualEffectView subclass that forwards right-click to the content view (SDL).
         exe.addCSourceFile(.{ .file = std.Build.path(b, "src/objc/PixiVisualEffectView.m") });
+        // Target for macOS menu bar items (File menu); calls back into Zig via PixiNativeMenuAction.
+        exe.addCSourceFile(.{ .file = std.Build.path(b, "src/objc/PixiMenuTarget.m") });
     } else if (target.result.os.tag == .windows) {
         if (b.lazyDependency("zigwin32", .{})) |dep| {
             exe.root_module.addImport("win32", dep.module("win32"));

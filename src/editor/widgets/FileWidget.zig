@@ -810,7 +810,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
     //if (sprite_index != 0) return;
     const t = progress;
-    const fill_color: dvui.Color = dvui.themeGet().color(.control, .fill);
+    const fill_color: dvui.Color = dvui.themeGet().color(.content, .fill).lighten(4.5).opacity(0.5);
 
     const sprite_rect = self.init_options.file.spriteRect(sprite_index);
 
@@ -861,7 +861,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
     const animation_id = self.init_options.file.editor.canvas.scroll_container.data().id;
 
     // Choose a font size that fits scaled to button size.
-    const font = dvui.Font.theme(.mono).larger(-1.0);
+    const font = dvui.Font.theme(.body).larger(-1.0);
 
     const sprite_label = self.init_options.file.fmtSprite(dvui.currentWindow().arena(), sprite_index, .grid) catch {
         dvui.log.err("Failed to format sprite index", .{});
@@ -938,7 +938,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             }));
             defer dvui.clipSet(clip);
 
-            const shadow_color = dvui.Color.black.opacity(0.20);
+            const shadow_color = dvui.Color.black.opacity(0.25);
             var shadow_path = dvui.Path.Builder.init(dvui.currentWindow().arena());
             shadow_path.addArc(arc_center.plus(.{ .x = 0.0, .y = 0.0 }), radius, dvui.math.pi + start_angle, dvui.math.pi + end_angle, false);
             shadow_path.build().fillConvex(.{ .color = shadow_color, .fade = shadow_fade });
@@ -948,22 +948,22 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             return button_rect.contains(mouse_data_pt);
         }
 
-        dvui.Path.stroke(.{
-            .points = &[_]dvui.Point.Physical{
-                bubble_rect_scale.r.bottomLeft(),
-                bubble_rect_scale.r.bottomRight(),
-            },
-        }, .{
-            .color = dvui.themeGet().color(.control, .fill),
-            .thickness = 2.0,
-        });
+        // dvui.Path.stroke(.{
+        //     .points = &[_]dvui.Point.Physical{
+        //         bubble_rect_scale.r.bottomLeft(),
+        //         bubble_rect_scale.r.bottomRight(),
+        //     },
+        // }, .{
+        //     .color = dvui.themeGet().color(.content, .fill),
+        //     .thickness = 2.0,
+        // });
 
         if (draw_transparency) {
             if (self.init_options.file.editor.canvas.scale < 0.1) {
                 built.fillConvex(.{ .color = fill_color, .fade = 3.0 });
             } else {
                 built.fillConvex(.{ .color = fill_color, .fade = 1.0 });
-                var triangles = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = fill_color.lighten(4.0).opacity(0.5), .fade = 0.0 }) catch {
+                var triangles = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = fill_color.lighten(6.0).opacity(0.5), .fade = 0.0 }) catch {
                     dvui.log.err("Failed to fill convex triangles", .{});
                     return false;
                 };
@@ -983,7 +983,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
                 };
             }
         } else {
-            built.fillConvex(.{ .color = dvui.themeGet().color(.control, .fill), .fade = 3.0 });
+            built.fillConvex(.{ .color = dvui.themeGet().color(.content, .fill).lighten(6.0).opacity(0.5), .fade = 3.0 });
         }
         // Draw bubble outline
         built.stroke(.{ .color = color, .thickness = dvui.currentWindow().natural_scale });
@@ -1064,7 +1064,7 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             .margin = .all(0),
             .padding = .all(0),
             .id_extra = sprite_index,
-            .color_fill = dvui.themeGet().color(.window, .fill),
+            .color_fill = dvui.themeGet().color(.window, .fill).lighten(6.0),
             //.color_border = dvui.themeGet().color(.control, .fill),
             //.border = dvui.Rect.all(1).scale(1.0 / self.init_options.file.editor.canvas.scale, dvui.Rect),
             .box_shadow = .{
@@ -2855,7 +2855,7 @@ pub fn drawLayers(self: *FileWidget) void {
         .box_shadow = .{
             .fade = 20 * 1 / self.init_options.file.editor.canvas.scale,
             .corner_radius = dvui.Rect.all(2 * 1 / self.init_options.file.editor.canvas.scale),
-            .alpha = 0.2,
+            .alpha = if (dvui.themeGet().dark) 0.4 else 0.2,
             .offset = .{
                 .x = 2 * 1 / self.init_options.file.editor.canvas.scale,
                 .y = 2 * 1 / self.init_options.file.editor.canvas.scale,
@@ -2869,7 +2869,7 @@ pub fn drawLayers(self: *FileWidget) void {
         .rect = .{ .x = layer_rect.x, .y = layer_rect.y, .w = @min(canvas_rect.w, layer_rect.w), .h = @min(canvas_rect.h, layer_rect.h) },
         .border = dvui.Rect.all(0),
         .background = true,
-        .color_fill = dvui.themeGet().color(.control, .fill),
+        .color_fill = dvui.themeGet().color(.content, .fill),
     });
     fill_box.deinit();
 
@@ -2886,11 +2886,11 @@ pub fn drawLayers(self: *FileWidget) void {
             };
 
             if (self.init_options.file.editor.canvas.scale < 0.1) {
-                image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
+                image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.content, .fill), .fade = 1.5 });
             } else {
-                image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
+                image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.content, .fill), .fade = 1.5 });
                 dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
-                    .colormod = dvui.themeGet().color(.control, .fill).lighten(4.0).opacity(0.5),
+                    .colormod = dvui.themeGet().color(.content, .fill).lighten(6.0).opacity(0.5),
                 }) catch {
                     dvui.log.err("Failed to render checkerboard", .{});
                 };
@@ -2918,11 +2918,11 @@ pub fn drawLayers(self: *FileWidget) void {
         }
 
         if (self.init_options.file.editor.canvas.scale < 0.1) {
-            image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
+            image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.content, .fill), .fade = 1.5 });
         } else {
-            image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
+            image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.content, .fill), .fade = 1.5 });
             dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
-                .colormod = dvui.themeGet().color(.control, .fill).lighten(4.0).opacity(0.5),
+                .colormod = dvui.themeGet().color(.content, .fill).lighten(6.0).opacity(0.5),
             }) catch {
                 dvui.log.err("Failed to render checkerboard", .{});
             };
@@ -3361,7 +3361,7 @@ fn drawReorderPreviewForAxis(
             .rows => std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{removed_index}) catch "err",
         };
         workspace.drawRulerLabel(.{
-            .font = dvui.Font.theme(.mono).larger(-1),
+            .font = dvui.Font.theme(.body).larger(-1),
             .label = label,
             .rect = file.editor.canvas.screenFromDataRect(target_box_label_rect),
             .color = dvui.themeGet().color(.window, .fill),

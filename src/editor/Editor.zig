@@ -74,6 +74,9 @@ sprite_clipboard: ?SpriteClipboard = null,
 
 window_opacity: f32 = 1.0,
 
+pending_native_menu_actions: [16]pixi.backend.NativeMenuAction = undefined,
+pending_native_menu_actions_len: u8 = 0,
+
 pub const SpriteClipboard = struct {
     source: dvui.ImageSource,
     offset: dvui.Point,
@@ -97,8 +100,8 @@ pub fn init(
     };
 
     pixi_dark.control = .{
-        .fill = .{ .r = 42, .g = 44, .b = 54, .a = 255 },
-        .border = .{ .r = 42, .g = 44, .b = 54, .a = 255 },
+        .fill = .{ .r = 28, .g = 29, .b = 36, .a = 255 },
+        .border = .{ .r = 34, .g = 35, .b = 42, .a = 255 },
         .text = .{ .r = 134, .g = 138, .b = 148, .a = 255 },
     };
 
@@ -109,7 +112,7 @@ pub fn init(
     };
 
     // theme.content
-    pixi_dark.fill = pixi_dark.control.fill.?;
+    pixi_dark.fill = .{ .r = 42, .g = 44, .b = 54, .a = 255 };
     pixi_dark.text = pixi_dark.window.text.?;
     pixi_dark.focus = pixi_dark.highlight.fill.?;
 
@@ -147,9 +150,10 @@ pub fn init(
     pixi_light.dark = false;
     pixi_light.name = "Pixi Light";
     pixi_light.window = dvui.Theme.builtin.adwaita_light.window;
-    pixi_light.window.text = .{ .r = 170, .g = 130, .b = 140, .a = 255 };
+    pixi_light.window.text = .{ .r = 40, .g = 40, .b = 50, .a = 255 };
+    //pixi_light.window.text = .{ .r = 170, .g = 130, .b = 140, .a = 255 };
     pixi_light.control = dvui.Theme.builtin.adwaita_light.control;
-    pixi_light.control.text = .black;
+    pixi_light.control.text = .{ .r = 90, .g = 80, .b = 80, .a = 255 };
     pixi_light.highlight = .{
         .fill = .{ .r = 170, .g = 130, .b = 140, .a = 255 },
         .text = .white,
@@ -265,6 +269,10 @@ const handle_dist = 60;
 
 pub fn tick(editor: *Editor) !dvui.App.Result {
     editor.window_opacity = if (dvui.themeGet().dark) editor.settings.window_opacity_dark else editor.settings.window_opacity_light;
+
+    if (pixi.backend.pollPendingNativeMenuAction()) |action| {
+        editor.queueNativeMenuAction(action);
+    }
 
     defer editor.dim_titlebar = false;
     editor.setTitlebarColor();
@@ -408,6 +416,8 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         });
         defer editor.explorer.paned.deinit();
 
+        editor.flushQueuedNativeMenuActions();
+
         if (dvui.firstFrame(editor.explorer.paned.wd.id)) {
             editor.explorer.paned.split_ratio.* = 0.0;
             editor.explorer.paned.animateSplit(pixi.editor.settings.explorer_ratio, dvui.easing.outBack);
@@ -438,7 +448,8 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             const bg_box = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both });
             defer bg_box.deinit();
 
-            {
+            // On macOS, the menu is handled natively, so we don't need to draw it here
+            if (builtin.os.tag != .macos) {
                 const result = try Menu.draw();
                 if (result != .ok) {
                     return result;
@@ -520,11 +531,109 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     }
 
     // look at demo() for examples of dvui widgets, shows in a floating window
-    dvui.Examples.demo();
+    dvui.Examples.demo(.full);
 
     _ = editor.arena.reset(.retain_capacity);
 
     return .ok;
+}
+
+fn queueNativeMenuAction(editor: *Editor, action: pixi.backend.NativeMenuAction) void {
+    if (editor.pending_native_menu_actions_len >= editor.pending_native_menu_actions.len) {
+        // If we ever overflow, drop the action rather than crashing.
+        return;
+    }
+    editor.pending_native_menu_actions[editor.pending_native_menu_actions_len] = action;
+    editor.pending_native_menu_actions_len += 1;
+}
+
+fn flushQueuedNativeMenuActions(editor: *Editor) void {
+    if (editor.pending_native_menu_actions_len == 0) return;
+    const len: usize = editor.pending_native_menu_actions_len;
+    editor.pending_native_menu_actions_len = 0;
+
+    var i: usize = 0;
+    while (i < len) : (i += 1) {
+        editor.handleNativeMenuAction(editor.pending_native_menu_actions[i]) catch |err| {
+            dvui.log.err("Native menu action failed: {any}", .{err});
+        };
+    }
+}
+
+pub fn handleNativeMenuAction(editor: *Editor, action: pixi.backend.NativeMenuAction) !void {
+    switch (action) {
+        .open_folder => {
+            if (try dvui.dialogNativeFolderSelect(dvui.currentWindow().arena(), .{ .title = "Open Project Folder" })) |folder| {
+                try editor.setProjectFolder(folder);
+            }
+        },
+        .open_files => {
+            if (try dvui.dialogNativeFileOpenMultiple(dvui.currentWindow().arena(), .{
+                .title = "Open Files...",
+                .filter_description = ".pixi, .png",
+                .filters = &.{ "*.pixi", "*.png" },
+            })) |files| {
+                for (files) |file| {
+                    _ = editor.openFilePath(file, editor.open_workspace_grouping) catch {
+                        std.log.err("Failed to open file: {s}", .{file});
+                    };
+                }
+            }
+        },
+        .save => {
+            if (editor.activeFile()) |file| {
+                file.saveAsync() catch {
+                    std.log.err("Failed to save", .{});
+                };
+            }
+        },
+        .copy => {
+            if (editor.activeFile() != null) {
+                editor.copy() catch {
+                    std.log.err("Failed to copy", .{});
+                };
+            }
+        },
+        .paste => {
+            if (editor.activeFile() != null) {
+                editor.paste() catch {
+                    std.log.err("Failed to paste", .{});
+                };
+            }
+        },
+        .undo => {
+            if (editor.activeFile()) |file| {
+                file.history.undoRedo(file, .undo) catch {
+                    std.log.err("Failed to undo", .{});
+                };
+            }
+        },
+        .redo => {
+            if (editor.activeFile()) |file| {
+                file.history.undoRedo(file, .redo) catch {
+                    std.log.err("Failed to redo", .{});
+                };
+            }
+        },
+        .transform => {
+            if (editor.activeFile() != null) {
+                editor.transform() catch {
+                    std.log.err("Failed to transform", .{});
+                };
+            }
+        },
+        .toggle_explorer => {
+            // Use .closed, not paned.split_ratio — split_ratio is only valid during draw
+            if (editor.explorer.closed) {
+                editor.explorer.open();
+            } else {
+                editor.explorer.close();
+            }
+        },
+        .show_dvui_demo => {
+            dvui.Examples.show_demo_window = !dvui.Examples.show_demo_window;
+        },
+    }
 }
 
 pub fn setTitlebarColor(editor: *Editor) void {

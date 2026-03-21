@@ -70,6 +70,8 @@ pub fn AppInit(win: *dvui.Window) !void {
 
     dvui.addFont("CozetteVector", cozette_ttf, null) catch {};
     dvui.addFont("CozetteVectorBold", cozette_bold_ttf, null) catch {};
+
+    pixi.backend.setupMacOSMenuBar();
 }
 
 // Run as app is shutting down before dvui.Window.deinit()
