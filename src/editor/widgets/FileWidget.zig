@@ -891,9 +891,9 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
     //if (sprite_index != 0) return;
     const t = progress;
-    const fill_color: dvui.Color = dvui.themeGet().color(.content, .fill).lighten(4.5).opacity(0.5);
 
     const sprite_rect = self.init_options.file.spriteRect(sprite_index);
+    const cell_tint = checkerboardTintAtSpriteCellCenter(self.init_options.file, sprite_index);
 
     const target_button_height: f32 = 24.0;
     // Figure out artwork's baseline size (width or height, whichever is smaller)
@@ -994,19 +994,6 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
         var built = path.build();
         defer path.deinit();
 
-        var draw_transparency: bool = false;
-        draw_transparency = sprite_rect_scale.r.contains(dvui.currentWindow().mouse_pt) and self.hovered();
-
-        if (!draw_transparency) {
-            if (self.init_options.file.editor.selected_sprites.findLastSet()) |last| {
-                draw_transparency = last == sprite_index;
-            } else if (self.init_options.file.selected_animation_index) |ai| {
-                if (self.init_options.file.selected_animation_frame_index < self.init_options.file.animations.get(ai).frames.len) {
-                    draw_transparency = self.init_options.file.animations.get(ai).frames[self.init_options.file.selected_animation_frame_index].sprite_index == sprite_index;
-                }
-            }
-        }
-
         if (shadow_only) { // Draw drop shadow
             const shadow_fade = arc_height * 0.66 * dvui.easing.outExpo(t);
             const clip = dvui.clip(bubble_rect_scale.r.outset(.{
@@ -1029,43 +1016,36 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
             return button_rect.contains(mouse_data_pt);
         }
 
-        // dvui.Path.stroke(.{
-        //     .points = &[_]dvui.Point.Physical{
-        //         bubble_rect_scale.r.bottomLeft(),
-        //         bubble_rect_scale.r.bottomRight(),
-        //     },
-        // }, .{
-        //     .color = dvui.themeGet().color(.content, .fill),
-        //     .thickness = 2.0,
-        // });
+        const clip = dvui.clip(bubble_rect_scale.r.offsetPoint(.{
+            .x = 0.0,
+            .y = -dvui.currentWindow().natural_scale,
+        }));
 
-        if (draw_transparency) {
-            if (self.init_options.file.editor.canvas.scale < 0.1) {
-                built.fillConvex(.{ .color = fill_color, .fade = 0.0 });
-            } else {
-                built.fillConvex(.{ .color = fill_color, .fade = 1.0 });
-                var triangles = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = fill_color.lighten(6.0).opacity(0.5), .fade = 0.0 }) catch {
-                    dvui.log.err("Failed to fill convex triangles", .{});
-                    return false;
-                };
-
-                const h = arc_height / sprite_rect_scale.r.h;
-
-                const uv_rect = dvui.Rect{
-                    .x = 0.0,
-                    .w = 1.0,
-                    .y = 1.0 - h,
-                    .h = h, // adjust so text stays fixed on screen regardless of scale
-                };
-                triangles.uvFromRectuv(bubble_rect_scale.r, uv_rect);
-
-                dvui.renderTriangles(triangles, self.init_options.file.editor.checkerboard_tile.getTexture() catch null) catch {
-                    dvui.log.err("Failed to render triangles", .{});
-                };
-            }
+        if (self.init_options.file.editor.canvas.scale < 0.1) {
+            built.fillConvex(.{ .color = cell_tint, .fade = 0.0 });
         } else {
-            built.fillConvex(.{ .color = dvui.themeGet().color(.content, .fill).lighten(6.0).opacity(0.5), .fade = 0.0 });
+            built.fillConvex(.{ .color = cell_tint, .fade = 1.0 });
+            var triangles = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = cell_tint, .fade = 0.0 }) catch {
+                dvui.log.err("Failed to fill convex triangles", .{});
+                return false;
+            };
+
+            const h = arc_height / sprite_rect_scale.r.h;
+
+            const uv_rect = dvui.Rect{
+                .x = 0.0,
+                .w = 1.0,
+                .y = 1.0 - h,
+                .h = h, // adjust so text stays fixed on screen regardless of scale
+            };
+            triangles.uvFromRectuv(bubble_rect_scale.r, uv_rect);
+
+            dvui.renderTriangles(triangles, self.init_options.file.editor.checkerboard_tile.getTexture() catch null) catch {
+                dvui.log.err("Failed to render triangles", .{});
+            };
         }
+
+        dvui.clipSet(clip);
         // Draw bubble outline
         built.stroke(.{ .color = color, .thickness = dvui.currentWindow().natural_scale });
 
@@ -2632,6 +2612,135 @@ fn doubleStroke(points: []const dvui.Point.Physical, color: dvui.Color, thicknes
     });
 }
 
+fn checkerboardGridColorBilinear(c_tl: dvui.Color, c_tr: dvui.Color, c_bl: dvui.Color, c_br: dvui.Color, u: f32, v: f32) dvui.Color {
+    const top = c_tl.lerp(c_tr, u);
+    const bottom = c_bl.lerp(c_br, u);
+    return top.lerp(bottom, v);
+}
+
+/// Near the smoothed mouse (mu, mv): flat `tone` (normal checkerboard tint). Far away: full bilinear corner colors at (u, v).
+fn checkerboardVertexColor(
+    c_tl: dvui.Color,
+    c_tr: dvui.Color,
+    c_bl: dvui.Color,
+    c_br: dvui.Color,
+    u: f32,
+    v: f32,
+    mu: f32,
+    mv: f32,
+    tone: dvui.Color,
+) dvui.Color {
+    const c_corner = checkerboardGridColorBilinear(c_tl, c_tr, c_bl, c_br, u, v);
+
+    const du = u - mu;
+    const dv = v - mv;
+    const dist = math.sqrt(du * du + dv * dv);
+    // 0 at cursor → tone only; 1 far away → full corner UV gradient (scaled for visible falloff in 0..1 UV space)
+    var t = math.clamp(dist * 1.55, 0, 1);
+    t = t * t * (3.0 - 2.0 * t);
+
+    return tone.lerp(c_corner, t);
+}
+
+fn checkerboardGridPalette() struct { tone: dvui.Color, c_tl: dvui.Color, c_tr: dvui.Color, c_bl: dvui.Color, c_br: dvui.Color } {
+    const tone = dvui.themeGet().color(.content, .fill).lighten(6.0).opacity(0.5).opacity(dvui.currentWindow().alpha);
+    const c_tl = tone.lerp(.green, 0.15);
+    const c_tr = tone.lerp(.red, 0.15);
+    const c_bl = tone.lerp(.blue, 0.15);
+    const c_br = c_tr.lerp(c_bl, 0.5);
+    return .{ .tone = tone, .c_tl = c_tl, .c_tr = c_tr, .c_bl = c_bl, .c_br = c_br };
+}
+
+/// Same tint as the batched checkerboard for the cell under `sprite_index` (center UV), for bubbles etc.
+fn checkerboardTintAtSpriteCellCenter(file: *pixi.Internal.File, sprite_index: usize) dvui.Color {
+    const pal = checkerboardGridPalette();
+    const mu_mv = dvui.dataGet(null, file.editor.canvas.id, "checkerboard_mouse_uv", dvui.Point) orelse dvui.Point{ .x = 0.5, .y = 0.5 };
+    const cols_f = @max(@as(f32, @floatFromInt(file.columns)), 1.0);
+    const rows_f = @max(@as(f32, @floatFromInt(file.rows)), 1.0);
+    const col = file.columnFromIndex(sprite_index);
+    const row = file.rowFromIndex(sprite_index);
+    const u = (@as(f32, @floatFromInt(col)) + 0.5) / cols_f;
+    const v = (@as(f32, @floatFromInt(row)) + 0.5) / rows_f;
+    return checkerboardVertexColor(pal.c_tl, pal.c_tr, pal.c_bl, pal.c_br, u, v, mu_mv.x, mu_mv.y, pal.tone);
+}
+
+/// One quad per sprite cell with full UVs so the checkerboard alpha texture tiles per cell (not stretched across the canvas).
+/// Vertex colors bilinearly sample a 4-corner gradient across the whole grid (normalized column/row position).
+fn drawCheckerboardCellsBatched(file: *pixi.Internal.File) void {
+    const n = file.spriteCount();
+    if (n == 0) return;
+
+    const arena = dvui.currentWindow().arena();
+    var builder = dvui.Triangles.Builder.init(arena, n * 4, n * 6) catch {
+        dvui.log.err("Failed to allocate checkerboard batch", .{});
+        return;
+    };
+    defer builder.deinit(arena);
+
+    const pal = checkerboardGridPalette();
+    const tone = pal.tone;
+    const c_tl = pal.c_tl;
+    const c_tr = pal.c_tr;
+    const c_bl = pal.c_bl;
+    const c_br = pal.c_br;
+
+    const cols_f = @max(@as(f32, @floatFromInt(file.columns)), 1.0);
+    const rows_f = @max(@as(f32, @floatFromInt(file.rows)), 1.0);
+
+    const canvas = file.editor.canvas;
+    const mouse_screen = dvui.currentWindow().mouse_pt;
+    var target_mu: f32 = 0.5;
+    var target_mv: f32 = 0.5;
+    if (canvas.rect.contains(mouse_screen)) {
+        const md = canvas.screen_rect_scale.pointFromPhysical(mouse_screen);
+        const file_w = @as(f32, @floatFromInt(file.width()));
+        const file_h = @as(f32, @floatFromInt(file.height()));
+        if (file_w > 0) target_mu = math.clamp(md.x / file_w, 0, 1);
+        if (file_h > 0) target_mv = math.clamp(md.y / file_h, 0, 1);
+    }
+
+    const prev_uv = dvui.dataGet(null, canvas.id, "checkerboard_mouse_uv", dvui.Point) orelse dvui.Point{ .x = 0.5, .y = 0.5 };
+    const smooth_t: f32 = 0.15;
+    const mu = prev_uv.x + (target_mu - prev_uv.x) * smooth_t;
+    const mv = prev_uv.y + (target_mv - prev_uv.y) * smooth_t;
+    dvui.dataSet(null, canvas.id, "checkerboard_mouse_uv", dvui.Point{ .x = mu, .y = mv });
+
+    const rs = file.editor.canvas.screen_rect_scale;
+    for (0..n) |i| {
+        const sr = file.spriteRect(i);
+        const r = rs.rectToPhysical(sr);
+        const tl = r.topLeft();
+        const tr = r.topRight();
+        const br = r.bottomRight();
+        const bl = r.bottomLeft();
+
+        const col = file.columnFromIndex(i);
+        const row = file.rowFromIndex(i);
+        const u_left = @as(f32, @floatFromInt(col)) / cols_f;
+        const u_right = @as(f32, @floatFromInt(col + 1)) / cols_f;
+        const v_top = @as(f32, @floatFromInt(row)) / rows_f;
+        const v_bot = @as(f32, @floatFromInt(row + 1)) / rows_f;
+
+        const pma_tl = dvui.Color.PMA.fromColor(checkerboardVertexColor(c_tl, c_tr, c_bl, c_br, u_left, v_top, mu, mv, tone));
+        const pma_tr = dvui.Color.PMA.fromColor(checkerboardVertexColor(c_tl, c_tr, c_bl, c_br, u_right, v_top, mu, mv, tone));
+        const pma_br = dvui.Color.PMA.fromColor(checkerboardVertexColor(c_tl, c_tr, c_bl, c_br, u_right, v_bot, mu, mv, tone));
+        const pma_bl = dvui.Color.PMA.fromColor(checkerboardVertexColor(c_tl, c_tr, c_bl, c_br, u_left, v_bot, mu, mv, tone));
+
+        builder.appendVertex(.{ .pos = tl, .col = pma_tl, .uv = .{ 0, 0 } });
+        builder.appendVertex(.{ .pos = tr, .col = pma_tr, .uv = .{ 1, 0 } });
+        builder.appendVertex(.{ .pos = br, .col = pma_br, .uv = .{ 1, 1 } });
+        builder.appendVertex(.{ .pos = bl, .col = pma_bl, .uv = .{ 0, 1 } });
+
+        const quad_base: dvui.Vertex.Index = @intCast(i * 4);
+        builder.appendTriangles(&.{ quad_base + 1, quad_base + 0, quad_base + 3, quad_base + 1, quad_base + 3, quad_base + 2 });
+    }
+
+    const triangles = builder.build();
+    dvui.renderTriangles(triangles, file.editor.checkerboard_tile.getTexture() catch null) catch {
+        dvui.log.err("Failed to render batched checkerboard", .{});
+    };
+}
+
 pub fn active(self: *FileWidget) bool {
     if (pixi.editor.activeFile()) |file| {
         if (file.id == self.init_options.file.id) {
@@ -2957,63 +3066,24 @@ pub fn drawLayers(self: *FileWidget) void {
         .rect = .{ .x = layer_rect.x, .y = layer_rect.y, .w = @min(canvas_rect.w, layer_rect.w), .h = @min(canvas_rect.h, layer_rect.h) },
         .border = dvui.Rect.all(0),
         .background = true,
-        .color_fill = dvui.themeGet().color(.content, .fill),
+        .color_fill = dvui.themeGet().color(.window, .fill),
     });
     fill_box.deinit();
 
-    const mouse_data_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
-
-    if (self.resize_data_point == null and file.editor.workspace.columns_drag_index == null and file.editor.workspace.rows_drag_index == null and self.removed_sprite_indices == null) {
-        var image_rect_scale: dvui.RectScale = .{};
-        if (file.spriteIndex(mouse_data_point)) |sprite_index| {
-            const image_rect = file.spriteRect(sprite_index);
-
-            image_rect_scale = .{
-                .r = self.init_options.file.editor.canvas.screenFromDataRect(image_rect),
-                .s = self.init_options.file.editor.canvas.scale,
-            };
-
-            if (self.init_options.file.editor.canvas.scale < 0.1) {
-                image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.content, .fill), .fade = 1.5 });
-            } else {
-                image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.content, .fill), .fade = 1.5 });
-                dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
-                    .colormod = dvui.themeGet().color(.content, .fill).lighten(6.0).opacity(0.5),
-                }) catch {
-                    dvui.log.err("Failed to render checkerboard", .{});
-                };
-            }
-        }
-
-        if (self.init_options.file.editor.selected_sprites.findLastSet()) |last| {
-            const image_rect = file.spriteRect(last);
-
-            image_rect_scale = .{
-                .r = self.init_options.file.editor.canvas.screenFromDataRect(image_rect),
-                .s = self.init_options.file.editor.canvas.scale,
-            };
-        } else if (self.init_options.file.selected_animation_index) |animation_index| {
-            const animation = file.animations.get(animation_index);
-
-            if (file.selected_animation_frame_index < animation.frames.len) {
-                const image_rect = file.spriteRect(animation.frames[file.selected_animation_frame_index].sprite_index);
-
-                image_rect_scale = .{
-                    .r = self.init_options.file.editor.canvas.screenFromDataRect(image_rect),
-                    .s = self.init_options.file.editor.canvas.scale,
-                };
-            }
-        }
-
+    // Content fill + batched checkerboard (including resize and column/row reorder preview; skip during cell reorder).
+    if (self.removed_sprite_indices == null) {
+        const bg_rect = dvui.Rect{
+            .x = layer_rect.x,
+            .y = layer_rect.y,
+            .w = @min(canvas_rect.w, layer_rect.w),
+            .h = @min(canvas_rect.h, layer_rect.h),
+        };
+        const bg_screen = self.init_options.file.editor.canvas.screenFromDataRect(bg_rect);
         if (self.init_options.file.editor.canvas.scale < 0.1) {
-            image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.content, .fill), .fade = 1.5 });
+            bg_screen.fill(.all(0), .{ .color = dvui.themeGet().color(.content, .fill), .fade = 1.5 });
         } else {
-            image_rect_scale.r.fill(.all(0), .{ .color = dvui.themeGet().color(.content, .fill), .fade = 1.5 });
-            dvui.renderImage(file.editor.checkerboard_tile, image_rect_scale, .{
-                .colormod = dvui.themeGet().color(.content, .fill).lighten(6.0).opacity(0.5),
-            }) catch {
-                dvui.log.err("Failed to render checkerboard", .{});
-            };
+            bg_screen.fill(.all(0), .{ .color = dvui.themeGet().color(.content, .fill), .fade = 1.5 });
+            drawCheckerboardCellsBatched(file);
         }
     }
 
@@ -3065,13 +3135,25 @@ pub fn drawLayers(self: *FileWidget) void {
 
     // Draw the grid lines for the canvas
     {
-        const grid_color = dvui.themeGet().color(.window, .fill);
+        const grid_color = dvui.themeGet().color(.control, .fill);
         const grid_thickness = std.math.clamp(dvui.currentWindow().natural_scale * self.init_options.file.editor.canvas.scale, 0, dvui.currentWindow().natural_scale);
-        for (1..columns) |i| {
+        const vertical_inner = @min(columns, file.columns);
+        for (1..vertical_inner) |i| {
             dvui.Path.stroke(.{ .points = &.{
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = 0 }),
                 self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = @as(f32, @floatFromInt(i * file.column_width)), .y = canvas_rect.h }),
             } }, .{ .thickness = grid_thickness, .color = grid_color });
+        }
+
+        // Preview columns beyond the current sprite grid have no per-cell left edges; draw full-height verticals.
+        if (columns > file.columns) {
+            for (file.columns..columns) |k| {
+                const x = @as(f32, @floatFromInt(k * file.column_width));
+                dvui.Path.stroke(.{ .points = &.{
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = x, .y = 0 }),
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = x, .y = canvas_rect.h }),
+                } }, .{ .thickness = grid_thickness, .color = grid_color });
+            }
         }
 
         {
@@ -3084,6 +3166,31 @@ pub fn drawLayers(self: *FileWidget) void {
                 dvui.Path.stroke(.{ .points = &.{
                     self.init_options.file.editor.canvas.screenFromDataPoint(sr.topLeft()),
                     self.init_options.file.editor.canvas.screenFromDataPoint(sr.topRight()),
+                } }, .{ .thickness = grid_thickness, .color = grid_color });
+            }
+        }
+
+        // Wider preview than the sprite grid: row tops are only drawn per sprite width; extend them across
+        // the new column strip (no sprites there yet).
+        if (columns > file.columns) {
+            const x_strip = @as(f32, @floatFromInt(file.columns * file.column_width));
+            const row_horiz_end = if (rows > file.rows) file.rows else rows;
+            for (1..row_horiz_end) |k| {
+                const y = @as(f32, @floatFromInt(k * file.row_height));
+                dvui.Path.stroke(.{ .points = &.{
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = x_strip, .y = y }),
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = canvas_rect.w, .y = y }),
+                } }, .{ .thickness = grid_thickness, .color = grid_color });
+            }
+        }
+
+        // Preview rows beyond the current sprite grid have no per-cell top edges; draw full-width horizontals.
+        if (rows > file.rows) {
+            for (file.rows..rows) |k| {
+                const y = @as(f32, @floatFromInt(k * file.row_height));
+                dvui.Path.stroke(.{ .points = &.{
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = 0, .y = y }),
+                    self.init_options.file.editor.canvas.screenFromDataPoint(.{ .x = canvas_rect.w, .y = y }),
                 } }, .{ .thickness = grid_thickness, .color = grid_color });
             }
         }
@@ -3138,6 +3245,101 @@ pub fn drawLayers(self: *FileWidget) void {
 }
 
 const ReorderAxis = enum { columns, rows };
+
+fn mapDataRectToPhysicalStrip(sr: dvui.Rect, parent_data: dvui.Rect, parent_phys: dvui.Rect.Physical) dvui.Rect.Physical {
+    const rel_x = sr.x - parent_data.x;
+    const rel_y = sr.y - parent_data.y;
+    return .{
+        .x = parent_phys.x + rel_x / parent_data.w * parent_phys.w,
+        .y = parent_phys.y + rel_y / parent_data.h * parent_phys.h,
+        .w = sr.w / parent_data.w * parent_phys.w,
+        .h = sr.h / parent_data.h * parent_phys.h,
+    };
+}
+
+/// Checkerboard alpha over each cell of the floating column/row, matching `drawCheckerboardCellsBatched` tint/UVs at half opacity.
+fn drawCheckerboardReorderFloatingStrip(
+    self: *FileWidget,
+    file: *pixi.Internal.File,
+    removed_data_rect: dvui.Rect,
+    strip_phys: dvui.Rect.Physical,
+    axis: ReorderAxis,
+    removed_index: usize,
+) void {
+    _ = self;
+    const pd = removed_data_rect;
+    if (pd.w <= 0 or pd.h <= 0) return;
+    if (strip_phys.w <= 0 or strip_phys.h <= 0) return;
+
+    const n = switch (axis) {
+        .columns => file.rows,
+        .rows => file.columns,
+    };
+    if (n == 0) return;
+
+    const arena = dvui.currentWindow().arena();
+    var builder = dvui.Triangles.Builder.init(arena, n * 4, n * 6) catch {
+        dvui.log.err("Failed to allocate reorder floating checkerboard", .{});
+        return;
+    };
+    defer builder.deinit(arena);
+
+    const pal = checkerboardGridPalette();
+    const tone = pal.tone;
+    const c_tl = pal.c_tl;
+    const c_tr = pal.c_tr;
+    const c_bl = pal.c_bl;
+    const c_br = pal.c_br;
+
+    const cols_f = @max(@as(f32, @floatFromInt(file.columns)), 1.0);
+    const rows_f = @max(@as(f32, @floatFromInt(file.rows)), 1.0);
+
+    const mu_mv = dvui.dataGet(null, file.editor.canvas.id, "checkerboard_mouse_uv", dvui.Point) orelse dvui.Point{ .x = 0.5, .y = 0.5 };
+    const mu = mu_mv.x;
+    const mv = mu_mv.y;
+
+    const half_op = dvui.Color.PMA{ .r = 128, .g = 128, .b = 128, .a = 128 };
+
+    var quad_i: usize = 0;
+    for (0..n) |i| {
+        const si = switch (axis) {
+            .columns => removed_index + i * file.columns,
+            .rows => i + removed_index * file.columns,
+        };
+        const sr = file.spriteRect(si);
+        const phys = mapDataRectToPhysicalStrip(sr, pd, strip_phys);
+        const col = file.columnFromIndex(si);
+        const row = file.rowFromIndex(si);
+        const u_left = @as(f32, @floatFromInt(col)) / cols_f;
+        const u_right = @as(f32, @floatFromInt(col + 1)) / cols_f;
+        const v_top = @as(f32, @floatFromInt(row)) / rows_f;
+        const v_bot = @as(f32, @floatFromInt(row + 1)) / rows_f;
+
+        const pma_tl = dvui.Color.PMA.fromColor(checkerboardVertexColor(c_tl, c_tr, c_bl, c_br, u_left, v_top, mu, mv, tone)).multiply(half_op);
+        const pma_tr = dvui.Color.PMA.fromColor(checkerboardVertexColor(c_tl, c_tr, c_bl, c_br, u_right, v_top, mu, mv, tone)).multiply(half_op);
+        const pma_br = dvui.Color.PMA.fromColor(checkerboardVertexColor(c_tl, c_tr, c_bl, c_br, u_right, v_bot, mu, mv, tone)).multiply(half_op);
+        const pma_bl = dvui.Color.PMA.fromColor(checkerboardVertexColor(c_tl, c_tr, c_bl, c_br, u_left, v_bot, mu, mv, tone)).multiply(half_op);
+
+        const tl = phys.topLeft();
+        const tr = phys.topRight();
+        const br = phys.bottomRight();
+        const bl = phys.bottomLeft();
+
+        builder.appendVertex(.{ .pos = tl, .col = pma_tl, .uv = .{ 0, 0 } });
+        builder.appendVertex(.{ .pos = tr, .col = pma_tr, .uv = .{ 1, 0 } });
+        builder.appendVertex(.{ .pos = br, .col = pma_br, .uv = .{ 1, 1 } });
+        builder.appendVertex(.{ .pos = bl, .col = pma_bl, .uv = .{ 0, 1 } });
+
+        const quad_base: dvui.Vertex.Index = @intCast(quad_i * 4);
+        builder.appendTriangles(&.{ quad_base + 1, quad_base + 0, quad_base + 3, quad_base + 1, quad_base + 3, quad_base + 2 });
+        quad_i += 1;
+    }
+
+    const triangles = builder.build();
+    dvui.renderTriangles(triangles, file.editor.checkerboard_tile.getTexture() catch null) catch {
+        dvui.log.err("Failed to render reorder floating checkerboard", .{});
+    };
+}
 
 fn drawColumnRowReorderPreview(self: *FileWidget) void {
     const file = self.init_options.file;
@@ -3450,6 +3652,7 @@ fn drawReorderPreviewForAxis(
         defer target_box.deinit();
 
         self.renderLayersInDataRect(file, removed_rect, target_box.data().rectScale().r);
+        self.drawCheckerboardReorderFloatingStrip(file, removed_rect, target_box.data().rectScale().r, axis, removed_index);
 
         const label = switch (axis) {
             .columns => file.fmtColumn(dvui.currentWindow().arena(), @intCast(removed_index)) catch "err",
@@ -3709,7 +3912,7 @@ pub fn drawCellReorderPreview(self: *FileWidget) void {
             }
 
             {
-                const grid_color = dvui.themeGet().color(.window, .fill);
+                const grid_color = dvui.themeGet().color(.content, .fill);
                 const grid_thickness = std.math.clamp(2 * self.init_options.file.editor.canvas.scale, 0, 2);
                 for (1..file.columns) |i| {
                     dvui.Path.stroke(.{ .points = &.{
