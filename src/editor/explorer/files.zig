@@ -386,10 +386,6 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                 });
                 defer branch.deinit();
 
-                if (branch.floating()) {
-                    branch.data().options.color_fill = dvui.themeGet().color(.control, .fill).opacity(0.75);
-                }
-
                 if (new_file_path) |path| {
                     if (std.mem.eql(u8, path, abs_path)) {
                         if (!dvui.firstFrame(branch.data().id)) {

@@ -111,6 +111,10 @@ pub fn init(
         .text = pixi_dark.window.fill,
     };
 
+    pixi_dark.err = .{
+        .fill = .{ .r = 109, .g = 35, .b = 54, .a = 255 },
+    };
+
     // theme.content
     pixi_dark.fill = .{ .r = 42, .g = 44, .b = 54, .a = 255 };
     pixi_dark.text = pixi_dark.window.text.?;
@@ -157,6 +161,10 @@ pub fn init(
     pixi_light.highlight = .{
         .fill = .{ .r = 170, .g = 130, .b = 140, .a = 255 },
         .text = .white,
+    };
+
+    pixi_light.err = .{
+        .fill = .{ .r = 109, .g = 35, .b = 54, .a = 255 },
     };
 
     pixi_light.fill = dvui.Theme.builtin.adwaita_light.control.fill.?;

@@ -441,23 +441,15 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
             var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .both,
                 .background = true,
-                .color_fill = if (branch.floating())
-                    dvui.themeGet().color(.control, .fill_hover)
-                else if (selected or (row_hovered and tree.drag_point == null))
+                .color_fill = if (selected or (row_hovered and tree.drag_point == null))
                     ctrl_hover
                 else
                     .transparent,
-                .color_fill_hover = if (branch.floating()) ctrl_hover else .transparent,
+                .color_fill_hover = .transparent,
                 .margin = dvui.Rect{},
                 .padding = dvui.Rect.all(0),
                 .corner_radius = dvui.Rect.all(8),
-                .box_shadow = if (branch.floating()) .{
-                    .color = .black,
-                    .offset = .{ .x = -2.0, .y = 2.0 },
-                    .fade = 6.0,
-                    .alpha = 0.25,
-                    .corner_radius = dvui.Rect.all(1000),
-                } else null,
+                .box_shadow = null,
             });
             defer hbox.deinit();
 
@@ -1191,7 +1183,16 @@ fn processLayerTreePointerEvents(tree: *pixi.dvui.TreeWidget, file: *pixi.Intern
                     dvui.Dragging.threshold = @max(prev_th, 8.0);
                     defer dvui.Dragging.threshold = prev_th;
                     if (dvui.dragging(me.p, null)) |_| {
-                        tree.dragStart(branch_usize.?, me.p);
+                        // Row size in natural units; `.{}` → `TreeWidget.dragStart` uses `branch_size`.
+                        var row_size: dvui.Size = .{};
+                        for (hits) |h| {
+                            if (h.branch_usize == branch_usize.?) {
+                                const rn = h.row_r.toNatural();
+                                row_size = .{ .w = rn.w, .h = rn.h };
+                                break;
+                            }
+                        }
+                        tree.dragStart(branch_usize.?, me.p, row_size);
                         if (layer_row_gesture) |*g| {
                             if (g.file_id == file.id) {
                                 g.reorder_drag = true;
