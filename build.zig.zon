@@ -8,7 +8,7 @@
     .fingerprint = 0xdef5a52d63bd43b9,
     .name = .pixi,
     .version = "0.0.3",
-    .minimum_zig_version = "0.15.1",
+    .minimum_zig_version = "0.15.2",
     .dependencies = .{
         .zig_objc = .{
             .url = "git+https://github.com/foxnne/zig-objc#27d0e03242e7ee6842bf8a86d2e0bb1f586a9847",
