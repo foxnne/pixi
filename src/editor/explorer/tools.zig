@@ -592,6 +592,7 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
                     },
                 )) {
                     file.layers.items(.visible)[layer_index] = !file.layers.items(.visible)[layer_index];
+                    file.editor.layer_composite_dirty = true;
                 }
 
                 if (layer_hits_len < layer_hits_buf.len) {
@@ -652,6 +653,7 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
                     },
                 )) {
                     file.layers.items(.visible)[layer_index] = !file.layers.items(.visible)[layer_index];
+                    file.editor.layer_composite_dirty = true;
                 }
             }
         }

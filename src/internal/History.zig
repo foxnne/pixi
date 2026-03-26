@@ -469,6 +469,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             pixi.editor.explorer.pane = .sprites;
         },
         .layers_order => |*layers_order| {
+            file.editor.layer_composite_dirty = true;
             var new_order = try pixi.app.allocator.alloc(usize, layers_order.order.len);
             for (0..file.layers.len) |layer_index| {
                 new_order[layer_index] = file.layers.items(.id)[layer_index];
@@ -502,6 +503,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             pixi.app.allocator.free(new_order);
         },
         .layer_restore_delete => |*layer_restore_delete| {
+            file.editor.layer_composite_dirty = true;
             const a = layer_restore_delete.action;
             switch (a) {
                 .restore => {
@@ -530,6 +532,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             file.layers.items(.collapse)[layer_settings.index] = layer_settings.collapse;
             layer_settings.visible = visible;
             layer_settings.collapse = collapse;
+            file.editor.layer_composite_dirty = true;
             pixi.editor.explorer.pane = .tools;
         },
         .animation_restore_delete => |*animation_restore_delete| {

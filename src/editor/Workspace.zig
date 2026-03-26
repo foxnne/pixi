@@ -560,6 +560,8 @@ pub fn drawCanvas(self: *Workspace) !void {
 
         if (self.grouping != file.editor.grouping) return;
 
+        pixi.perf.canvasPaneDrawn();
+
         var file_widget = pixi.dvui.FileWidget.init(@src(), .{
             .file = file,
             .center = self.center,

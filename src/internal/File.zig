@@ -71,6 +71,17 @@ pub const EditorData = struct {
 
     checkerboard: std.DynamicBitSet = undefined,
     checkerboard_tile: dvui.ImageSource = undefined,
+
+    /// Flattened visible-layer stack cached as a render target.
+    /// Reused across frames; rebuilt only when content or structure changes.
+    layer_composite_target: ?dvui.Texture.Target = null,
+    layer_composite_frame_built: u64 = 0,
+    layer_composite_dirty: bool = true,
+
+    /// Tracks when the active layer transparency mask was last built,
+    /// so we can skip rebuilding it when the layer hasn't changed.
+    mask_built_for_layer: ?usize = null,
+    mask_built_source_hash: u64 = 0,
 };
 
 pub const History = @import("History.zig");
@@ -1016,6 +1027,8 @@ pub fn reorderRows(file: *File, removed_row_index: usize, insert_before_row_inde
 }
 
 pub fn deinit(file: *File) void {
+    pixi.render.destroyLayerCompositeResources(file);
+
     file.history.deinit();
     file.buffers.deinit();
 

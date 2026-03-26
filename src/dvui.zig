@@ -586,7 +586,7 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
         path2.addPoint(bottom_right);
         path2.addPoint(bottom_left);
 
-        const subdivisions = 32;
+        const subdivisions = 10;
 
         if (init_opts.alpha_source) |alpha_source| {
             const reflection_triangles = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = subdivisions, .color_mod = dvui.themeGet().color(.content, .fill).lighten(4.0), .vertical_fade = true }) catch unreachable;
@@ -595,16 +595,33 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
             };
 
             if (init_opts.file) |file| {
-                var index: usize = file.layers.len;
-                while (index > 0) {
-                    index -= 1;
-                    if (file.layers.items(.visible)[index]) {
-                        const color_mod: dvui.Color = if (file.peek_layer_index != null and file.peek_layer_index != index) dvui.Color.gray else dvui.Color.white;
-                        const reflection_triangles_layers = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = subdivisions, .uv = uv, .vertical_fade = true, .color_mod = color_mod }) catch unreachable;
+                var drew_flat_reflection = false;
+                if (file.peek_layer_index == null) {
+                    pixi.render.syncLayerComposite(file) catch |err| {
+                        dvui.log.err("syncLayerComposite for reflection failed: {any}", .{err});
+                    };
+                    if (file.editor.layer_composite_target) |ct| {
+                        if (dvui.Texture.fromTargetTemp(ct) catch null) |ctex| {
+                            const reflection_triangles_layers = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = subdivisions, .uv = uv, .vertical_fade = true, .color_mod = dvui.Color.white }) catch unreachable;
+                            dvui.renderTriangles(reflection_triangles_layers, ctex) catch {
+                                dvui.log.err("Failed to render triangles", .{});
+                            };
+                            drew_flat_reflection = true;
+                        }
+                    }
+                }
+                if (!drew_flat_reflection) {
+                    var index: usize = file.layers.len;
+                    while (index > 0) {
+                        index -= 1;
+                        if (file.layers.items(.visible)[index]) {
+                            const color_mod: dvui.Color = if (file.peek_layer_index != null and file.peek_layer_index != index) dvui.Color.gray else dvui.Color.white;
+                            const reflection_triangles_layers = pathToSubdividedQuad(path2.build(), dvui.currentWindow().arena(), .{ .subdivisions = subdivisions, .uv = uv, .vertical_fade = true, .color_mod = color_mod }) catch unreachable;
 
-                        dvui.renderTriangles(reflection_triangles_layers, file.layers.items(.source)[index].getTexture() catch null) catch {
-                            dvui.log.err("Failed to render triangles", .{});
-                        };
+                            dvui.renderTriangles(reflection_triangles_layers, file.layers.items(.source)[index].getTexture() catch null) catch {
+                                dvui.log.err("Failed to render triangles", .{});
+                            };
+                        }
                     }
                 }
 

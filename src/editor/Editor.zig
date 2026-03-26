@@ -290,6 +290,10 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         dvui.log.err("Failed to rebuild workspaces", .{});
     };
 
+    pixi.render.frame_index +%= 1;
+    if (pixi.perf.record) pixi.perf.beginFrame();
+    defer if (pixi.perf.record) pixi.perf.endFrameAndMaybeLog();
+
     // TODO: Does this need to be here for touchscreen zooming? Or does that belong in canvas?
     // var scaler = dvui.scale(
     //     @src(),
