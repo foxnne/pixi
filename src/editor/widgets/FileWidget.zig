@@ -2622,12 +2622,11 @@ fn doubleStroke(points: []const dvui.Point.Physical, color: dvui.Color, thicknes
     });
 }
 
-/// Batch all grid lines into a single draw call instead of one `dvui.Path.stroke` per line.
-/// Each line becomes a thin axis-aligned quad (4 vertices, 2 triangles).
+/// Batches all grid lines into a single draw call. Each line becomes a thin
+/// axis-aligned quad (4 vertices, 2 triangles) submitted via one `renderTriangles`.
 fn drawBatchedGridLines(
     self: *FileWidget,
     file: *pixi.Internal.File,
-    canvas_rect: dvui.Rect,
     columns: usize,
     rows: usize,
     grid_color: dvui.Color,
@@ -2637,103 +2636,85 @@ fn drawBatchedGridLines(
     grid_y0: f32,
     grid_y1: f32,
     vertical_inner: usize,
-    col_step: usize,
-    row_step: usize,
 ) void {
     const canvas = &self.init_options.file.editor.canvas;
-    const half = grid_thickness * 0.5;
+    const half = @max(grid_thickness, 1.0) * 0.5;
 
     const cw = dvui.currentWindow();
     const pma_col: dvui.Color.PMA = .fromColor(grid_color.opacity(cw.alpha));
 
-    // Upper-bound line count for allocation.
     var max_lines: usize = 0;
     if (vertical_inner > 1) max_lines += vertical_inner - 1;
     if (columns > file.columns) max_lines += columns - file.columns;
     max_lines += file.spriteCount();
     if (columns > file.columns) {
-        const rhe = if (rows > file.rows) file.rows else rows;
-        if (rhe > 1) max_lines += rhe - 1;
+        const row_horiz_end = if (rows > file.rows) file.rows else rows;
+        if (row_horiz_end > 1) max_lines += row_horiz_end - 1;
     }
     if (rows > file.rows) max_lines += rows - file.rows;
     if (self.resize_data_point != null) max_lines += 2;
 
     if (max_lines == 0) return;
 
-    const vtx_cap = max_lines * 4;
-    const idx_cap = max_lines * 6;
-    if (vtx_cap < 3) return;
-
-    var builder = dvui.Triangles.Builder.init(cw.arena(), vtx_cap, idx_cap) catch return;
+    var builder = dvui.Triangles.Builder.init(cw.arena(), max_lines * 4, max_lines * 6) catch return;
     defer builder.deinit(cw.arena());
 
-    // Precompute screen-y for all full-height vertical lines (they all share the same y span).
     const screen_y0 = canvas.screenFromDataPoint(.{ .x = 0, .y = grid_y0 }).y;
     const screen_y1 = canvas.screenFromDataPoint(.{ .x = 0, .y = grid_y1 }).y;
 
-    // --- Vertical lines: inner columns ---
+    // Vertical lines: inner columns
     for (1..vertical_inner) |i| {
-        if (i % col_step != 0) continue;
         const x = @as(f32, @floatFromInt(i * file.column_width));
-        if (!dataRectOverlapsVerticalLine(x, canvas_rect)) continue;
         const sx = canvas.screenFromDataPoint(.{ .x = x, .y = 0 }).x;
         appendLineQuad(&builder, .{ .x = sx - half, .y = screen_y0 }, .{ .x = sx + half, .y = screen_y1 }, pma_col);
     }
 
-    // --- Vertical lines: preview columns beyond sprite grid ---
+    // Vertical lines: preview columns beyond the sprite grid
     if (columns > file.columns) {
         for (file.columns..columns) |k| {
-            if (k % col_step != 0) continue;
             const x = @as(f32, @floatFromInt(k * file.column_width));
-            if (!dataRectOverlapsVerticalLine(x, canvas_rect)) continue;
             const sx = canvas.screenFromDataPoint(.{ .x = x, .y = 0 }).x;
             appendLineQuad(&builder, .{ .x = sx - half, .y = screen_y0 }, .{ .x = sx + half, .y = screen_y1 }, pma_col);
         }
     }
 
-    // --- Horizontal lines: sprite row-top edges ---
+    // Horizontal lines: sprite row-top edges
     {
         var si = file.spriteCount();
         while (si > 0) {
             si -= 1;
             if (file.rowFromIndex(si) == 0) continue;
-            if (file.rowFromIndex(si) % row_step != 0) continue;
             if (self.spriteDrawsBubbleTopEdge(si)) continue;
             const sr = file.spriteRect(si);
-            if (!dataRectOverlapsHorizontalLine(sr.y, sr.x, sr.x + sr.w, canvas_rect)) continue;
             const tl = canvas.screenFromDataPoint(sr.topLeft());
             const tr = canvas.screenFromDataPoint(sr.topRight());
             appendLineQuad(&builder, .{ .x = tl.x, .y = tl.y - half }, .{ .x = tr.x, .y = tr.y + half }, pma_col);
         }
     }
 
-    // --- Horizontal lines: extended strip rows (wider preview than sprite grid) ---
+    // Horizontal lines: extended strip rows (wider preview than sprite grid)
     if (columns > file.columns) {
         const x_strip = @as(f32, @floatFromInt(file.columns * file.column_width));
         const row_horiz_end = if (rows > file.rows) file.rows else rows;
         for (1..row_horiz_end) |k| {
-            if (k % row_step != 0) continue;
             const y = @as(f32, @floatFromInt(k * file.row_height));
-            if (!dataRectOverlapsHorizontalLine(y, x_strip, grid_x1, canvas_rect)) continue;
             const sl = canvas.screenFromDataPoint(.{ .x = x_strip, .y = y });
             const sr = canvas.screenFromDataPoint(.{ .x = grid_x1, .y = y });
             appendLineQuad(&builder, .{ .x = sl.x, .y = sl.y - half }, .{ .x = sr.x, .y = sr.y + half }, pma_col);
         }
     }
 
-    // --- Horizontal lines: preview rows beyond sprite grid ---
+    // Horizontal lines: preview rows beyond the sprite grid
     if (rows > file.rows) {
         for (file.rows..rows) |k| {
-            if (k % row_step != 0) continue;
             const y = @as(f32, @floatFromInt(k * file.row_height));
-            if (!dataRectOverlapsHorizontalLine(y, grid_x0, grid_x1, canvas_rect)) continue;
             const sl = canvas.screenFromDataPoint(.{ .x = grid_x0, .y = y });
-            const sr_pt = canvas.screenFromDataPoint(.{ .x = grid_x1, .y = y });
-            appendLineQuad(&builder, .{ .x = sl.x, .y = sl.y - half }, .{ .x = sr_pt.x, .y = sr_pt.y + half }, pma_col);
+            const sr = canvas.screenFromDataPoint(.{ .x = grid_x1, .y = y });
+            appendLineQuad(&builder, .{ .x = sl.x, .y = sl.y - half }, .{ .x = sr.x, .y = sr.y + half }, pma_col);
         }
     }
 
-    // --- Resize guide lines ---
+    // Resize guide lines
     if (self.resize_data_point) |resize_data_point| {
         const rx = canvas.screenFromDataPoint(.{ .x = resize_data_point.x, .y = 0 }).x;
         appendLineQuad(&builder, .{ .x = rx - half, .y = screen_y0 }, .{ .x = rx + half, .y = screen_y1 }, pma_col);
@@ -2752,8 +2733,7 @@ fn drawBatchedGridLines(
     };
 }
 
-/// Append a single axis-aligned quad (4 vertices, 2 CCW triangles) to the builder.
-/// `tl` is the top-left corner, `br` is the bottom-right corner.
+/// Appends a single axis-aligned quad (4 vertices, 2 triangles) from `tl` to `br`.
 fn appendLineQuad(builder: *dvui.Triangles.Builder, tl: dvui.Point.Physical, br: dvui.Point.Physical, col: dvui.Color.PMA) void {
     const base: dvui.Vertex.Index = @intCast(builder.vertexes.items.len);
     builder.appendVertex(.{ .pos = tl, .col = col });
@@ -2763,7 +2743,7 @@ fn appendLineQuad(builder: *dvui.Triangles.Builder, tl: dvui.Point.Physical, br:
     builder.appendTriangles(&.{ base, base + 1, base + 2, base, base + 2, base + 3 });
 }
 
-/// Batch grid lines for the resize-shrink overlay (original layer_rect area shown in error tint).
+/// Batches grid lines for the resize-shrink overlay (original layer_rect shown in error tint).
 fn drawBatchedResizeOverlayGrid(
     self: *FileWidget,
     file: *pixi.Internal.File,
@@ -2772,21 +2752,16 @@ fn drawBatchedResizeOverlayGrid(
     grid_thickness: f32,
 ) void {
     const canvas = &self.init_options.file.editor.canvas;
-    const half = grid_thickness * 0.5;
+    const half = @max(grid_thickness, 1.0) * 0.5;
     const cw = dvui.currentWindow();
-    const overlay_color = dvui.themeGet().color(.window, .fill);
-    const pma_col: dvui.Color.PMA = .fromColor(overlay_color.opacity(cw.alpha));
+    const pma_col: dvui.Color.PMA = .fromColor(dvui.themeGet().color(.window, .fill).opacity(cw.alpha));
 
     var max_lines: usize = 0;
     if (columns > 1) max_lines += columns - 1;
     max_lines += file.spriteCount();
     if (max_lines == 0) return;
 
-    const vtx_cap = max_lines * 4;
-    const idx_cap = max_lines * 6;
-    if (vtx_cap < 3) return;
-
-    var builder = dvui.Triangles.Builder.init(cw.arena(), vtx_cap, idx_cap) catch return;
+    var builder = dvui.Triangles.Builder.init(cw.arena(), max_lines * 4, max_lines * 6) catch return;
     defer builder.deinit(cw.arena());
 
     const screen_y0 = canvas.screenFromDataPoint(.{ .x = 0, .y = layer_rect.y }).y;
@@ -2817,19 +2792,6 @@ fn drawBatchedResizeOverlayGrid(
     dvui.renderTriangles(tris, null) catch {
         dvui.log.err("Failed to render batched resize overlay grid", .{});
     };
-}
-
-/// True if a horizontal segment at y from x0..x1 overlaps `visible` in data space.
-fn dataRectOverlapsHorizontalLine(y: f32, x0: f32, x1: f32, visible: dvui.Rect) bool {
-    if (y < visible.y or y > visible.y + visible.h) return false;
-    const minx = @min(x0, x1);
-    const maxx = @max(x0, x1);
-    return maxx >= visible.x and minx <= visible.x + visible.w;
-}
-
-/// True if a vertical line at x (infinite height) overlaps `visible` in data space.
-fn dataRectOverlapsVerticalLine(x: f32, visible: dvui.Rect) bool {
-    return x >= visible.x and x <= visible.x + visible.w;
 }
 
 fn checkerboardGridColorBilinear(c_tl: dvui.Color, c_tr: dvui.Color, c_bl: dvui.Color, c_br: dvui.Color, u: f32, v: f32) dvui.Color {
@@ -3434,7 +3396,6 @@ pub fn drawLayers(self: *FileWidget) void {
     }
 
     // Draw the grid lines for the canvas as a single batched draw call.
-    // LOD: when zoomed out far, skip most interior lines to cut draw calls on large sheets.
     {
         const grid_color = dvui.themeGet().color(.control, .fill);
         const c_scale = self.init_options.file.editor.canvas.scale;
@@ -3444,10 +3405,8 @@ pub fn drawLayers(self: *FileWidget) void {
         const grid_x0 = canvas_rect.x;
         const grid_x1 = canvas_rect.x + canvas_rect.w;
         const vertical_inner = @min(columns, file.columns);
-        const col_step: usize = if (c_scale < 0.16) @max(1, vertical_inner / 24) else if (c_scale < 0.28) @max(1, vertical_inner / 40) else 1;
-        const row_step: usize = if (c_scale < 0.16) @max(1, rows / 24) else if (c_scale < 0.28) @max(1, rows / 40) else 1;
 
-        drawBatchedGridLines(self, file, canvas_rect, columns, rows, grid_color, grid_thickness, grid_x0, grid_x1, grid_y0, grid_y1, vertical_inner, col_step, row_step);
+        drawBatchedGridLines(self, file, columns, rows, grid_color, grid_thickness, grid_x0, grid_x1, grid_y0, grid_y1, vertical_inner);
     }
 
     // Draw the selection box for the selected sprites

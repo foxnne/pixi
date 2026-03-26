@@ -120,9 +120,9 @@ pub fn destroyLayerCompositeResources(file: *pixi.Internal.File) void {
     file.editor.layer_composite_dirty = true;
 }
 
-/// Renders all visible layers of a file if the file is not isolated.
-/// Will peek layers if the peek layer index is set, and draw other layers as dimmed.
-/// Pass a valid uv if you want to draw a specific sprite of the file.
+/// Renders visible layers of a file. Uses a cached composite texture when all
+/// layers are drawn without peeking or dimming; falls back to per-layer draws
+/// otherwise. Peek layers are rendered at full color while others are dimmed.
 pub fn renderLayers(init_opts: RenderFileOptions) !void {
     const t0 = perf.renderLayersBegin();
     defer perf.renderLayersEnd(t0);
