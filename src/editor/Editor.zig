@@ -238,6 +238,7 @@ pub fn init(
     editor.settings = Settings.load(app.allocator, try std.fs.path.join(app.allocator, &.{ editor.config_folder, "settings.json" })) catch .{
         .theme = try app.allocator.dupe(u8, "pixi_dark.json"),
     };
+    pixi.perf.console_logging_enabled = editor.settings.perf_logging;
     editor.recents = Recents.load(app.allocator, try std.fs.path.join(app.allocator, &.{ editor.config_folder, "recents.json" })) catch .{
         .folders = .init(app.allocator),
     };

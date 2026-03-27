@@ -99,6 +99,12 @@ pub fn draw() !void {
         if (dvui.checkbox(@src(), &pixi.editor.settings.show_rulers, "Show Rulers", .{
             .expand = .none,
         })) {}
+
+        if (dvui.checkbox(@src(), &pixi.editor.settings.perf_logging, "Console perf logging", .{
+            .expand = .none,
+        })) {
+            pixi.perf.console_logging_enabled = pixi.editor.settings.perf_logging;
+        }
     }
 
     dvui.label(@src(), "{d:0>3.0} fps", .{dvui.FPS()}, .{});

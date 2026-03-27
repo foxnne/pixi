@@ -43,6 +43,9 @@ input_scheme: InputScheme = if (builtin.os.tag == .macos) .trackpad else .mouse,
 /// Whether or not to show rulers on each canvas.
 show_rulers: bool = true,
 
+/// When true, print frame/draw perf stats to the console (Debug / ReleaseSafe only for tick stats).
+perf_logging: bool = false,
+
 /// Padding to include in the size of the ruler outside of the font height.
 ruler_padding: f32 = 4.0,
 

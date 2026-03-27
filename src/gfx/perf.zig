@@ -39,9 +39,14 @@ pub fn drawFrameBegin(active_drawing: bool) void {
 
 pub fn drawFrameEnd() void {
     if (!draw_frame_active) {
-        if (draw_frames_total > 0) {
-            const avg_us = if (draw_frames_total > 0) draw_time_sum_us / draw_frames_total else 0;
-            std.debug.print("DRAW SESSION END: {d} frames, avg {d} us/frame\n", .{ draw_frames_total, avg_us });
+        if (console_logging_enabled) {
+            if (draw_frames_total > 0) {
+                const avg_us = if (draw_frames_total > 0) draw_time_sum_us / draw_frames_total else 0;
+                std.debug.print("DRAW SESSION END: {d} frames, avg {d} us/frame\n", .{ draw_frames_total, avg_us });
+                draw_frames_total = 0;
+                draw_time_sum_us = 0;
+            }
+        } else {
             draw_frames_total = 0;
             draw_time_sum_us = 0;
         }
@@ -52,7 +57,7 @@ pub fn drawFrameEnd() void {
     draw_frames_total += 1;
     draw_time_sum_us += elapsed_us;
 
-    if (draw_frames_total <= 5 or draw_frames_total % 30 == 0) {
+    if (console_logging_enabled and (draw_frames_total <= 5 or draw_frames_total % 30 == 0)) {
         std.debug.print(
             "DRAW f{d}: {d}us events={d} active_rect={d}px temp_rect={d}px rl={d} split_rb={d} full_rb={d} tex_new={d}\n",
             .{ draw_frames_total, elapsed_us, draw_event_count, draw_active_rect_area, draw_temp_rect_area, draw_render_layers_calls, draw_split_rebuilds, draw_full_composite_rebuilds, draw_texture_creates },
@@ -82,6 +87,9 @@ const log_interval_frames: u64 = 120;
 
 /// When true, `endFrameAndMaybeLog` prints every frame (very noisy; hurts fps). Default off.
 pub var verbose_frame_log: bool = false;
+
+/// Mirrored from `Editor.settings.perf_logging`. Gates `std.log` / `std.debug` perf output.
+pub var console_logging_enabled: bool = false;
 
 /// Last split-composite rebuild: time spent in `renderLayersIntoTarget` for below / above (nanoseconds).
 pub var split_composite_below_ns: u64 = 0;
@@ -114,6 +122,7 @@ pub fn beginFrame() void {
 
 pub fn endFrameAndMaybeLog() void {
     if (!record) return;
+    if (!console_logging_enabled) return;
 
     const tick_end_ts = std.time.nanoTimestamp();
     tick_total_ns = @intCast(tick_end_ts - tick_start_ts);
