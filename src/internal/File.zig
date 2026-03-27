@@ -78,10 +78,37 @@ pub const EditorData = struct {
     layer_composite_frame_built: u64 = 0,
     layer_composite_dirty: bool = true,
 
+    /// Split composites for use during active drawing. The "below" target
+    /// contains all visible layers below the active layer; the "above" target
+    /// contains all visible layers above it. This avoids per-layer draws
+    /// without requiring per-frame render target switches.
+    split_composite_below: ?dvui.Texture.Target = null,
+    split_composite_above: ?dvui.Texture.Target = null,
+    split_composite_layer: ?usize = null,
+    split_composite_dirty: bool = true,
+    split_composite_frame_built: u64 = 0,
+
     /// Tracks when the active layer transparency mask was last built,
     /// so we can skip rebuilding it when the layer hasn't changed.
     mask_built_for_layer: ?usize = null,
     mask_built_source_hash: u64 = 0,
+
+    /// Pixel region written by the last temp layer brush preview. Used to
+    /// cheaply clear only the affected area instead of memset-ing the full
+    /// 64 MB buffer each frame.
+    temp_preview_dirty_rect: ?dvui.Rect = null,
+    /// True when the temp layer contains any non-zero content (brush preview,
+    /// selection visualization, etc.) and needs clearing next frame.
+    temp_layer_has_content: bool = false,
+    /// Accumulated region of the temp layer whose CPU pixels differ from the
+    /// GPU texture. Persists across frames until flushed via sub-rect upload
+    /// in renderLayers, so stale GPU data is always cleaned up.
+    temp_gpu_dirty_rect: ?dvui.Rect = null,
+    /// True while a stroke drag is in progress (mouse pressed and captured).
+    active_drawing: bool = false,
+    /// Accumulated dirty rect for the active layer during the current frame.
+    /// Used to perform a sub-rect texture upload instead of a full invalidate.
+    active_layer_dirty_rect: ?dvui.Rect = null,
 };
 
 pub const History = @import("History.zig");
@@ -107,7 +134,7 @@ pub fn init(path: []const u8, options: InitOptions) !pixi.Internal.File {
     };
 
     // Initialize editor layers and selected sprites
-    internal.editor.temporary_layer = try .init(internal.newLayerID(), "Temporary", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .always);
+    internal.editor.temporary_layer = try .init(internal.newLayerID(), "Temporary", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
     internal.editor.selection_layer = try .init(internal.newLayerID(), "Selection", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
     internal.editor.transform_layer = try .init(internal.newLayerID(), "Transform", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
     internal.editor.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.spriteCount());
@@ -304,7 +331,7 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
         };
 
         //Initialize editor layers and selected sprites
-        internal.editor.temporary_layer = try .init(internal.newLayerID(), "Temporary", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+        internal.editor.temporary_layer = try .init(internal.newLayerID(), "Temporary", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .always);
         internal.editor.selection_layer = try .init(internal.newLayerID(), "Selection", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
         internal.editor.transform_layer = try .init(internal.newLayerID(), "Transform", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
         internal.editor.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.spriteCount());
@@ -1383,6 +1410,36 @@ pub const DrawOptions = struct {
     color: dvui.Color = .{ .r = 0, .g = 0, .b = 0, .a = 255 },
 };
 
+/// Computes the pixel bounding rect of a brush stamp, clamped to image bounds.
+fn brushRect(point: dvui.Point, stroke_size: usize, img_w: u32, img_h: u32) dvui.Rect {
+    const s: i32 = @intCast(stroke_size);
+    const half: i32 = @divFloor(s, 2);
+    const px: i32 = @intFromFloat(@floor(point.x));
+    const py: i32 = @intFromFloat(@floor(point.y));
+    const w: i32 = @intCast(img_w);
+    const h: i32 = @intCast(img_h);
+    const x0 = @max(px - half, 0);
+    const y0 = @max(py - half, 0);
+    const x1 = @min(px - half + s, w);
+    const y1 = @min(py - half + s, h);
+    return .{
+        .x = @floatFromInt(x0),
+        .y = @floatFromInt(y0),
+        .w = @floatFromInt(@max(x1 - x0, 0)),
+        .h = @floatFromInt(@max(y1 - y0, 0)),
+    };
+}
+
+/// Expands the active layer dirty rect to include a new brush stamp region.
+fn expandActiveLayerDirtyRect(file: *File, new_rect: dvui.Rect) void {
+    if (file.editor.active_layer_dirty_rect) |existing| {
+        file.editor.active_layer_dirty_rect = existing.unionWith(new_rect);
+    } else {
+        file.editor.active_layer_dirty_rect = new_rect;
+    }
+    file.editor.layer_composite_dirty = true;
+}
+
 /// Draws a point on the `.selected` (the point will be added to the stroke buffer) or `.temporary` layer.
 /// If `to_change` is true, the point will be added to the stroke buffer and then the history will be appended.
 /// If `invalidate` is true, the layer will be invalidated.
@@ -1471,7 +1528,11 @@ pub fn drawPoint(file: *File, point: dvui.Point, layer: DrawLayer, draw_options:
     }
 
     if (draw_options.invalidate) {
-        active_layer.invalidate();
+        if (layer == .selected) {
+            expandActiveLayerDirtyRect(file, brushRect(point, draw_options.stroke_size, file.width(), file.height()));
+        } else {
+            active_layer.invalidate();
+        }
     }
 
     if (draw_options.to_change and layer == .selected) {
@@ -1572,7 +1633,13 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, layer: Draw
         }
 
         if (draw_options.invalidate) {
-            active_layer.invalidate();
+            if (layer == .selected) {
+                const r1 = brushRect(point1, draw_options.stroke_size, file.width(), file.height());
+                const r2 = brushRect(point2, draw_options.stroke_size, file.width(), file.height());
+                expandActiveLayerDirtyRect(file, r1.unionWith(r2));
+            } else {
+                active_layer.invalidate();
+            }
         }
 
         if (draw_options.to_change and layer == .selected) {

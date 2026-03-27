@@ -128,8 +128,11 @@ pub fn processSample(self: *FileWidget) void {
 
                     self.sample(file, current_point, self.sample_key_down or self.left_mouse_down, false);
 
-                    @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
-                    file.editor.temporary_layer.invalidate();
+                    clearTempPreview(&file.editor);
+                    if (file.editor.temp_layer_has_content) {
+                        @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                    }
+                    file.editor.temp_layer_has_content = false;
                     file.editor.temporary_layer.dirty = false;
                 } else if (me.action == .release and me.button == .right) {
                     dvui.refresh(null, @src(), self.init_options.file.editor.canvas.scroll_container.data().id);
@@ -611,6 +614,73 @@ fn spriteDrawsBubbleTopEdge(self: *FileWidget, sprite_index: usize) bool {
     return distance < (max_distance * 2.0);
 }
 
+/// Accumulator that merges multiple Triangles batches into a single draw call.
+const TriAcc = struct {
+    vtx: std.ArrayList(dvui.Vertex) = .{},
+    idx: std.ArrayList(dvui.Vertex.Index) = .{},
+    alloc: std.mem.Allocator,
+
+    fn init(alloc: std.mem.Allocator) TriAcc {
+        return .{ .alloc = alloc };
+    }
+
+    fn append(self: *TriAcc, tris: dvui.Triangles) void {
+        const base: dvui.Vertex.Index = @intCast(self.vtx.items.len);
+        self.vtx.appendSlice(self.alloc, tris.vertexes) catch return;
+        self.idx.ensureUnusedCapacity(self.alloc, tris.indices.len) catch return;
+        for (tris.indices) |idx| {
+            self.idx.appendAssumeCapacity(idx + base);
+        }
+    }
+
+    fn render(self: *const TriAcc, tex: ?dvui.Texture) void {
+        if (self.vtx.items.len == 0) return;
+        var min_x: f32 = std.math.floatMax(f32);
+        var min_y: f32 = std.math.floatMax(f32);
+        var max_x: f32 = -std.math.floatMax(f32);
+        var max_y: f32 = -std.math.floatMax(f32);
+        for (self.vtx.items) |v| {
+            min_x = @min(min_x, v.pos.x);
+            min_y = @min(min_y, v.pos.y);
+            max_x = @max(max_x, v.pos.x);
+            max_y = @max(max_y, v.pos.y);
+        }
+        dvui.renderTriangles(.{
+            .vertexes = self.vtx.items,
+            .indices = self.idx.items,
+            .bounds = .{ .x = min_x, .y = min_y, .w = max_x - min_x, .h = max_y - min_y },
+        }, tex) catch {};
+    }
+
+    fn clear(self: *TriAcc) void {
+        self.vtx.clearRetainingCapacity();
+        self.idx.clearRetainingCapacity();
+    }
+};
+
+const BubbleAccs = struct {
+    shadow: TriAcc,
+    fill: TriAcc,
+    tex: TriAcc,
+    outline: TriAcc,
+
+    fn init(alloc: std.mem.Allocator) BubbleAccs {
+        return .{
+            .shadow = TriAcc.init(alloc),
+            .fill = TriAcc.init(alloc),
+            .tex = TriAcc.init(alloc),
+            .outline = TriAcc.init(alloc),
+        };
+    }
+
+    fn clearAll(self: *BubbleAccs) void {
+        self.shadow.clear();
+        self.fill.clear();
+        self.tex.clear();
+        self.outline.clear();
+    }
+};
+
 /// Responsible for drawing the indicators for animation frames as bubbles over each sprite.
 ///
 /// Bubbles contain a button that acts as a toggle for adding/removing a sprite from an animation.
@@ -622,7 +692,9 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
     if (self.init_options.file.editor.transform != null) return;
     if (self.resize_data_point != null) return;
 
-    var sprite_index: usize = self.init_options.file.spriteCount();
+    // #region agent log
+    pixi.perf.debugLog9b("drawSpriteBubbles:enter", @intCast(self.init_options.file.spriteCount()), 0);
+    // #endregion
 
     const animation_id = self.init_options.file.editor.canvas.scroll_container.data().id;
 
@@ -680,195 +752,271 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
         }
     }
 
-    var shadow_drawn: bool = false;
-    var bubble_drawn: bool = false;
-    while (!shadow_drawn or !bubble_drawn) {
-        defer {
-            if (!shadow_drawn) {
-                shadow_drawn = true;
-            } else {
-                bubble_drawn = true;
+    const visible_data = self.init_options.file.editor.canvas.dataFromScreenRect(self.init_options.file.editor.canvas.rect);
+    const file = self.init_options.file;
+    const cols = file.columns;
+    const total_rows = file.rows;
+    if (total_rows == 0 or cols == 0) return;
+
+    const row_h: f32 = @floatFromInt(file.row_height);
+    const col_w: f32 = @floatFromInt(file.column_width);
+    if (row_h <= 0 or col_w <= 0) return;
+    const bubble_headroom = @max(row_h, col_w);
+
+    // Determine the visible row range to skip entire offscreen rows.
+    // Use explicit comparisons rather than clamp to be NaN-safe
+    // (NaN comparisons are always false, so NaN falls through to 0).
+    const max_row_f: f32 = @floatFromInt(total_rows);
+    const first_vis_f = (visible_data.y - bubble_headroom) / row_h;
+    const first_vis_row: usize = if (first_vis_f > 0 and first_vis_f < max_row_f)
+        @intFromFloat(first_vis_f)
+    else if (first_vis_f >= max_row_f)
+        total_rows
+    else
+        0;
+    const last_vis_f = (visible_data.y + visible_data.h) / row_h + 2.0;
+    const last_vis_row: usize = if (last_vis_f > 0 and last_vis_f < max_row_f)
+        @intFromFloat(last_vis_f)
+    else if (last_vis_f >= max_row_f)
+        total_rows
+    else
+        0;
+
+    const checkerboard_tex = file.editor.checkerboard_tile.getTexture() catch null;
+    var accs = BubbleAccs.init(dvui.currentWindow().arena());
+
+    // Row-based iteration with batched geometry rendering.
+    // Each row runs three phases: shadow geometry, bubble geometry, then UI.
+    // Geometry is accumulated into TriAccs and rendered in bulk to minimize draw calls.
+    var row: usize = first_vis_row;
+    while (row < last_vis_row) : (row += 1) {
+        const row_start = row * cols;
+        const row_end = @min(row_start + cols, file.spriteCount());
+        if (row_end <= row_start) continue;
+
+        const first_sprite = file.spriteRect(row_start);
+        const row_clip_screen = file.editor.canvas.screenFromDataRect(.{
+            .x = first_sprite.x,
+            .y = first_sprite.y - bubble_headroom,
+            .w = col_w * @as(f32, @floatFromInt(cols)),
+            .h = bubble_headroom,
+        });
+
+        // Geometry phase: accumulate shadow + fill + tex + outline in one pass.
+        {
+            var si: usize = row_end;
+            while (si > row_start) {
+                si -= 1;
+                const sprite_rect = file.spriteRect(si);
+                if (!spriteCullVisible(sprite_rect, bubble_headroom, visible_data)) continue;
+                drawSpriteBubbleForRow(self, file, si, sprite_rect, animation_id, &accs);
             }
-            sprite_index = self.init_options.file.spriteCount();
         }
 
-        while (sprite_index > 0) {
-            sprite_index -= 1;
+        // Render all accumulated geometry under the row clip
+        {
+            const prev_clip = dvui.clip(row_clip_screen);
+            defer dvui.clipSet(prev_clip);
+            accs.shadow.render(null);
+            accs.fill.render(null);
+            accs.tex.render(checkerboard_tex);
+            accs.outline.render(null);
+        }
+        accs.clearAll();
 
-            const sprite_rect = self.init_options.file.spriteRect(sprite_index);
+        // UI phase: buttons, text, icons rendered per-sprite.
+        {
+            var si: usize = row_end;
+            while (si > row_start) {
+                si -= 1;
+                const sprite_rect = file.spriteRect(si);
+                if (!spriteCullVisible(sprite_rect, bubble_headroom, visible_data)) continue;
+                drawSpriteBubbleForRow(self, file, si, sprite_rect, animation_id, null);
+            }
+        }
+    }
+}
 
-            // Set the default bubble color, which will be the highlight color
-            var color = dvui.themeGet().color(.window, .fill);
+fn spriteCullVisible(sprite_rect: dvui.Rect, headroom: f32, visible: dvui.Rect) bool {
+    const cull = dvui.Rect{
+        .x = sprite_rect.x,
+        .y = sprite_rect.y - headroom,
+        .w = sprite_rect.w,
+        .h = sprite_rect.h + headroom,
+    };
+    return !cull.intersect(visible).empty();
+}
 
-            var automatic_animation: bool = false;
-            var automatic_animation_frame_i: usize = 0;
+/// Per-sprite bubble logic extracted for use in the row-based loop.
+/// Computes animation state and progress, then calls drawSpriteBubble.
+/// When `accs` is non-null, geometry is accumulated instead of rendered.
+/// When `accs` is null and `shadow_only` is false, only UI elements are drawn.
+fn drawSpriteBubbleForRow(
+    self: *FileWidget,
+    file: *pixi.Internal.File,
+    sprite_index: usize,
+    sprite_rect: dvui.Rect,
+    animation_id: dvui.Id,
+    accs: ?*BubbleAccs,
+) void {
+    var color = dvui.themeGet().color(.window, .fill);
 
-            var animation_index: ?usize = null;
+    var automatic_animation: bool = false;
+    var automatic_animation_frame_i: usize = 0;
 
-            // First, search through the frames of the selected animation to see if our current sprite is in it
-            if (self.init_options.file.selected_animation_index) |selected_animation_index| {
-                for (self.init_options.file.animations.items(.frames)[selected_animation_index], 0..) |frame, i| {
-                    if (frame.sprite_index == sprite_index) {
-                        automatic_animation_frame_i = i;
-                        animation_index = selected_animation_index;
-                        break;
-                    }
+    var animation_index: ?usize = null;
+
+    if (file.selected_animation_index) |selected_animation_index| {
+        for (file.animations.items(.frames)[selected_animation_index], 0..) |frame, i| {
+            if (frame.sprite_index == sprite_index) {
+                automatic_animation_frame_i = i;
+                animation_index = selected_animation_index;
+                break;
+            }
+        }
+    }
+
+    if (animation_index == null) {
+        anim_blk: for (file.animations.items(.frames), 0..) |frames, i| {
+            for (frames, 0..) |frame, j| {
+                if (frame.sprite_index == sprite_index) {
+                    automatic_animation_frame_i = j;
+                    animation_index = i;
+                    break :anim_blk;
                 }
             }
+        }
+    }
 
-            // If we didn't find the sprite in the selected animation, search through all animations
-            if (animation_index == null) {
-                anim_blk: for (self.init_options.file.animations.items(.frames), 0..) |frames, i| {
-                    for (frames, 0..) |frame, j| {
-                        if (frame.sprite_index == sprite_index) {
-                            automatic_animation_frame_i = j;
-                            animation_index = i;
-                            break :anim_blk;
-                        }
-                    }
-                }
-            }
+    if (animation_index) |ai| {
+        const id = file.animations.get(ai).id;
+        if (pixi.editor.colors.file_tree_palette) |*palette| {
+            color = palette.getDVUIColor(id);
+        }
+        if (file.selected_animation_index == ai) {
+            automatic_animation = true;
+        }
+    }
 
+    if (file.editor.selected_sprites.count() > 0) {
+        if (file.editor.selected_sprites.isSet(sprite_index)) {
+            automatic_animation = true;
             if (animation_index) |ai| {
-                const id = self.init_options.file.animations.get(ai).id;
-
-                // If we have a sprite thats part of an animation, bubble color needs to come from the animation color
-                if (pixi.editor.colors.file_tree_palette) |*palette| {
-                    color = palette.getDVUIColor(id);
-                }
-
-                // If the current animation is the selected animation, set the automatic animation flag
-                if (self.init_options.file.selected_animation_index == ai) {
-                    automatic_animation = true;
+                if (ai != file.selected_animation_index) {
+                    color = dvui.themeGet().color(.control, .fill_hover);
                 }
             }
+        }
+    }
 
-            if (self.init_options.file.editor.selected_sprites.count() > 0) {
-                if (self.init_options.file.editor.selected_sprites.isSet(sprite_index)) {
-                    automatic_animation = true;
+    const peek: bool = dvui.dragName("sprite_selection_drag") or
+        dvui.currentWindow().modifiers.matchBind("shift") or dvui.currentWindow().modifiers.matchBind("ctrl/cmd") or
+        pixi.editor.tools.current != .pointer or
+        self.sample_data_point != null;
 
-                    if (animation_index) |ai| {
-                        if (ai != self.init_options.file.selected_animation_index) {
-                            color = dvui.themeGet().color(.control, .fill_hover);
-                        }
-                    }
-                }
-            }
+    if (automatic_animation) {
+        const total_duration: i32 = 1_500_000;
+        const max_step_duration: i32 = @divTrunc(total_duration, 3);
 
-            const peek: bool = if (dvui.dragName("sprite_selection_drag") or
-                (dvui.currentWindow().modifiers.matchBind("shift") or dvui.currentWindow().modifiers.matchBind("ctrl/cmd")) or
-                pixi.editor.tools.current != .pointer or
-                self.sample_data_point != null)
-                true
-            else
-                false;
+        var duration_step = max_step_duration;
 
-            if (automatic_animation) {
-                const total_duration: i32 = 1_500_000;
-                const max_step_duration: i32 = @divTrunc(total_duration, 3);
+        if (animation_index) |ai| {
+            duration_step = std.math.clamp(@divTrunc(total_duration, @as(i32, @intCast(file.animations.get(ai).frames.len))), 0, max_step_duration);
+        }
 
-                var duration_step = max_step_duration;
+        const duration = max_step_duration + (duration_step * @as(i32, @intCast(automatic_animation_frame_i + 1)));
 
-                if (animation_index) |ai| {
-                    duration_step = std.math.clamp(@divTrunc(total_duration, @as(i32, @intCast(self.init_options.file.animations.get(ai).frames.len))), 0, max_step_duration);
-                }
+        var open: bool = true;
+        var id_extra: usize = sprite_index;
 
-                const duration = max_step_duration + (duration_step * @as(i32, @intCast(automatic_animation_frame_i + 1)));
+        if (animation_index) |ai| {
+            id_extra = dvui.Id.extendId(@enumFromInt(sprite_index), @src(), ai).asUsize();
+        }
 
-                var open: bool = true;
-                var id_extra: usize = sprite_index;
+        {
+            const current_point = file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
-                if (animation_index) |ai| {
-                    id_extra = dvui.Id.extendId(@enumFromInt(sprite_index), @src(), ai).asUsize();
-                }
+            const max_distance: f32 = @max(sprite_rect.h, sprite_rect.w) * 1.5;
 
-                {
-                    const current_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+            const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5));
+            const dy = @abs(current_point.y - (sprite_rect.y) + sprite_rect.h * 0.5);
+            const distance = @sqrt(dx * dx + dy * dy);
 
-                    const max_distance: f32 = if (peek) @max(sprite_rect.h, sprite_rect.w) * 1.5 else @max(sprite_rect.h, sprite_rect.w) * 1.5;
-
-                    const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5));
-                    const dy = @abs(current_point.y - (sprite_rect.y) + sprite_rect.h * 0.5);
-                    const distance = @sqrt(dx * dx + dy * dy);
-
-                    if (distance < max_distance and peek and current_point.y - sprite_rect.y < 0.0 and current_point.y - sprite_rect.y > -sprite_rect.h) {
-                        open = false;
-                        id_extra = dvui.Id.update(@enumFromInt(id_extra), "peek").asUsize();
-                    } else {
-                        id_extra = dvui.Id.update(@enumFromInt(id_extra), "unpeek").asUsize();
-                    }
-                }
-
-                if (shadow_drawn) {
-                    id_extra = dvui.Id.update(@enumFromInt(id_extra), "shadow").asUsize();
-                } else {
-                    id_extra = dvui.Id.update(@enumFromInt(id_extra), "bubble").asUsize();
-                }
-
-                var t: f32 = 0.0;
-
-                const anim = dvui.animate(@src(), .{
-                    .duration = if (open) duration else @divTrunc(duration, 4),
-                    .kind = .vertical,
-                    .easing = if (open) dvui.easing.outElastic else dvui.easing.outQuint,
-                }, .{
-                    .id_extra = id_extra,
-                });
-                defer anim.deinit();
-
-                t = if (open) anim.val orelse 1.0 else std.math.clamp(1.0 - (anim.val orelse 1.0), 0.0, 2.0);
-
-                if (drawSpriteBubble(self, sprite_index, t, color, animation_index, !shadow_drawn)) {
-                    self.hovered_bubble_sprite_index = sprite_index;
-                }
+            if (distance < max_distance and peek and current_point.y - sprite_rect.y < 0.0 and current_point.y - sprite_rect.y > -sprite_rect.h) {
+                open = false;
+                id_extra = dvui.Id.update(@enumFromInt(id_extra), "peek").asUsize();
             } else {
-                // Only draw bubbles over sprites that are part of the selected sprites if there is a selection
-                if (self.init_options.file.editor.selected_sprites.count() > 0) {
-                    if ((!self.init_options.file.editor.selected_sprites.isSet(sprite_index) or (animation_index != self.init_options.file.selected_animation_index and !self.init_options.file.editor.selected_sprites.isSet(sprite_index)))) {
-                        continue;
-                    }
-                }
+                id_extra = dvui.Id.update(@enumFromInt(id_extra), "unpeek").asUsize();
+            }
+        }
 
-                const current_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+        if (accs != null) {
+            id_extra = dvui.Id.update(@enumFromInt(id_extra), "geom").asUsize();
+        } else {
+            id_extra = dvui.Id.update(@enumFromInt(id_extra), "ui").asUsize();
+        }
 
-                var max_distance: f32 = sprite_rect.h * 1.2;
+        var t: f32 = 0.0;
 
-                if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
-                    max_distance += (max_distance * 0.5) * (1.0 - anim.value());
-                } else if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
-                    max_distance += (max_distance * 0.5) * (1.0 - anim.value());
-                } else {
-                    max_distance += (max_distance * 0.5) * if (!self.hide_distance_bubble) @as(f32, 0.0) else @as(f32, 1.0);
-                }
+        const anim = dvui.animate(@src(), .{
+            .duration = if (open) duration else @divTrunc(duration, 4),
+            .kind = .vertical,
+            .easing = if (open) dvui.easing.outElastic else dvui.easing.outQuint,
+        }, .{
+            .id_extra = id_extra,
+        });
+        defer anim.deinit();
 
-                const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5));
-                const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.25));
-                const distance = @sqrt((dx * dx) * 0.5 + (dy * dy) * 2.0);
+        t = if (open) anim.val orelse 1.0 else std.math.clamp(1.0 - (anim.val orelse 1.0), 0.0, 2.0);
 
-                if (distance < (max_distance * 2.0)) {
-                    var t: f32 = distance / max_distance;
+        if (drawSpriteBubble(self, sprite_index, t, color, animation_index, accs)) {
+            self.hovered_bubble_sprite_index = sprite_index;
+        }
+    } else {
+        if (file.editor.selected_sprites.count() > 0) {
+            if (!file.editor.selected_sprites.isSet(sprite_index) or (animation_index != file.selected_animation_index and !file.editor.selected_sprites.isSet(sprite_index))) {
+                return;
+            }
+        }
 
-                    if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
-                        t = (1.0 - t) * anim.value();
-                    } else if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
-                        t = (1.0 - t) * anim.value();
-                    } else {
-                        t = (1.0 - t) * if (self.hide_distance_bubble) @as(f32, 0.0) else @as(f32, 1.0);
-                    }
+        const current_point = file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
 
-                    t = std.math.clamp(t, 0.0, 2.0);
+        var max_distance: f32 = sprite_rect.h * 1.2;
 
-                    if (drawSpriteBubble(
-                        self,
-                        sprite_index,
-                        t,
-                        dvui.themeGet().color(.window, .fill).lerp(color, 1.0 - (distance / (max_distance * 2.0))),
-                        animation_index,
-                        !shadow_drawn,
-                    )) {
-                        self.hovered_bubble_sprite_index = sprite_index;
-                    }
-                }
+        if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
+            max_distance += (max_distance * 0.5) * (1.0 - anim.value());
+        } else if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
+            max_distance += (max_distance * 0.5) * (1.0 - anim.value());
+        } else {
+            max_distance += (max_distance * 0.5) * if (!self.hide_distance_bubble) @as(f32, 0.0) else @as(f32, 1.0);
+        }
+
+        const dx = @abs(current_point.x - (sprite_rect.x + sprite_rect.w * 0.5));
+        const dy = @abs(current_point.y - (sprite_rect.y - sprite_rect.h * 0.25));
+        const distance = @sqrt((dx * dx) * 0.5 + (dy * dy) * 2.0);
+
+        if (distance < (max_distance * 2.0)) {
+            var t: f32 = distance / max_distance;
+
+            if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
+                t = (1.0 - t) * anim.value();
+            } else if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
+                t = (1.0 - t) * anim.value();
+            } else {
+                t = (1.0 - t) * if (self.hide_distance_bubble) @as(f32, 0.0) else @as(f32, 1.0);
+            }
+
+            t = std.math.clamp(t, 0.0, 2.0);
+
+            if (drawSpriteBubble(
+                self,
+                sprite_index,
+                t,
+                dvui.themeGet().color(.window, .fill).lerp(color, 1.0 - (distance / (max_distance * 2.0))),
+                animation_index,
+                accs,
+            )) {
+                self.hovered_bubble_sprite_index = sprite_index;
             }
         }
     }
@@ -876,7 +1024,11 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
 /// Draw a single sprite bubble based on sprite index and progress. Animation index just lets us know if not null, its part of an animation,
 /// and if its equal to the currently selected animation index, we need to draw a checkmark in the bubble because its part of the currently selected animation.
-pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, color: dvui.Color, animation_index: ?usize, shadow_only: bool) bool {
+/// When `accs` is non-null, triangle geometry is accumulated into the
+/// accumulators instead of being rendered immediately. Pass null for the
+/// UI-only phase so that only buttons/text/icons are drawn.
+pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, color: dvui.Color, animation_index: ?usize, accs: ?*BubbleAccs) bool {
+    if (progress <= 0.0) return false;
 
     // Would this sprite be removed if the user clicked the button?
     var remove: bool = false;
@@ -967,10 +1119,13 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
     const button_rect = dvui.Rect{ .x = center.x - button_width / 2, .y = center.y - (button_height / 2), .w = button_width, .h = button_height };
 
     if (bubble_rect_scale.r.h <= dvui.currentWindow().natural_scale) {
-        path.addPoint(bubble_rect_scale.r.topRight());
-        path.addPoint(bubble_rect_scale.r.topLeft());
-
-        path.build().stroke(.{ .thickness = 1, .color = color });
+        if (accs) |a| {
+            path.addPoint(bubble_rect_scale.r.topRight());
+            path.addPoint(bubble_rect_scale.r.topLeft());
+            const tris = path.build().strokeTriangles(dvui.currentWindow().arena(), .{ .thickness = 1, .color = color }) catch return false;
+            a.shadow.append(tris);
+        }
+        return false;
     } else {
         const arc_height = std.math.clamp(
             bubble_rect_scale.r.h,
@@ -991,74 +1146,37 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
         path.addArc(arc_center, radius, dvui.math.pi + start_angle, dvui.math.pi + end_angle, false);
 
-        var built = path.build();
+        const built = path.build();
         defer path.deinit();
 
-        if (shadow_only) { // Draw drop shadow
+        // Geometry phase: accumulate shadow + fill + outline into accumulators.
+        if (accs) |a| {
             const shadow_fade = arc_height * 0.66 * dvui.easing.outExpo(t);
-            const ns = dvui.currentWindow().natural_scale;
-            const shadow_clip_base = bubble_rect_scale.r.outset(.{
-                .x = shadow_fade,
-                .y = shadow_fade,
-                .w = shadow_fade,
-            });
-            // Expand upward for fade without moving the bottom edge (offset alone clipped the bubble bottom).
-            const clip = dvui.clip(.{
-                .x = shadow_clip_base.x,
-                .y = shadow_clip_base.y - ns,
-                .w = shadow_clip_base.w,
-                .h = shadow_clip_base.h + ns,
-            });
-            defer dvui.clipSet(clip);
-
             const shadow_color = dvui.Color.black.opacity(0.25);
             var shadow_path = dvui.Path.Builder.init(dvui.currentWindow().arena());
-            shadow_path.addArc(arc_center.plus(.{ .x = 0.0, .y = 0.0 }), radius, dvui.math.pi + start_angle, dvui.math.pi + end_angle, false);
-            shadow_path.build().fillConvex(.{ .color = shadow_color, .fade = shadow_fade });
+            shadow_path.addArc(arc_center, radius, dvui.math.pi + start_angle, dvui.math.pi + end_angle, false);
+            const shadow_tris = shadow_path.build().fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = shadow_color, .fade = shadow_fade }) catch return false;
+            a.shadow.append(shadow_tris);
+
+            if (self.init_options.file.editor.canvas.scale < 0.1) {
+                const fill_tris = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = cell_tint, .fade = 0.0 }) catch return false;
+                a.fill.append(fill_tris);
+            } else {
+                const fill_tris = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = cell_tint, .fade = 1.0 }) catch return false;
+                a.fill.append(fill_tris);
+                var tex_tris = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = cell_tint, .fade = 0.0 }) catch return false;
+                const h_ratio = arc_height / sprite_rect_scale.r.h;
+                tex_tris.uvFromRectuv(bubble_rect_scale.r, .{ .x = 0.0, .w = 1.0, .y = 1.0 - h_ratio, .h = h_ratio });
+                a.tex.append(tex_tris);
+            }
+            const outline_tris = built.strokeTriangles(dvui.currentWindow().arena(), .{ .color = color, .thickness = dvui.currentWindow().natural_scale }) catch return false;
+            a.outline.append(outline_tris);
 
             const mouse_data_pt = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
-
             return button_rect.contains(mouse_data_pt);
         }
 
-        const ns = dvui.currentWindow().natural_scale;
-        const br = bubble_rect_scale.r;
-        // Expand clip upward so fade has headroom; keep the same bottom edge so the fill isn’t clipped off the tile.
-        const clip = dvui.clip(.{
-            .x = br.x,
-            .y = br.y - ns,
-            .w = br.w,
-            .h = br.h + ns,
-        });
-
-        if (self.init_options.file.editor.canvas.scale < 0.1) {
-            built.fillConvex(.{ .color = cell_tint, .fade = 0.0 });
-        } else {
-            built.fillConvex(.{ .color = cell_tint, .fade = 1.0 });
-            var triangles = built.fillConvexTriangles(dvui.currentWindow().arena(), .{ .color = cell_tint, .fade = 0.0 }) catch {
-                dvui.log.err("Failed to fill convex triangles", .{});
-                return false;
-            };
-
-            const h = arc_height / sprite_rect_scale.r.h;
-
-            const uv_rect = dvui.Rect{
-                .x = 0.0,
-                .w = 1.0,
-                .y = 1.0 - h,
-                .h = h, // adjust so text stays fixed on screen regardless of scale
-            };
-            triangles.uvFromRectuv(bubble_rect_scale.r, uv_rect);
-
-            dvui.renderTriangles(triangles, self.init_options.file.editor.checkerboard_tile.getTexture() catch null) catch {
-                dvui.log.err("Failed to render triangles", .{});
-            };
-        }
-
-        dvui.clipSet(clip);
-        // Draw bubble outline
-        built.stroke(.{ .color = color, .thickness = dvui.currentWindow().natural_scale });
-
+        // UI-only phase: geometry was already batched, draw interactive content only.
         // Dont draw any buttons if the button is too small or too large.
         if (button_rect.w > bubble_rect.w * 0.666 or button_rect.w < bubble_rect.w * 0.001) return false;
 
@@ -1457,7 +1575,6 @@ pub fn processSelection(self: *FileWidget) void {
     var selection_color_secondary_stroke: dvui.Color = .{ .r = 200, .g = 200, .b = 200, .a = selection_alpha_stroke };
 
     { // Always draw the selection to the temporary layer so we dont only show it when the mouse moves/hovers
-        defer file.editor.temporary_layer.invalidate();
 
         // Clear temporary layer pixels and mask
         @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
@@ -1473,6 +1590,7 @@ pub fn processSelection(self: *FileWidget) void {
         file.editor.temporary_layer.mask.setIntersection(file.editor.checkerboard);
         file.editor.temporary_layer.setColorFromMask(selection_color_secondary);
     }
+    file.editor.temp_layer_has_content = true;
 
     for (dvui.events()) |*e| {
         if (!self.init_options.file.editor.canvas.scroll_container.matchEvent(e)) {
@@ -1499,10 +1617,8 @@ pub fn processSelection(self: *FileWidget) void {
                 }
 
                 if (update) {
-                    defer file.editor.temporary_layer.invalidate();
                     const current_point = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
                     {
-                        defer file.editor.temporary_layer.invalidate();
 
                         // Clear temporary layer pixels and mask
                         @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
@@ -1699,6 +1815,7 @@ pub fn processStroke(self: *FileWidget) void {
                     e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
                     dvui.captureMouse(self.init_options.file.editor.canvas.scroll_container.data(), e.num);
                     dvui.dragPreStart(me.p, .{ .name = "stroke_drag" });
+                    file.editor.active_drawing = true;
 
                     if (!me.mod.matchBind("shift")) {
                         file.drawPoint(
@@ -1752,6 +1869,14 @@ pub fn processStroke(self: *FileWidget) void {
                             dvui.refresh(null, @src(), self.init_options.file.editor.canvas.scroll_container.data().id);
                         }
 
+                        // End active drawing after committing the release stroke.
+                        // Reset the composite frame guard so the canvas renderLayers
+                        // (which runs later this frame) can rebuild the full composite
+                        // immediately rather than showing a stale pre-drawing composite.
+                        file.editor.active_drawing = false;
+                        file.editor.layer_composite_dirty = true;
+                        file.editor.layer_composite_frame_built = 0;
+
                         self.drag_data_point = null;
                     }
                 } else if (me.action == .position or me.action == .wheel_x or me.action == .wheel_y) {
@@ -1780,21 +1905,23 @@ pub fn processStroke(self: *FileWidget) void {
 
                             if (me.mod.matchBind("shift")) {
                                 if (self.drag_data_point) |previous_point| {
-                                    @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                                    clearTempPreview(&file.editor);
                                     file.drawLine(
                                         previous_point,
                                         current_point,
                                         .temporary,
                                         .{
                                             .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
-                                            .invalidate = true,
-                                            .to_change = false,
                                             .stroke_size = pixi.editor.tools.stroke_size,
                                         },
                                     );
+                                    const line_rect = tempLineBrushRect(previous_point, current_point, pixi.editor.tools.stroke_size, file.width(), file.height());
+                                    file.editor.temp_preview_dirty_rect = line_rect;
+                                    file.editor.temp_layer_has_content = true;
+                                    expandTempGpuDirtyRect(&file.editor, line_rect);
                                 }
                             } else {
-                                if (self.drag_data_point) |previous_point|
+                                if (self.drag_data_point) |previous_point| {
                                     file.drawLine(
                                         previous_point,
                                         current_point,
@@ -1806,23 +1933,27 @@ pub fn processStroke(self: *FileWidget) void {
                                             .stroke_size = pixi.editor.tools.stroke_size,
                                         },
                                     );
+                                    pixi.perf.draw_event_count += 1;
+                                }
 
                                 self.drag_data_point = current_point;
 
                                 if (self.init_options.file.editor.canvas.rect.contains(me.p) and self.sample_data_point == null) {
                                     if (self.sample_data_point == null or color[3] == 0) {
-                                        @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                                        clearTempPreview(&file.editor);
                                         const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
                                         file.drawPoint(
                                             current_point,
                                             .temporary,
                                             .{
                                                 .color = .{ .r = temp_color[0], .g = temp_color[1], .b = temp_color[2], .a = temp_color[3] },
-                                                .invalidate = true,
-                                                .to_change = false,
                                                 .stroke_size = pixi.editor.tools.stroke_size,
                                             },
                                         );
+                                        const brush_rect = tempBrushRect(current_point, pixi.editor.tools.stroke_size, file.width(), file.height());
+                                        file.editor.temp_preview_dirty_rect = brush_rect;
+                                        file.editor.temp_layer_has_content = true;
+                                        expandTempGpuDirtyRect(&file.editor, brush_rect);
                                     }
                                 }
                             }
@@ -1831,18 +1962,20 @@ pub fn processStroke(self: *FileWidget) void {
                         }
                     } else {
                         if (self.init_options.file.editor.canvas.rect.contains(me.p) and self.sample_data_point == null) {
-                            @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                            clearTempPreview(&file.editor);
                             const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
                             file.drawPoint(
                                 current_point,
                                 .temporary,
                                 .{
-                                    .invalidate = true,
-                                    .to_change = false,
                                     .stroke_size = pixi.editor.tools.stroke_size,
                                     .color = .{ .r = temp_color[0], .g = temp_color[1], .b = temp_color[2], .a = temp_color[3] },
                                 },
                             );
+                            const brush_rect = tempBrushRect(current_point, pixi.editor.tools.stroke_size, file.width(), file.height());
+                            file.editor.temp_preview_dirty_rect = brush_rect;
+                            file.editor.temp_layer_has_content = true;
+                            expandTempGpuDirtyRect(&file.editor, brush_rect);
                         }
                     }
                 }
@@ -1862,18 +1995,21 @@ pub fn processFill(self: *FileWidget) void {
     const color = pixi.editor.colors.primary;
 
     if (self.init_options.file.editor.canvas.rect.contains(dvui.currentWindow().mouse_pt) and self.sample_data_point == null) {
-        @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+        clearTempPreview(&file.editor);
         const temp_color = if (pixi.editor.tools.current != .eraser) color else [_]u8{ 255, 255, 255, 255 };
+        const fill_preview_pt = self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
         file.drawPoint(
-            self.init_options.file.editor.canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt),
+            fill_preview_pt,
             .temporary,
             .{
-                .invalidate = true,
-                .to_change = false,
                 .stroke_size = 1,
                 .color = .{ .r = temp_color[0], .g = temp_color[1], .b = temp_color[2], .a = temp_color[3] },
             },
         );
+        const brush_rect = tempBrushRect(fill_preview_pt, 1, file.width(), file.height());
+        file.editor.temp_preview_dirty_rect = brush_rect;
+        file.editor.temp_layer_has_content = true;
+        expandTempGpuDirtyRect(&file.editor, brush_rect);
     }
 
     for (dvui.events()) |*e| {
@@ -4508,10 +4644,20 @@ pub fn processEvents(self: *FileWidget) void {
         const pe_t0 = pixi.perf.processEventsBegin();
         defer pixi.perf.processEventsEnd(pe_t0);
 
-        const temp_px = self.init_options.file.editor.temporary_layer.pixels();
-        pixi.perf.recordTempMemset(temp_px.len);
-        @memset(temp_px, .{ 0, 0, 0, 0 });
-        self.init_options.file.editor.temporary_layer.clearMask();
+        const editor = &self.init_options.file.editor;
+        if (editor.temp_preview_dirty_rect) |dirty| {
+            if (dirty.w > 0 and dirty.h > 0) {
+                pixi.image.clearRect(editor.temporary_layer.source, dirty);
+                expandTempGpuDirtyRect(editor, dirty);
+            }
+            editor.temp_preview_dirty_rect = null;
+        } else if (editor.temp_layer_has_content) {
+            @memset(editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+            editor.temporary_layer.invalidate();
+            editor.temp_gpu_dirty_rect = null;
+        }
+        editor.temp_layer_has_content = false;
+        editor.temporary_layer.clearMask();
 
         {
             const mask_t0 = pixi.perf.updateMaskBegin();
@@ -4551,13 +4697,25 @@ pub fn processEvents(self: *FileWidget) void {
     self.drawLayers();
 
     if ((self.active() or self.hovered()) and !transform and !reorder) {
+        // #region agent log
+        const _t0 = std.time.nanoTimestamp();
+        // #endregion
         self.drawSpriteBubbles();
+        // #region agent log
+        const _t1 = std.time.nanoTimestamp();
+        // #endregion
         self.processResize();
 
         self.processAnimationSelection();
 
         self.processSpriteSelection();
         self.drawSpriteSelection();
+        // #region agent log
+        const _t2 = std.time.nanoTimestamp();
+        const bubble_us: i64 = @intCast(@divTrunc(_t1 - _t0, 1000));
+        const other_us: i64 = @intCast(@divTrunc(_t2 - _t1, 1000));
+        pixi.perf.debugLog9b("overlay_timing", bubble_us, other_us);
+        // #endregion
     }
 
     // Draw shadows for the scroll container
@@ -4583,6 +4741,58 @@ pub fn deinit(self: *FileWidget) void {
 
 pub fn hovered(self: *FileWidget) bool {
     return self.init_options.file.editor.canvas.hovered;
+}
+
+/// Computes the pixel bounding rect of a brush draw, clamped to image bounds.
+fn tempBrushRect(point: dvui.Point, stroke_size: usize, img_w: u32, img_h: u32) dvui.Rect {
+    const s: i32 = @intCast(stroke_size);
+    const half: i32 = @divFloor(s, 2);
+    const px: i32 = @intFromFloat(@floor(point.x));
+    const py: i32 = @intFromFloat(@floor(point.y));
+    const w: i32 = @intCast(img_w);
+    const h: i32 = @intCast(img_h);
+    const x0 = @max(px - half, 0);
+    const y0 = @max(py - half, 0);
+    const x1 = @min(px - half + s, w);
+    const y1 = @min(py - half + s, h);
+    return .{
+        .x = @floatFromInt(x0),
+        .y = @floatFromInt(y0),
+        .w = @floatFromInt(@max(x1 - x0, 0)),
+        .h = @floatFromInt(@max(y1 - y0, 0)),
+    };
+}
+
+/// Computes the bounding rect of a line draw between two points.
+fn tempLineBrushRect(p1: dvui.Point, p2: dvui.Point, stroke_size: usize, img_w: u32, img_h: u32) dvui.Rect {
+    const r1 = tempBrushRect(p1, stroke_size, img_w, img_h);
+    const r2 = tempBrushRect(p2, stroke_size, img_w, img_h);
+    const x0 = @min(r1.x, r2.x);
+    const y0 = @min(r1.y, r2.y);
+    const x1 = @max(r1.x + r1.w, r2.x + r2.w);
+    const y1 = @max(r1.y + r1.h, r2.y + r2.h);
+    return .{ .x = x0, .y = y0, .w = x1 - x0, .h = y1 - y0 };
+}
+
+fn expandTempGpuDirtyRect(editor: *pixi.Internal.File.EditorData, rect: dvui.Rect) void {
+    if (editor.temp_gpu_dirty_rect) |existing| {
+        editor.temp_gpu_dirty_rect = existing.unionWith(rect);
+    } else {
+        editor.temp_gpu_dirty_rect = rect;
+    }
+}
+
+/// Clears the pixels covered by the current temp preview dirty rect, then
+/// resets the tracking state. Used before redrawing the brush preview at a
+/// new position.
+fn clearTempPreview(editor: *pixi.Internal.File.EditorData) void {
+    if (editor.temp_preview_dirty_rect) |dirty| {
+        if (dirty.w > 0 and dirty.h > 0) {
+            pixi.image.clearRect(editor.temporary_layer.source, dirty);
+            expandTempGpuDirtyRect(editor, dirty);
+        }
+    }
+    editor.temp_preview_dirty_rect = null;
 }
 
 test {

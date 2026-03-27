@@ -294,6 +294,19 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     if (pixi.perf.record) pixi.perf.beginFrame();
     defer if (pixi.perf.record) pixi.perf.endFrameAndMaybeLog();
 
+    {
+        var any_drawing = false;
+        for (editor.open_files.values()) |*file| {
+            if (file.editor.active_drawing) {
+                any_drawing = true;
+                pixi.perf.draw_stroke_buf_count = file.buffers.stroke.pixels.count();
+                break;
+            }
+        }
+        pixi.perf.drawFrameBegin(any_drawing);
+    }
+    defer pixi.perf.drawFrameEnd();
+
     // TODO: Does this need to be here for touchscreen zooming? Or does that belong in canvas?
     // var scaler = dvui.scale(
     //     @src(),

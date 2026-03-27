@@ -4,6 +4,58 @@ const builtin = @import("builtin");
 /// Enable perf recording in Debug and ReleaseSafe builds.
 pub const record: bool = builtin.mode == .Debug or builtin.mode == .ReleaseSafe;
 
+/// Lightweight drawing-specific counters active in ALL build modes.
+pub var draw_event_count: u32 = 0;
+pub var draw_active_rect_area: u64 = 0;
+pub var draw_temp_rect_area: u64 = 0;
+pub var draw_stroke_buf_count: u64 = 0;
+pub var draw_frame_active: bool = false;
+pub var draw_render_layers_calls: u32 = 0;
+pub var draw_split_rebuilds: u32 = 0;
+pub var draw_full_composite_rebuilds: u32 = 0;
+pub var draw_texture_creates: u32 = 0;
+var draw_frame_start_ts: i128 = 0;
+var draw_frames_total: u64 = 0;
+var draw_time_sum_us: u64 = 0;
+
+pub fn drawFrameBegin(active_drawing: bool) void {
+    draw_event_count = 0;
+    draw_active_rect_area = 0;
+    draw_temp_rect_area = 0;
+    draw_stroke_buf_count = 0;
+    draw_render_layers_calls = 0;
+    draw_split_rebuilds = 0;
+    draw_full_composite_rebuilds = 0;
+    draw_texture_creates = 0;
+    draw_frame_active = active_drawing;
+    if (active_drawing) {
+        draw_frame_start_ts = std.time.nanoTimestamp();
+    }
+}
+
+pub fn drawFrameEnd() void {
+    if (!draw_frame_active) {
+        if (draw_frames_total > 0) {
+            const avg_us = if (draw_frames_total > 0) draw_time_sum_us / draw_frames_total else 0;
+            std.debug.print("DRAW SESSION END: {d} frames, avg {d} us/frame\n", .{ draw_frames_total, avg_us });
+            draw_frames_total = 0;
+            draw_time_sum_us = 0;
+        }
+        return;
+    }
+    const elapsed_ns: u64 = @intCast(std.time.nanoTimestamp() - draw_frame_start_ts);
+    const elapsed_us = elapsed_ns / 1000;
+    draw_frames_total += 1;
+    draw_time_sum_us += elapsed_us;
+
+    if (draw_frames_total <= 5 or draw_frames_total % 30 == 0) {
+        std.debug.print(
+            "DRAW f{d}: {d}us events={d} active_rect={d}px temp_rect={d}px rl={d} split_rb={d} full_rb={d} tex_new={d}\n",
+            .{ draw_frames_total, elapsed_us, draw_event_count, draw_active_rect_area, draw_temp_rect_area, draw_render_layers_calls, draw_split_rebuilds, draw_full_composite_rebuilds, draw_texture_creates },
+        );
+    }
+}
+
 pub var render_layers_ns: u64 = 0;
 pub var render_layers_calls: u32 = 0;
 pub var draw_layers_ns: u64 = 0;
@@ -176,3 +228,21 @@ pub inline fn processEventsEnd(start: i128) void {
     if (!record) return;
     process_events_ns +%= @intCast(std.time.nanoTimestamp() - start);
 }
+
+// #region agent log
+pub fn debugLog9b(msg: []const u8, d1: i64, d2: i64) void {
+    const path = "/Users/foxnne/dev/proj/pixi/.cursor/debug-9b423f.log";
+    var f = std.fs.cwd().openFile(path, .{ .mode = .read_write }) catch |e| blk: {
+        if (e != error.FileNotFound) return;
+        break :blk std.fs.cwd().createFile(path, .{ .read = true, .truncate = false }) catch return;
+    };
+    defer f.close();
+    f.seekFromEnd(0) catch return;
+    var buf: [512]u8 = undefined;
+    var w = f.writer(&buf);
+    w.interface.print("{{\"sessionId\":\"9b423f\",\"message\":\"{s}\",\"data\":{{\"v1\":{d},\"v2\":{d}}},\"timestamp\":{d}}}\n", .{ msg, d1, d2, std.time.milliTimestamp() }) catch return;
+    w.end() catch return;
+}
+// #endregion
+
+
