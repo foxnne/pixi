@@ -331,7 +331,9 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
         };
 
         //Initialize editor layers and selected sprites
-        internal.editor.temporary_layer = try .init(internal.newLayerID(), "Temporary", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .always);
+        // .ptr: same as new-file init — GPU sync via invalidate / temp_gpu_dirty_rect + updateSubRect.
+        // .always would re-upload the full texture on every getTexture() (e.g. sprite panel reflection).
+        internal.editor.temporary_layer = try .init(internal.newLayerID(), "Temporary", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
         internal.editor.selection_layer = try .init(internal.newLayerID(), "Selection", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
         internal.editor.transform_layer = try .init(internal.newLayerID(), "Transform", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
         internal.editor.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, internal.spriteCount());

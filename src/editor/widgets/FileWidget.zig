@@ -1117,7 +1117,6 @@ pub fn drawSpriteBubble(
     bubble_close: ?dvui.Animation,
     tool_not_pointer: bool,
 ) bool {
-    if (progress <= 0.0) return false;
 
     // Would this sprite be removed if the user clicked the button?
     var remove: bool = false;
@@ -1213,11 +1212,12 @@ pub fn drawSpriteBubble(
         }
         return false;
     } else {
-        const arc_height = std.math.clamp(
-            bubble_rect_scale.r.h,
-            dvui.currentWindow().natural_scale,
-            @min(sprite_rect_scale.r.h, sprite_rect_scale.r.w) * 0.5 - dvui.currentWindow().natural_scale,
-        );
+        const ns = dvui.currentWindow().natural_scale;
+        // Upper bound can drop below `ns` when the sprite is only a few physical pixels (zoomed far out);
+        // `std.math.clamp` panics if min > max.
+        const sprite_screen_min = @min(sprite_rect_scale.r.h, sprite_rect_scale.r.w);
+        const arc_upper = sprite_screen_min * 0.5 - ns;
+        const arc_height = std.math.clamp(bubble_rect_scale.r.h, ns, @max(ns, arc_upper));
 
         const d = bubble_rect_scale.r.w / 2;
 
@@ -2902,60 +2902,22 @@ fn drawBatchedGridLines(
         }
     }
 
-    // Horizontal lines: sprite row-top edges (visible rows/columns only — matches bubble culling)
-    {
-        const visible_data = canvas.dataFromScreenRect(canvas.rect);
-        const total_rows = file.rows;
-        const cols = file.columns;
-        if (total_rows > 0 and cols > 0) {
-            const row_h: f32 = @floatFromInt(file.row_height);
-            const col_w: f32 = @floatFromInt(file.column_width);
-            if (row_h > 0 and col_w > 0) {
-                const bubble_headroom = @max(row_h, col_w);
-                const max_row_f: f32 = @floatFromInt(total_rows);
-                const first_vis_f = (visible_data.y - bubble_headroom) / row_h;
-                const first_vis_row: usize = if (first_vis_f > 0 and first_vis_f < max_row_f)
-                    @intFromFloat(first_vis_f)
-                else if (first_vis_f >= max_row_f)
-                    total_rows
-                else
-                    0;
-                const last_vis_f = (visible_data.y + visible_data.h) / row_h + 2.0;
-                const last_vis_row: usize = if (last_vis_f > 0 and last_vis_f < max_row_f)
-                    @intFromFloat(last_vis_f)
-                else if (last_vis_f >= max_row_f)
-                    total_rows
-                else
-                    0;
+    // Horizontal lines: sprite row-top edges (visible rows/columns; coalesce runs without bubbles)
+    if (fileCanvasVisibleGridParams(file)) |gp| {
+        if (gp.vx1 > 0) {
+            var row: usize = @max(1, gp.first_vis_row);
+            while (row < gp.last_vis_row) : (row += 1) {
+                const row_start = row * gp.cols;
+                const row_end = @min(row_start + gp.cols, file.spriteCount());
+                if (row_end <= row_start) continue;
 
-                const vx0 = visible_data.x;
-                const vx1 = visible_data.x + visible_data.w;
-
-                var row: usize = @max(1, first_vis_row);
-                while (row < last_vis_row) : (row += 1) {
-                    const row_start = row * cols;
-                    const row_end = @min(row_start + cols, file.spriteCount());
-                    if (row_end <= row_start) continue;
-
-                    const row_span = row_end - row_start;
-                    var col_lo: usize = 0;
-                    if (vx0 > 0) col_lo = @intFromFloat(@floor(vx0 / col_w));
-                    if (vx1 <= 0) continue;
-                    var col_hi_excl: usize = @intFromFloat(@ceil(vx1 / col_w));
-                    col_lo = @min(col_lo, row_span);
-                    col_hi_excl = @min(col_hi_excl, row_span);
-                    if (col_lo >= col_hi_excl) continue;
-
-                    var si: usize = row_start + col_hi_excl;
-                    while (si > row_start + col_lo) {
-                        si -= 1;
-                        if (self.spriteDrawsBubbleTopEdge(si, grid_pan)) continue;
-                        const sr = file.spriteRect(si);
-                        const tl = canvas.screenFromDataPoint(sr.topLeft());
-                        const tr = canvas.screenFromDataPoint(sr.topRight());
-                        appendLineQuad(&builder, .{ .x = tl.x, .y = tl.y - half }, .{ .x = tr.x, .y = tr.y + half }, pma_col);
-                    }
-                }
+                const row_span = row_end - row_start;
+                var col_lo: usize = 0;
+                if (gp.vx0 > 0) col_lo = @intFromFloat(@floor(gp.vx0 / gp.col_w));
+                var col_hi_excl: usize = @intFromFloat(@ceil(gp.vx1 / gp.col_w));
+                col_lo = @min(col_lo, row_span);
+                col_hi_excl = @min(col_hi_excl, row_span);
+                appendHorizontalGridRunsForRow(self, &builder, canvas, grid_pan, row, row_start, col_lo, col_hi_excl, gp.col_w, gp.row_h, half, pma_col);
             }
         }
     }
@@ -3011,6 +2973,91 @@ fn appendLineQuad(builder: *dvui.Triangles.Builder, tl: dvui.Point.Physical, br:
     builder.appendTriangles(&.{ base, base + 1, base + 2, base, base + 2, base + 3 });
 }
 
+/// Viewport in data space + row/column index range for culling (matches bubble / grid logic).
+fn fileCanvasVisibleGridParams(file: *pixi.Internal.File) ?struct {
+    visible_data: dvui.Rect,
+    row_h: f32,
+    col_w: f32,
+    cols: usize,
+    first_vis_row: usize,
+    last_vis_row: usize,
+    vx0: f32,
+    vx1: f32,
+} {
+    const canvas = &file.editor.canvas;
+    const visible_data = canvas.dataFromScreenRect(canvas.rect);
+    const total_rows = file.rows;
+    const cols = file.columns;
+    if (total_rows == 0 or cols == 0) return null;
+    const row_h: f32 = @floatFromInt(file.row_height);
+    const col_w: f32 = @floatFromInt(file.column_width);
+    if (row_h <= 0 or col_w <= 0) return null;
+    const bubble_headroom = @max(row_h, col_w);
+    const max_row_f: f32 = @floatFromInt(total_rows);
+    const first_vis_f = (visible_data.y - bubble_headroom) / row_h;
+    const first_vis_row: usize = if (first_vis_f > 0 and first_vis_f < max_row_f)
+        @intFromFloat(first_vis_f)
+    else if (first_vis_f >= max_row_f)
+        total_rows
+    else
+        0;
+    const last_vis_f = (visible_data.y + visible_data.h) / row_h + 2.0;
+    const last_vis_row: usize = if (last_vis_f > 0 and last_vis_f < max_row_f)
+        @intFromFloat(last_vis_f)
+    else if (last_vis_f >= max_row_f)
+        total_rows
+    else
+        0;
+    return .{
+        .visible_data = visible_data,
+        .row_h = row_h,
+        .col_w = col_w,
+        .cols = cols,
+        .first_vis_row = first_vis_row,
+        .last_vis_row = last_vis_row,
+        .vx0 = visible_data.x,
+        .vx1 = visible_data.x + visible_data.w,
+    };
+}
+
+/// Horizontal grid segments along row tops: one quad per maximal run of sprites without a bubble arc.
+fn appendHorizontalGridRunsForRow(
+    self: *FileWidget,
+    builder: *dvui.Triangles.Builder,
+    canvas: *CanvasWidget,
+    grid_pan: ?BubblePanShared,
+    row: usize,
+    row_start: usize,
+    col_lo: usize,
+    col_hi_excl: usize,
+    col_w: f32,
+    row_h: f32,
+    half: f32,
+    pma_col: dvui.Color.PMA,
+) void {
+    if (col_lo >= col_hi_excl) return;
+    var col = col_lo;
+    while (col < col_hi_excl) {
+        const si0 = row_start + col;
+        if (self.spriteDrawsBubbleTopEdge(si0, grid_pan)) {
+            col += 1;
+            continue;
+        }
+        const run_start = col;
+        col += 1;
+        while (col < col_hi_excl) : (col += 1) {
+            if (self.spriteDrawsBubbleTopEdge(row_start + col, grid_pan)) break;
+        }
+        const run_end_excl = col;
+        const x_left = @as(f32, @floatFromInt(run_start)) * col_w;
+        const x_right = @as(f32, @floatFromInt(run_end_excl)) * col_w;
+        const y_top = @as(f32, @floatFromInt(row)) * row_h;
+        const tl = canvas.screenFromDataPoint(.{ .x = x_left, .y = y_top });
+        const tr = canvas.screenFromDataPoint(.{ .x = x_right, .y = y_top });
+        appendLineQuad(builder, .{ .x = tl.x, .y = tl.y - half }, .{ .x = tr.x, .y = tr.y + half }, pma_col);
+    }
+}
+
 /// Batches grid lines for the resize-shrink overlay (original layer_rect shown in error tint).
 fn drawBatchedResizeOverlayGrid(
     self: *FileWidget,
@@ -3043,59 +3090,21 @@ fn drawBatchedResizeOverlayGrid(
         appendLineQuad(&builder, .{ .x = sx - half, .y = screen_y0 }, .{ .x = sx + half, .y = screen_y1 }, pma_col);
     }
 
-    {
-        const visible_data = canvas.dataFromScreenRect(canvas.rect);
-        const total_rows = file.rows;
-        const cols = file.columns;
-        if (total_rows > 0 and cols > 0) {
-            const row_h: f32 = @floatFromInt(file.row_height);
-            const col_w: f32 = @floatFromInt(file.column_width);
-            if (row_h > 0 and col_w > 0) {
-                const bubble_headroom = @max(row_h, col_w);
-                const max_row_f: f32 = @floatFromInt(total_rows);
-                const first_vis_f = (visible_data.y - bubble_headroom) / row_h;
-                const first_vis_row: usize = if (first_vis_f > 0 and first_vis_f < max_row_f)
-                    @intFromFloat(first_vis_f)
-                else if (first_vis_f >= max_row_f)
-                    total_rows
-                else
-                    0;
-                const last_vis_f = (visible_data.y + visible_data.h) / row_h + 2.0;
-                const last_vis_row: usize = if (last_vis_f > 0 and last_vis_f < max_row_f)
-                    @intFromFloat(last_vis_f)
-                else if (last_vis_f >= max_row_f)
-                    total_rows
-                else
-                    0;
+    if (fileCanvasVisibleGridParams(file)) |gp| {
+        if (gp.vx1 > 0) {
+            var row: usize = @max(1, gp.first_vis_row);
+            while (row < gp.last_vis_row) : (row += 1) {
+                const row_start = row * gp.cols;
+                const row_end = @min(row_start + gp.cols, file.spriteCount());
+                if (row_end <= row_start) continue;
 
-                const vx0 = visible_data.x;
-                const vx1 = visible_data.x + visible_data.w;
-
-                var row: usize = @max(1, first_vis_row);
-                while (row < last_vis_row) : (row += 1) {
-                    const row_start = row * cols;
-                    const row_end = @min(row_start + cols, file.spriteCount());
-                    if (row_end <= row_start) continue;
-
-                    const row_span = row_end - row_start;
-                    var col_lo: usize = 0;
-                    if (vx0 > 0) col_lo = @intFromFloat(@floor(vx0 / col_w));
-                    if (vx1 <= 0) continue;
-                    var col_hi_excl: usize = @intFromFloat(@ceil(vx1 / col_w));
-                    col_lo = @min(col_lo, row_span);
-                    col_hi_excl = @min(col_hi_excl, row_span);
-                    if (col_lo >= col_hi_excl) continue;
-
-                    var si: usize = row_start + col_hi_excl;
-                    while (si > row_start + col_lo) {
-                        si -= 1;
-                        if (self.spriteDrawsBubbleTopEdge(si, grid_pan)) continue;
-                        const sr = file.spriteRect(si);
-                        const tl = canvas.screenFromDataPoint(sr.topLeft());
-                        const tr = canvas.screenFromDataPoint(sr.topRight());
-                        appendLineQuad(&builder, .{ .x = tl.x, .y = tl.y - half }, .{ .x = tr.x, .y = tr.y + half }, pma_col);
-                    }
-                }
+                const row_span = row_end - row_start;
+                var col_lo: usize = 0;
+                if (gp.vx0 > 0) col_lo = @intFromFloat(@floor(gp.vx0 / gp.col_w));
+                var col_hi_excl: usize = @intFromFloat(@ceil(gp.vx1 / gp.col_w));
+                col_lo = @min(col_lo, row_span);
+                col_hi_excl = @min(col_hi_excl, row_span);
+                appendHorizontalGridRunsForRow(self, &builder, canvas, grid_pan, row, row_start, col_lo, col_hi_excl, gp.col_w, gp.row_h, half, pma_col);
             }
         }
     }
@@ -3234,34 +3243,67 @@ fn checkerboardTintAtSpriteCellCenter(file: *pixi.Internal.File, sprite_index: u
     }
 }
 
-/// One quad per sprite cell with full UVs so the checkerboard alpha texture tiles per cell (not stretched across the canvas).
-/// Vertex colors bilinearly sample a 4-corner gradient across the whole grid (normalized column/row position).
+/// Checkerboard behind layers: one tiled quad when `transparency_effect == .none`; otherwise one quad per
+/// visible cell (per-cell UVs + vertex colors for rainbow / animation).
 fn drawCheckerboardCellsBatched(file: *pixi.Internal.File) void {
     const n = file.spriteCount();
     if (n == 0) return;
 
-    const visible_data = file.editor.canvas.dataFromScreenRect(file.editor.canvas.rect);
+    const te = pixi.editor.settings.transparency_effect;
+    const pal = checkerboardGridPalette();
+    const tone = pal.tone;
+    const rs = file.editor.canvas.screen_rect_scale;
 
-    var vis_quads: usize = 0;
-    for (0..n) |i| {
-        if (!visible_data.intersect(file.spriteRect(i)).empty()) vis_quads += 1;
+    if (te == .none) {
+        const gp = fileCanvasVisibleGridParams(file) orelse return;
+        const file_w = @as(f32, @floatFromInt(file.width()));
+        const file_h = @as(f32, @floatFromInt(file.height()));
+        if (file_w <= 0 or file_h <= 0) return;
+        const layer_r = gp.visible_data.intersect(.{ .x = 0, .y = 0, .w = file_w, .h = file_h });
+        if (layer_r.empty()) return;
+
+        const r = rs.rectToPhysical(layer_r);
+        const tl = r.topLeft();
+        const tr = r.topRight();
+        const br = r.bottomRight();
+        const bl = r.bottomLeft();
+        const col_w = gp.col_w;
+        const row_h = gp.row_h;
+        const uv_x0 = layer_r.x / col_w;
+        const uv_y0 = layer_r.y / row_h;
+        const uv_x1 = (layer_r.x + layer_r.w) / col_w;
+        const uv_y1 = (layer_r.y + layer_r.h) / row_h;
+        const pma = dvui.Color.PMA.fromColor(tone);
+
+        const arena = dvui.currentWindow().arena();
+        var builder = dvui.Triangles.Builder.init(arena, 4, 6) catch return;
+        defer builder.deinit(arena);
+        builder.appendVertex(.{ .pos = tl, .col = pma, .uv = .{ uv_x0, uv_y0 } });
+        builder.appendVertex(.{ .pos = tr, .col = pma, .uv = .{ uv_x1, uv_y0 } });
+        builder.appendVertex(.{ .pos = br, .col = pma, .uv = .{ uv_x1, uv_y1 } });
+        builder.appendVertex(.{ .pos = bl, .col = pma, .uv = .{ uv_x0, uv_y1 } });
+        builder.appendTriangles(&.{ 1, 0, 3, 1, 3, 2 });
+        const triangles = builder.build();
+        dvui.renderTriangles(triangles, file.editor.checkerboard_tile.getTexture() catch null) catch {
+            dvui.log.err("Failed to render batched checkerboard", .{});
+        };
+        return;
     }
-    if (vis_quads == 0) return;
+
+    const gp = fileCanvasVisibleGridParams(file) orelse return;
+    if (gp.first_vis_row >= gp.last_vis_row or gp.vx1 <= 0) return;
 
     const arena = dvui.currentWindow().arena();
-    var builder = dvui.Triangles.Builder.init(arena, vis_quads * 4, vis_quads * 6) catch {
+    var builder = dvui.Triangles.Builder.init(arena, n * 4, n * 6) catch {
         dvui.log.err("Failed to allocate checkerboard batch", .{});
         return;
     };
     defer builder.deinit(arena);
 
-    const pal = checkerboardGridPalette();
-    const tone = pal.tone;
     const c_tl = pal.c_tl;
     const c_tr = pal.c_tr;
     const c_bl = pal.c_bl;
     const c_br = pal.c_br;
-    const te = pixi.editor.settings.transparency_effect;
 
     const cols_f = @max(@as(f32, @floatFromInt(file.columns)), 1.0);
     const rows_f = @max(@as(f32, @floatFromInt(file.rows)), 1.0);
@@ -3272,10 +3314,10 @@ fn drawCheckerboardCellsBatched(file: *pixi.Internal.File) void {
     var target_mv: f32 = 0.5;
     if (canvas.rect.contains(mouse_screen)) {
         const md = canvas.screen_rect_scale.pointFromPhysical(mouse_screen);
-        const file_w = @as(f32, @floatFromInt(file.width()));
-        const file_h = @as(f32, @floatFromInt(file.height()));
-        if (file_w > 0) target_mu = math.clamp(md.x / file_w, 0, 1);
-        if (file_h > 0) target_mv = math.clamp(md.y / file_h, 0, 1);
+        const fw = @as(f32, @floatFromInt(file.width()));
+        const fh = @as(f32, @floatFromInt(file.height()));
+        if (fw > 0) target_mu = math.clamp(md.x / fw, 0, 1);
+        if (fh > 0) target_mv = math.clamp(md.y / fh, 0, 1);
     }
 
     const prev_uv = dvui.dataGet(null, canvas.id, "checkerboard_mouse_uv", dvui.Point) orelse dvui.Point{ .x = 0.5, .y = 0.5 };
@@ -3284,39 +3326,56 @@ fn drawCheckerboardCellsBatched(file: *pixi.Internal.File) void {
     const mv = prev_uv.y + (target_mv - prev_uv.y) * smooth_t;
     dvui.dataSet(null, canvas.id, "checkerboard_mouse_uv", dvui.Point{ .x = mu, .y = mv });
 
-    const rs = file.editor.canvas.screen_rect_scale;
     var quad_idx: usize = 0;
-    for (0..n) |i| {
-        const sr = file.spriteRect(i);
-        if (visible_data.intersect(sr).empty()) continue;
+    var row: usize = gp.first_vis_row;
+    while (row < gp.last_vis_row) : (row += 1) {
+        const row_start = row * gp.cols;
+        const row_end = @min(row_start + gp.cols, n);
+        if (row_end <= row_start) continue;
 
-        const r = rs.rectToPhysical(sr);
-        const tl = r.topLeft();
-        const tr = r.topRight();
-        const br = r.bottomRight();
-        const bl = r.bottomLeft();
+        const row_span = row_end - row_start;
+        var col_lo: usize = 0;
+        if (gp.vx0 > 0) col_lo = @intFromFloat(@floor(gp.vx0 / gp.col_w));
+        var col_hi_excl: usize = @intFromFloat(@ceil(gp.vx1 / gp.col_w));
+        col_lo = @min(col_lo, row_span);
+        col_hi_excl = @min(col_hi_excl, row_span);
 
-        const col = file.columnFromIndex(i);
-        const row = file.rowFromIndex(i);
-        const u_left = @as(f32, @floatFromInt(col)) / cols_f;
-        const u_right = @as(f32, @floatFromInt(col + 1)) / cols_f;
-        const v_top = @as(f32, @floatFromInt(row)) / rows_f;
-        const v_bot = @as(f32, @floatFromInt(row + 1)) / rows_f;
+        var col = col_lo;
+        while (col < col_hi_excl) : (col += 1) {
+            const i = row_start + col;
+            const sr = file.spriteRect(i);
+            if (gp.visible_data.intersect(sr).empty()) continue;
 
-        const pma_tl = dvui.Color.PMA.fromColor(checkerboardCellCornerColor(te, file, i, c_tl, c_tr, c_bl, c_br, u_left, v_top, mu, mv, tone));
-        const pma_tr = dvui.Color.PMA.fromColor(checkerboardCellCornerColor(te, file, i, c_tl, c_tr, c_bl, c_br, u_right, v_top, mu, mv, tone));
-        const pma_br = dvui.Color.PMA.fromColor(checkerboardCellCornerColor(te, file, i, c_tl, c_tr, c_bl, c_br, u_right, v_bot, mu, mv, tone));
-        const pma_bl = dvui.Color.PMA.fromColor(checkerboardCellCornerColor(te, file, i, c_tl, c_tr, c_bl, c_br, u_left, v_bot, mu, mv, tone));
+            const r = rs.rectToPhysical(sr);
+            const tl = r.topLeft();
+            const tr = r.topRight();
+            const br = r.bottomRight();
+            const bl = r.bottomLeft();
 
-        builder.appendVertex(.{ .pos = tl, .col = pma_tl, .uv = .{ 0, 0 } });
-        builder.appendVertex(.{ .pos = tr, .col = pma_tr, .uv = .{ 1, 0 } });
-        builder.appendVertex(.{ .pos = br, .col = pma_br, .uv = .{ 1, 1 } });
-        builder.appendVertex(.{ .pos = bl, .col = pma_bl, .uv = .{ 0, 1 } });
+            const col_i = file.columnFromIndex(i);
+            const row_i = file.rowFromIndex(i);
+            const u_left = @as(f32, @floatFromInt(col_i)) / cols_f;
+            const u_right = @as(f32, @floatFromInt(col_i + 1)) / cols_f;
+            const v_top = @as(f32, @floatFromInt(row_i)) / rows_f;
+            const v_bot = @as(f32, @floatFromInt(row_i + 1)) / rows_f;
 
-        const quad_base: dvui.Vertex.Index = @intCast(quad_idx * 4);
-        builder.appendTriangles(&.{ quad_base + 1, quad_base + 0, quad_base + 3, quad_base + 1, quad_base + 3, quad_base + 2 });
-        quad_idx += 1;
+            const pma_tl = dvui.Color.PMA.fromColor(checkerboardCellCornerColor(te, file, i, c_tl, c_tr, c_bl, c_br, u_left, v_top, mu, mv, tone));
+            const pma_tr = dvui.Color.PMA.fromColor(checkerboardCellCornerColor(te, file, i, c_tl, c_tr, c_bl, c_br, u_right, v_top, mu, mv, tone));
+            const pma_br = dvui.Color.PMA.fromColor(checkerboardCellCornerColor(te, file, i, c_tl, c_tr, c_bl, c_br, u_right, v_bot, mu, mv, tone));
+            const pma_bl = dvui.Color.PMA.fromColor(checkerboardCellCornerColor(te, file, i, c_tl, c_tr, c_bl, c_br, u_left, v_bot, mu, mv, tone));
+
+            builder.appendVertex(.{ .pos = tl, .col = pma_tl, .uv = .{ 0, 0 } });
+            builder.appendVertex(.{ .pos = tr, .col = pma_tr, .uv = .{ 1, 0 } });
+            builder.appendVertex(.{ .pos = br, .col = pma_br, .uv = .{ 1, 1 } });
+            builder.appendVertex(.{ .pos = bl, .col = pma_bl, .uv = .{ 0, 1 } });
+
+            const quad_base: dvui.Vertex.Index = @intCast(quad_idx * 4);
+            builder.appendTriangles(&.{ quad_base + 1, quad_base + 0, quad_base + 3, quad_base + 1, quad_base + 3, quad_base + 2 });
+            quad_idx += 1;
+        }
     }
+
+    if (quad_idx == 0) return;
 
     const triangles = builder.build();
     dvui.renderTriangles(triangles, file.editor.checkerboard_tile.getTexture() catch null) catch {

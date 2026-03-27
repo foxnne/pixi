@@ -616,42 +616,38 @@ pub fn sprite(src: std.builtin.SourceLocation, init_opts: SpriteInitOptions, opt
             };
 
             if (init_opts.file) |file| {
-                var drew_flat_reflection = false;
-                if (file.peek_layer_index == null) {
-                    // Never trigger composite rebuilds from sprite preview draw path.
-                    // We only consume the cached target if it already exists.
-                    if (file.editor.layer_composite_target) |ct| {
-                        if (dvui.Texture.fromTargetTemp(ct) catch null) |ctex| {
-                            dvui.renderTriangles(reflection_triangles_layers, ctex) catch {
-                                dvui.log.err("Failed to render triangles", .{});
-                            };
-                            drew_flat_reflection = true;
-                        }
-                    }
-                }
-                if (!drew_flat_reflection) {
-                    var index: usize = file.layers.len;
-                    while (index > 0) {
-                        index -= 1;
-                        if (file.layers.items(.visible)[index]) {
-                            const reflection_tris = if (file.peek_layer_index != null and file.peek_layer_index != index)
-                                reflection_triangles_layers_dimmed
-                            else
-                                reflection_triangles_layers;
-                            dvui.renderTriangles(reflection_tris, file.layers.items(.source)[index].getTexture() catch null) catch {
-                                dvui.log.err("Failed to render triangles", .{});
-                            };
-                        }
-                    }
-                }
+                const preview_opts = pixi.render.RenderFileOptions{
+                    .file = file,
+                    .rs = .{
+                        .r = wd.contentRectScale().r,
+                        .s = wd.contentRectScale().s,
+                    },
+                    .uv = uv,
+                    .corner_radius = .all(0),
+                };
+                pixi.render.renderReflectionLayerStack(preview_opts, reflection_triangles_layers, reflection_triangles_layers_dimmed) catch |err| {
+                    dvui.log.err("Failed to render reflection layer stack: {any}", .{err});
+                };
 
                 dvui.renderTriangles(reflection_triangles_layers, file.editor.selection_layer.source.getTexture() catch null) catch {
                     dvui.log.err("Failed to render triangles", .{});
                 };
 
-                dvui.renderTriangles(reflection_triangles_layers, file.editor.temporary_layer.source.getTexture() catch null) catch {
-                    dvui.log.err("Failed to render triangles", .{});
-                };
+                // Match renderLayers: use cached GPU texture when the canvas has already uploaded this frame.
+                // Avoids getTexture() on .pixelsPMA sources (would upload when invalidation is .always).
+                if (file.editor.temp_layer_has_content or file.editor.temp_gpu_dirty_rect != null) {
+                    const temp_src = file.editor.temporary_layer.source;
+                    const temp_key = temp_src.hash();
+                    if (dvui.textureGetCached(temp_key)) |tex| {
+                        dvui.renderTriangles(reflection_triangles_layers, tex) catch {
+                            dvui.log.err("Failed to render triangles", .{});
+                        };
+                    } else {
+                        dvui.renderTriangles(reflection_triangles_layers, temp_src.getTexture() catch null) catch {
+                            dvui.log.err("Failed to render triangles", .{});
+                        };
+                    }
+                }
             } else {
                 dvui.renderTriangles(reflection_triangles_layers, init_opts.source.getTexture() catch null) catch {
                     dvui.log.err("Failed to render triangles", .{});

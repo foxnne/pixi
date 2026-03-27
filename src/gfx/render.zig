@@ -6,7 +6,7 @@ const perf = pixi.perf;
 /// Monotonic frame counter, incremented once per frame from Editor.tick.
 pub var frame_index: u64 = 0;
 
-const RenderFileOptions = struct {
+pub const RenderFileOptions = struct {
     file: *pixi.Internal.File,
     rs: dvui.RectScale,
     color_mod: dvui.Color = .white,
@@ -15,6 +15,118 @@ const RenderFileOptions = struct {
     corner_radius: dvui.Rect = .all(0),
     allow_peek: bool = true,
 };
+
+fn layerViewStateForRender(init_opts: RenderFileOptions) struct { min_layer_index: usize, needs_dimmed: bool } {
+    var min_layer_index: usize = 0;
+    if (init_opts.allow_peek) {
+        if (init_opts.file.editor.isolate_layer) {
+            if (init_opts.file.peek_layer_index) |peek_layer_index| {
+                min_layer_index = peek_layer_index;
+            } else if (!pixi.editor.explorer.tools.layersHovered()) {
+                min_layer_index = init_opts.file.selected_layer_index;
+            }
+        }
+    }
+    const needs_dimmed = init_opts.allow_peek and init_opts.file.peek_layer_index != null;
+    return .{ .min_layer_index = min_layer_index, .needs_dimmed = needs_dimmed };
+}
+
+/// Builds the same cached composites `renderLayers` would use (split when drawing, full when idle),
+/// so callers (e.g. sprite preview reflection) can draw before `renderLayers` runs.
+pub fn ensureLayerCompositesForPreview(init_opts: RenderFileOptions) !void {
+    const vs = layerViewStateForRender(init_opts);
+    if (splitCompositeEligible(init_opts, vs.min_layer_index, vs.needs_dimmed)) {
+        try syncSplitComposite(init_opts.file);
+    } else if (fullCompositeEligible(init_opts, vs.min_layer_index, vs.needs_dimmed)) {
+        try syncLayerComposite(init_opts.file);
+    }
+}
+
+/// Draws the layer stack for the sprite-panel reflection using the same composite paths as
+/// `renderLayers` (1–3 draws) instead of N per-layer draws when possible.
+pub fn renderReflectionLayerStack(
+    init_opts: RenderFileOptions,
+    reflection_tris: dvui.Triangles,
+    reflection_tris_dimmed: dvui.Triangles,
+) !void {
+    const file = init_opts.file;
+    const vs = layerViewStateForRender(init_opts);
+    try ensureLayerCompositesForPreview(init_opts);
+
+    if (file.peek_layer_index != null) {
+        var layer_index: usize = file.layers.len;
+        while (layer_index > vs.min_layer_index) {
+            layer_index -= 1;
+            if (!file.layers.items(.visible)[layer_index]) continue;
+            var tris = reflection_tris;
+            if (vs.needs_dimmed) {
+                if (file.peek_layer_index) |peek_layer_index| {
+                    if (peek_layer_index != layer_index) {
+                        tris = reflection_tris_dimmed;
+                    }
+                }
+            }
+            dvui.renderTriangles(tris, file.layers.items(.source)[layer_index].getTexture() catch null) catch {
+                dvui.log.err("Failed to render reflection layer", .{});
+            };
+        }
+        return;
+    }
+
+    if (splitCompositeEligible(init_opts, vs.min_layer_index, vs.needs_dimmed)) {
+        if (file.editor.split_composite_below) |ct| {
+            if (dvui.Texture.fromTargetTemp(ct) catch null) |tex| {
+                dvui.renderTriangles(reflection_tris, tex) catch {
+                    dvui.log.err("Failed to render reflection below composite", .{});
+                };
+            }
+        }
+        const active_source = file.layers.items(.source)[file.selected_layer_index];
+        if (file.layers.items(.visible)[file.selected_layer_index]) {
+            if (active_source.getTexture() catch null) |tex| {
+                dvui.renderTriangles(reflection_tris, tex) catch {
+                    dvui.log.err("Failed to render reflection active layer", .{});
+                };
+            }
+        }
+        if (file.editor.split_composite_above) |ct| {
+            if (dvui.Texture.fromTargetTemp(ct) catch null) |tex| {
+                dvui.renderTriangles(reflection_tris, tex) catch {
+                    dvui.log.err("Failed to render reflection above composite", .{});
+                };
+            }
+        }
+        return;
+    }
+
+    if (fullCompositeEligible(init_opts, vs.min_layer_index, vs.needs_dimmed)) {
+        if (file.editor.layer_composite_target) |ct| {
+            if (dvui.Texture.fromTargetTemp(ct) catch null) |ctex| {
+                dvui.renderTriangles(reflection_tris, ctex) catch {
+                    dvui.log.err("Failed to render reflection full composite", .{});
+                };
+                return;
+            }
+        }
+    }
+
+    var layer_index: usize = file.layers.len;
+    while (layer_index > vs.min_layer_index) {
+        layer_index -= 1;
+        if (!file.layers.items(.visible)[layer_index]) continue;
+        var tris = reflection_tris;
+        if (vs.needs_dimmed) {
+            if (file.peek_layer_index) |peek_layer_index| {
+                if (peek_layer_index != layer_index) {
+                    tris = reflection_tris_dimmed;
+                }
+            }
+        }
+        dvui.renderTriangles(tris, file.layers.items(.source)[layer_index].getTexture() catch null) catch {
+            dvui.log.err("Failed to render reflection layer stack fallback", .{});
+        };
+    }
+}
 
 fn fullCompositeEligible(
     init_opts: RenderFileOptions,
@@ -303,16 +415,9 @@ pub fn renderLayers(init_opts: RenderFileOptions) !void {
         init_opts.file.editor.active_layer_dirty_rect = null;
     }
 
-    var min_layer_index: usize = 0;
-    if (init_opts.allow_peek) {
-        if (init_opts.file.editor.isolate_layer) {
-            if (init_opts.file.peek_layer_index) |peek_layer_index| {
-                min_layer_index = peek_layer_index;
-            } else if (!pixi.editor.explorer.tools.layersHovered()) {
-                min_layer_index = init_opts.file.selected_layer_index;
-            }
-        }
-    }
+    const vs = layerViewStateForRender(init_opts);
+    const min_layer_index = vs.min_layer_index;
+    const needs_dimmed = vs.needs_dimmed;
 
     var path: dvui.Path.Builder = .init(pixi.app.allocator);
     defer path.deinit();
@@ -324,7 +429,6 @@ pub fn renderLayers(init_opts: RenderFileOptions) !void {
 
     triangles.uvFromRectuv(content_rs.r, init_opts.uv);
 
-    const needs_dimmed = init_opts.allow_peek and init_opts.file.peek_layer_index != null;
     var dimmed_triangles: ?dvui.Triangles = null;
     defer {
         if (dimmed_triangles) |*dt| dt.deinit(pixi.app.allocator);

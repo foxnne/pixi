@@ -87,9 +87,6 @@ pub var verbose_frame_log: bool = false;
 pub var split_composite_below_ns: u64 = 0;
 pub var split_composite_above_ns: u64 = 0;
 
-/// Enable `debugAgentLog` (writes NDJSON to a fixed path). Off by default.
-pub const debug_agent_log: bool = false;
-
 /// `warmupDrawingComposites` calls (session total) and duration of the last run (nanoseconds).
 pub var composite_warmup_total: u64 = 0;
 pub var composite_warmup_last_ns: u64 = 0;
@@ -252,24 +249,3 @@ pub inline fn processEventsEnd(start: i128) void {
     if (!record) return;
     process_events_ns +%= @intCast(std.time.nanoTimestamp() - start);
 }
-
-pub fn debugAgentLog(msg: []const u8, d1: i64, d2: i64) void {
-    if (!debug_agent_log) return;
-    debugLog9b(msg, d1, d2);
-}
-
-// #region agent log
-fn debugLog9b(msg: []const u8, d1: i64, d2: i64) void {
-    const path = "/Users/foxnne/dev/proj/pixi/.cursor/debug-9b423f.log";
-    var f = std.fs.cwd().openFile(path, .{ .mode = .read_write }) catch |e| blk: {
-        if (e != error.FileNotFound) return;
-        break :blk std.fs.cwd().createFile(path, .{ .read = true, .truncate = false }) catch return;
-    };
-    defer f.close();
-    f.seekFromEnd(0) catch return;
-    var buf: [512]u8 = undefined;
-    var w = f.writer(&buf);
-    w.interface.print("{{\"sessionId\":\"9b423f\",\"message\":\"{s}\",\"data\":{{\"v1\":{d},\"v2\":{d}}},\"timestamp\":{d}}}\n", .{ msg, d1, d2, std.time.milliTimestamp() }) catch return;
-    w.end() catch return;
-}
-// #endregion

@@ -606,6 +606,8 @@ pub fn drawRuler(self: *Workspace, orientation: RulerOrientation) void {
         return;
     };
     const largest_label_size = font.textSize(largest_label);
+    const natural_scale = dvui.currentWindow().natural_scale;
+    const largest_label_phys = largest_label_size.scale(natural_scale, dvui.Size.Physical);
     const base_ruler_size = largest_label_size.w + pixi.editor.settings.ruler_padding;
 
     const ruler_thickness: f32 = switch (orientation) {
@@ -642,7 +644,7 @@ pub fn drawRuler(self: *Workspace, orientation: RulerOrientation) void {
             });
             defer top_box.deinit();
 
-            self.drawRulerContent(file, font, orientation, ruler_thickness, largest_label);
+            self.drawRulerContent(file, font, orientation, ruler_thickness, largest_label, null);
         },
         .vertical => {
             var ruler_box = dvui.box(@src(), .{ .dir = .vertical }, .{
@@ -653,18 +655,20 @@ pub fn drawRuler(self: *Workspace, orientation: RulerOrientation) void {
             });
             defer ruler_box.deinit();
 
-            self.drawRulerContent(file, font, orientation, ruler_thickness, largest_label);
+            self.drawRulerContent(file, font, orientation, ruler_thickness, largest_label, largest_label_phys);
         },
     }
 }
 
+/// `largest_row_index_*` come from `drawRuler` (widest row index string and its measured size in physical pixels).
 fn drawRulerContent(
     self: *Workspace,
     file: *pixi.Internal.File,
     font: dvui.Font,
     orientation: RulerOrientation,
     ruler_size: f32,
-    _: []const u8,
+    largest_row_index_label: []const u8,
+    largest_row_index_size_phys: ?dvui.Size.Physical,
 ) void {
     const scale = file.editor.canvas.scale;
     const canvas = file.editor.canvas;
@@ -792,6 +796,12 @@ fn drawRulerContent(
         .vertical => .horizontal,
     };
 
+    // Shared layout width for every row tick (widest index string); actual glyph size may differ per cell.
+    const vertical_row_layout_size_phys: ?dvui.Size.Physical = switch (orientation) {
+        .vertical => largest_row_index_size_phys,
+        .horizontal => null,
+    };
+
     var index: usize = 0;
     while (index < count) : (index += 1) {
         var reorderable = reorder.reorderable(@src(), .{
@@ -880,7 +890,8 @@ fn drawRulerContent(
                     .horizontal => .horizontal,
                     .vertical => .vertical,
                 },
-                .largest_label = null,
+                .largest_label = if (orientation == .vertical) largest_row_index_label else null,
+                .ref_size_physical = vertical_row_layout_size_phys,
             });
 
             const cell_rect = cell_box.data().rectScale().r;
@@ -963,7 +974,10 @@ pub const TextLabelOptions = struct {
     rect: dvui.Rect.Physical,
     color: dvui.Color,
     mode: Mode = .horizontal,
+    /// Widest row index string (e.g. `"99"`); layout cell size uses this, text may be a shorter index.
     largest_label: ?[]const u8 = null,
+    /// When set, layout size for that widest string (already × `natural_scale`); skips `textSize(largest_label)` per cell.
+    ref_size_physical: ?dvui.Size.Physical = null,
 };
 
 pub fn drawRulerLabel(_: *Workspace, options: TextLabelOptions) void {
@@ -971,11 +985,16 @@ pub fn drawRulerLabel(_: *Workspace, options: TextLabelOptions) void {
     const label = options.label;
     const rect = options.rect;
     const color = options.color;
+    const natural = dvui.currentWindow().natural_scale;
 
-    const label_size = font.textSize(options.largest_label orelse label).scale(dvui.currentWindow().natural_scale, dvui.Size.Physical);
-    const actual_label_size = font.textSize(label).scale(dvui.currentWindow().natural_scale, dvui.Size.Physical);
+    const ref_for_layout = options.largest_label orelse label;
+    const label_size = options.ref_size_physical orelse font.textSize(ref_for_layout).scale(natural, dvui.Size.Physical);
+    const actual_label_size = if (std.mem.eql(u8, ref_for_layout, label))
+        label_size
+    else
+        font.textSize(label).scale(natural, dvui.Size.Physical);
 
-    const padding = pixi.editor.settings.ruler_padding * dvui.currentWindow().natural_scale;
+    const padding = pixi.editor.settings.ruler_padding * natural;
 
     var label_rect = rect;
 
@@ -990,7 +1009,7 @@ pub fn drawRulerLabel(_: *Workspace, options: TextLabelOptions) void {
             .color = color,
             .rs = .{
                 .r = label_rect,
-                .s = dvui.currentWindow().natural_scale,
+                .s = natural,
             },
         }) catch {
             dvui.log.err("Failed to render text", .{});
@@ -1006,7 +1025,7 @@ pub fn drawRulerLabel(_: *Workspace, options: TextLabelOptions) void {
             .color = color,
             .rs = .{
                 .r = label_rect,
-                .s = dvui.currentWindow().natural_scale,
+                .s = natural,
             },
         }) catch {
             dvui.log.err("Failed to render text", .{});
