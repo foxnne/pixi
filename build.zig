@@ -89,6 +89,8 @@ pub fn build(b: *std.Build) !void {
             .root_source_file = .{ .cwd_relative = "src/App.zig" },
         }),
     });
+    // Keep DWARF in the binary so Instruments / lldb show symbols (esp. when profiling Release).
+    exe.root_module.strip = false;
 
     const assetpack = @import("assetpack");
     const assets_module = assetpack.pack(b, b.path("assets"), .{});

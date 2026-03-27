@@ -533,16 +533,47 @@ pub fn processSpriteSelection(self: *FileWidget) void {
     }
 }
 
+/// Cached once per `drawSpriteBubbles` / grid batch — avoids per-sprite `matchBind`, `count`, and `animationGet`.
+const BubblePanShared = struct {
+    bubble_open: ?dvui.Animation,
+    bubble_close: ?dvui.Animation,
+    peek: bool,
+    selection_nonempty: bool,
+    tool_not_pointer: bool,
+};
+
+/// Same read-only state as `drawSpriteBubbles` uses for `BubblePanShared` (no animation side effects).
+fn bubblePanSharedForGrid(self: *FileWidget) ?BubblePanShared {
+    if (self.init_options.file.editor.transform != null) return null;
+    if (self.resize_data_point != null) return null;
+    if (self.init_options.file.editor.workspace.columns_drag_index != null) return null;
+    if (self.init_options.file.editor.workspace.rows_drag_index != null) return null;
+    if (self.removed_sprite_indices != null) return null;
+    if (!(self.active() or self.hovered())) return null;
+
+    const animation_id = self.init_options.file.editor.canvas.scroll_container.data().id;
+    const cw = dvui.currentWindow();
+    const tool_not_pointer = pixi.editor.tools.current != .pointer;
+    const mod_shift = cw.modifiers.matchBind("shift");
+    const mod_ctrl_cmd = cw.modifiers.matchBind("ctrl/cmd");
+    const sample_active = self.sample_data_point != null;
+    const drag_sprite_selection = dvui.dragName("sprite_selection_drag");
+
+    return .{
+        .bubble_open = dvui.animationGet(animation_id, "bubble_open"),
+        .bubble_close = dvui.animationGet(animation_id, "bubble_close"),
+        .peek = drag_sprite_selection or mod_shift or mod_ctrl_cmd or tool_not_pointer or sample_active,
+        .selection_nonempty = self.init_options.file.editor.selected_sprites.count() > 0,
+        .tool_not_pointer = tool_not_pointer,
+    };
+}
+
 /// Returns whether `drawSpriteBubbles` will invoke `drawSpriteBubble` for this sprite (same
 /// conditions as the inner loop, without the shadow/bubble pass split). Used so horizontal grid
 /// can be drawn per cell: we skip the flat grid segment where the bubble arc replaces it.
-fn spriteDrawsBubbleTopEdge(self: *FileWidget, sprite_index: usize) bool {
-    if (self.init_options.file.editor.transform != null) return false;
-    if (self.resize_data_point != null) return false;
-    if (self.init_options.file.editor.workspace.columns_drag_index != null) return false;
-    if (self.init_options.file.editor.workspace.rows_drag_index != null) return false;
-    if (self.removed_sprite_indices != null) return false;
-    if (!(self.active() or self.hovered())) return false;
+/// Pass shared bubble state from `bubblePanSharedForGrid` when iterating many sprites (avoids repeated `animationGet`).
+fn spriteDrawsBubbleTopEdge(self: *FileWidget, sprite_index: usize, pan: ?BubblePanShared) bool {
+    const p = pan orelse return false;
 
     const sprite_rect = self.init_options.file.spriteRect(sprite_index);
 
@@ -577,7 +608,8 @@ fn spriteDrawsBubbleTopEdge(self: *FileWidget, sprite_index: usize) bool {
         }
     }
 
-    if (self.init_options.file.editor.selected_sprites.count() > 0) {
+    const sel_nonempty = p.selection_nonempty;
+    if (sel_nonempty) {
         if (self.init_options.file.editor.selected_sprites.isSet(sprite_index)) {
             automatic_animation = true;
         }
@@ -587,19 +619,17 @@ fn spriteDrawsBubbleTopEdge(self: *FileWidget, sprite_index: usize) bool {
         return true;
     }
 
-    if (self.init_options.file.editor.selected_sprites.count() > 0) {
+    if (sel_nonempty) {
         if (!self.init_options.file.editor.selected_sprites.isSet(sprite_index) or (animation_index != self.init_options.file.selected_animation_index and !self.init_options.file.editor.selected_sprites.isSet(sprite_index))) {
             return false;
         }
     }
 
-    const animation_id = self.init_options.file.editor.canvas.scroll_container.data().id;
-
     var max_distance: f32 = sprite_rect.h * 1.2;
 
-    if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
+    if (p.bubble_open) |anim| {
         max_distance += (max_distance * 0.5) * (1.0 - anim.value());
-    } else if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
+    } else if (p.bubble_close) |anim| {
         max_distance += (max_distance * 0.5) * (1.0 - anim.value());
     } else {
         max_distance += (max_distance * 0.5) * if (!self.hide_distance_bubble) @as(f32, 0.0) else @as(f32, 1.0);
@@ -692,26 +722,28 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
     if (self.init_options.file.editor.transform != null) return;
     if (self.resize_data_point != null) return;
 
-    // #region agent log
-    pixi.perf.debugLog9b("drawSpriteBubbles:enter", @intCast(self.init_options.file.spriteCount()), 0);
-    // #endregion
-
     const animation_id = self.init_options.file.editor.canvas.scroll_container.data().id;
+    const cw = dvui.currentWindow();
+    const drag_sprite_selection = dvui.dragName("sprite_selection_drag");
+    const tool_not_pointer = pixi.editor.tools.current != .pointer;
+    const mod_shift = cw.modifiers.matchBind("shift");
+    const mod_ctrl_cmd = cw.modifiers.matchBind("ctrl/cmd");
+    const radial_visible = pixi.editor.tools.radial_menu.visible;
+    const sample_active = self.sample_data_point != null;
 
     { // Create animations for closing or opening bubbles
+        const bubble_open_hdr = dvui.animationGet(animation_id, "bubble_open");
+        const bubble_close_hdr = dvui.animationGet(animation_id, "bubble_close");
 
-        if ((dvui.dragName("sprite_selection_drag") or
-            (pixi.editor.tools.current != .pointer) or
-            (dvui.currentWindow().modifiers.matchBind("shift") or dvui.currentWindow().modifiers.matchBind("ctrl/cmd"))) or
-            pixi.editor.tools.radial_menu.visible or
-            self.init_options.file.editor.transform != null or
-            self.sample_data_point != null)
+        if ((drag_sprite_selection or tool_not_pointer or mod_shift or mod_ctrl_cmd) or
+            radial_visible or
+            sample_active)
         {
-            if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
+            if (bubble_close_hdr) |anim| {
                 if (anim.done()) {
                     self.hide_distance_bubble = true;
                 }
-            } else if (dvui.animationGet(animation_id, "bubble_open")) |_| {
+            } else if (bubble_open_hdr != null) {
                 _ = dvui.currentWindow().animations.remove(animation_id.update("bubble_open"));
                 dvui.animation(animation_id, "bubble_close", .{
                     .easing = dvui.easing.outQuint,
@@ -728,11 +760,11 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
                 });
             }
         } else {
-            if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
+            if (bubble_open_hdr) |anim| {
                 if (anim.done()) {
                     self.hide_distance_bubble = false;
                 }
-            } else if (dvui.animationGet(animation_id, "bubble_close")) |_| {
+            } else if (bubble_close_hdr != null) {
                 _ = dvui.currentWindow().animations.remove(animation_id.update("bubble_close"));
 
                 dvui.animation(animation_id, "bubble_open", .{
@@ -751,6 +783,17 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
             }
         }
     }
+
+    const bubble_open_draw = dvui.animationGet(animation_id, "bubble_open");
+    const bubble_close_draw = dvui.animationGet(animation_id, "bubble_close");
+    const selection_nonempty = self.init_options.file.editor.selected_sprites.count() > 0;
+    const pan_shared: BubblePanShared = .{
+        .bubble_open = bubble_open_draw,
+        .bubble_close = bubble_close_draw,
+        .peek = drag_sprite_selection or mod_shift or mod_ctrl_cmd or tool_not_pointer or sample_active,
+        .selection_nonempty = selection_nonempty,
+        .tool_not_pointer = tool_not_pointer,
+    };
 
     const visible_data = self.init_options.file.editor.canvas.dataFromScreenRect(self.init_options.file.editor.canvas.rect);
     const file = self.init_options.file;
@@ -788,13 +831,37 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
     // Row-based iteration with batched geometry rendering.
     // Each row runs three phases: shadow geometry, bubble geometry, then UI.
     // Geometry is accumulated into TriAccs and rendered in bulk to minimize draw calls.
+    const vx0 = visible_data.x;
+    const vx1 = visible_data.x + visible_data.w;
+
     var row: usize = first_vis_row;
     while (row < last_vis_row) : (row += 1) {
         const row_start = row * cols;
         const row_end = @min(row_start + cols, file.spriteCount());
         if (row_end <= row_start) continue;
 
-        const first_sprite = file.spriteRect(row_start);
+        const row_span = row_end - row_start;
+        const base_y = @as(f32, @floatFromInt(row)) * row_h;
+
+        // Horizontal clip: only columns whose cells can intersect the visible rect in x.
+        // Avoids spriteRect + cull for off-screen tiles (major win when zoomed / panned).
+        var col_lo: usize = 0;
+        if (vx0 > 0) col_lo = @intFromFloat(@floor(vx0 / col_w));
+        if (vx1 <= 0) continue;
+        var col_hi_excl: usize = @intFromFloat(@ceil(vx1 / col_w));
+        col_lo = @min(col_lo, row_span);
+        col_hi_excl = @min(col_hi_excl, row_span);
+        if (col_lo >= col_hi_excl) continue;
+
+        const si_start = row_start + col_lo;
+        const si_end_excl = row_start + col_hi_excl;
+
+        const first_sprite = dvui.Rect{
+            .x = 0,
+            .y = base_y,
+            .w = col_w,
+            .h = row_h,
+        };
         const row_clip_screen = file.editor.canvas.screenFromDataRect(.{
             .x = first_sprite.x,
             .y = first_sprite.y - bubble_headroom,
@@ -804,12 +871,13 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
         // Geometry phase: accumulate shadow + fill + tex + outline in one pass.
         {
-            var si: usize = row_end;
-            while (si > row_start) {
+            var si: usize = si_end_excl;
+            while (si > si_start) {
                 si -= 1;
-                const sprite_rect = file.spriteRect(si);
+                const col_in_row = si - row_start;
+                const sprite_rect = bubbleSpriteDataRect(col_in_row, base_y, col_w, row_h);
                 if (!spriteCullVisible(sprite_rect, bubble_headroom, visible_data)) continue;
-                drawSpriteBubbleForRow(self, file, si, sprite_rect, animation_id, &accs);
+                drawSpriteBubbleForRow(self, file, si, sprite_rect, &accs, pan_shared);
             }
         }
 
@@ -826,12 +894,13 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
 
         // UI phase: buttons, text, icons rendered per-sprite.
         {
-            var si: usize = row_end;
-            while (si > row_start) {
+            var si: usize = si_end_excl;
+            while (si > si_start) {
                 si -= 1;
-                const sprite_rect = file.spriteRect(si);
+                const col_in_row = si - row_start;
+                const sprite_rect = bubbleSpriteDataRect(col_in_row, base_y, col_w, row_h);
                 if (!spriteCullVisible(sprite_rect, bubble_headroom, visible_data)) continue;
-                drawSpriteBubbleForRow(self, file, si, sprite_rect, animation_id, null);
+                drawSpriteBubbleForRow(self, file, si, sprite_rect, null, pan_shared);
             }
         }
     }
@@ -847,6 +916,16 @@ fn spriteCullVisible(sprite_rect: dvui.Rect, headroom: f32, visible: dvui.Rect) 
     return !cull.intersect(visible).empty();
 }
 
+/// Data-space rect for sprite `si` when `row_start == row * cols` (same as `file.spriteRect(si)`).
+fn bubbleSpriteDataRect(col_in_row: usize, base_y: f32, col_w: f32, row_h: f32) dvui.Rect {
+    return .{
+        .x = @as(f32, @floatFromInt(col_in_row)) * col_w,
+        .y = base_y,
+        .w = col_w,
+        .h = row_h,
+    };
+}
+
 /// Per-sprite bubble logic extracted for use in the row-based loop.
 /// Computes animation state and progress, then calls drawSpriteBubble.
 /// When `accs` is non-null, geometry is accumulated instead of rendered.
@@ -856,8 +935,8 @@ fn drawSpriteBubbleForRow(
     file: *pixi.Internal.File,
     sprite_index: usize,
     sprite_rect: dvui.Rect,
-    animation_id: dvui.Id,
     accs: ?*BubbleAccs,
+    pan: BubblePanShared,
 ) void {
     var color = dvui.themeGet().color(.window, .fill);
 
@@ -898,7 +977,7 @@ fn drawSpriteBubbleForRow(
         }
     }
 
-    if (file.editor.selected_sprites.count() > 0) {
+    if (pan.selection_nonempty) {
         if (file.editor.selected_sprites.isSet(sprite_index)) {
             automatic_animation = true;
             if (animation_index) |ai| {
@@ -908,11 +987,6 @@ fn drawSpriteBubbleForRow(
             }
         }
     }
-
-    const peek: bool = dvui.dragName("sprite_selection_drag") or
-        dvui.currentWindow().modifiers.matchBind("shift") or dvui.currentWindow().modifiers.matchBind("ctrl/cmd") or
-        pixi.editor.tools.current != .pointer or
-        self.sample_data_point != null;
 
     if (automatic_animation) {
         const total_duration: i32 = 1_500_000;
@@ -942,7 +1016,7 @@ fn drawSpriteBubbleForRow(
             const dy = @abs(current_point.y - (sprite_rect.y) + sprite_rect.h * 0.5);
             const distance = @sqrt(dx * dx + dy * dy);
 
-            if (distance < max_distance and peek and current_point.y - sprite_rect.y < 0.0 and current_point.y - sprite_rect.y > -sprite_rect.h) {
+            if (distance < max_distance and pan.peek and current_point.y - sprite_rect.y < 0.0 and current_point.y - sprite_rect.y > -sprite_rect.h) {
                 open = false;
                 id_extra = dvui.Id.update(@enumFromInt(id_extra), "peek").asUsize();
             } else {
@@ -969,11 +1043,11 @@ fn drawSpriteBubbleForRow(
 
         t = if (open) anim.val orelse 1.0 else std.math.clamp(1.0 - (anim.val orelse 1.0), 0.0, 2.0);
 
-        if (drawSpriteBubble(self, sprite_index, t, color, animation_index, accs)) {
+        if (drawSpriteBubble(self, sprite_index, sprite_rect, t, color, animation_index, accs, pan.bubble_open, pan.bubble_close, pan.tool_not_pointer)) {
             self.hovered_bubble_sprite_index = sprite_index;
         }
     } else {
-        if (file.editor.selected_sprites.count() > 0) {
+        if (pan.selection_nonempty) {
             if (!file.editor.selected_sprites.isSet(sprite_index) or (animation_index != file.selected_animation_index and !file.editor.selected_sprites.isSet(sprite_index))) {
                 return;
             }
@@ -983,9 +1057,9 @@ fn drawSpriteBubbleForRow(
 
         var max_distance: f32 = sprite_rect.h * 1.2;
 
-        if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
+        if (pan.bubble_open) |anim| {
             max_distance += (max_distance * 0.5) * (1.0 - anim.value());
-        } else if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
+        } else if (pan.bubble_close) |anim| {
             max_distance += (max_distance * 0.5) * (1.0 - anim.value());
         } else {
             max_distance += (max_distance * 0.5) * if (!self.hide_distance_bubble) @as(f32, 0.0) else @as(f32, 1.0);
@@ -998,9 +1072,9 @@ fn drawSpriteBubbleForRow(
         if (distance < (max_distance * 2.0)) {
             var t: f32 = distance / max_distance;
 
-            if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
+            if (pan.bubble_open) |anim| {
                 t = (1.0 - t) * anim.value();
-            } else if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
+            } else if (pan.bubble_close) |anim| {
                 t = (1.0 - t) * anim.value();
             } else {
                 t = (1.0 - t) * if (self.hide_distance_bubble) @as(f32, 0.0) else @as(f32, 1.0);
@@ -1011,10 +1085,14 @@ fn drawSpriteBubbleForRow(
             if (drawSpriteBubble(
                 self,
                 sprite_index,
+                sprite_rect,
                 t,
                 dvui.themeGet().color(.window, .fill).lerp(color, 1.0 - (distance / (max_distance * 2.0))),
                 animation_index,
                 accs,
+                pan.bubble_open,
+                pan.bubble_close,
+                pan.tool_not_pointer,
             )) {
                 self.hovered_bubble_sprite_index = sprite_index;
             }
@@ -1027,7 +1105,18 @@ fn drawSpriteBubbleForRow(
 /// When `accs` is non-null, triangle geometry is accumulated into the
 /// accumulators instead of being rendered immediately. Pass null for the
 /// UI-only phase so that only buttons/text/icons are drawn.
-pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, color: dvui.Color, animation_index: ?usize, accs: ?*BubbleAccs) bool {
+pub fn drawSpriteBubble(
+    self: *FileWidget,
+    sprite_index: usize,
+    sprite_rect: dvui.Rect,
+    progress: f32,
+    color: dvui.Color,
+    animation_index: ?usize,
+    accs: ?*BubbleAccs,
+    bubble_open: ?dvui.Animation,
+    bubble_close: ?dvui.Animation,
+    tool_not_pointer: bool,
+) bool {
     if (progress <= 0.0) return false;
 
     // Would this sprite be removed if the user clicked the button?
@@ -1044,7 +1133,6 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
     //if (sprite_index != 0) return;
     const t = progress;
 
-    const sprite_rect = self.init_options.file.spriteRect(sprite_index);
     const cell_tint = checkerboardTintAtSpriteCellCenter(self.init_options.file, sprite_index);
 
     const target_button_height: f32 = 24.0;
@@ -1091,8 +1179,6 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
     const center = bubble_rect.center();
 
-    const animation_id = self.init_options.file.editor.canvas.scroll_container.data().id;
-
     // Choose a font size that fits scaled to button size.
     const font = dvui.Font.theme(.body).larger(-1.0);
 
@@ -1105,13 +1191,13 @@ pub fn drawSpriteBubble(self: *FileWidget, sprite_index: usize, progress: f32, c
 
     var button_width = @max(button_height, (text_size.w + 4.0) / self.init_options.file.editor.canvas.scale);
 
-    if (dvui.animationGet(animation_id, "bubble_close")) |anim| {
+    if (bubble_close) |anim| {
         button_height *= anim.value();
         button_width *= anim.value();
-    } else if (dvui.animationGet(animation_id, "bubble_open")) |anim| {
+    } else if (bubble_open) |anim| {
         button_height *= anim.value();
         button_width *= anim.value();
-    } else if (pixi.editor.tools.current != .pointer or self.hide_distance_bubble) {
+    } else if (tool_not_pointer or self.hide_distance_bubble) {
         button_height = 0.0;
         button_width = 0.0;
     }
@@ -2798,6 +2884,8 @@ fn drawBatchedGridLines(
     const screen_y0 = canvas.screenFromDataPoint(.{ .x = 0, .y = grid_y0 }).y;
     const screen_y1 = canvas.screenFromDataPoint(.{ .x = 0, .y = grid_y1 }).y;
 
+    const grid_pan = bubblePanSharedForGrid(self);
+
     // Vertical lines: inner columns
     for (1..vertical_inner) |i| {
         const x = @as(f32, @floatFromInt(i * file.column_width));
@@ -2814,17 +2902,61 @@ fn drawBatchedGridLines(
         }
     }
 
-    // Horizontal lines: sprite row-top edges
+    // Horizontal lines: sprite row-top edges (visible rows/columns only — matches bubble culling)
     {
-        var si = file.spriteCount();
-        while (si > 0) {
-            si -= 1;
-            if (file.rowFromIndex(si) == 0) continue;
-            if (self.spriteDrawsBubbleTopEdge(si)) continue;
-            const sr = file.spriteRect(si);
-            const tl = canvas.screenFromDataPoint(sr.topLeft());
-            const tr = canvas.screenFromDataPoint(sr.topRight());
-            appendLineQuad(&builder, .{ .x = tl.x, .y = tl.y - half }, .{ .x = tr.x, .y = tr.y + half }, pma_col);
+        const visible_data = canvas.dataFromScreenRect(canvas.rect);
+        const total_rows = file.rows;
+        const cols = file.columns;
+        if (total_rows > 0 and cols > 0) {
+            const row_h: f32 = @floatFromInt(file.row_height);
+            const col_w: f32 = @floatFromInt(file.column_width);
+            if (row_h > 0 and col_w > 0) {
+                const bubble_headroom = @max(row_h, col_w);
+                const max_row_f: f32 = @floatFromInt(total_rows);
+                const first_vis_f = (visible_data.y - bubble_headroom) / row_h;
+                const first_vis_row: usize = if (first_vis_f > 0 and first_vis_f < max_row_f)
+                    @intFromFloat(first_vis_f)
+                else if (first_vis_f >= max_row_f)
+                    total_rows
+                else
+                    0;
+                const last_vis_f = (visible_data.y + visible_data.h) / row_h + 2.0;
+                const last_vis_row: usize = if (last_vis_f > 0 and last_vis_f < max_row_f)
+                    @intFromFloat(last_vis_f)
+                else if (last_vis_f >= max_row_f)
+                    total_rows
+                else
+                    0;
+
+                const vx0 = visible_data.x;
+                const vx1 = visible_data.x + visible_data.w;
+
+                var row: usize = @max(1, first_vis_row);
+                while (row < last_vis_row) : (row += 1) {
+                    const row_start = row * cols;
+                    const row_end = @min(row_start + cols, file.spriteCount());
+                    if (row_end <= row_start) continue;
+
+                    const row_span = row_end - row_start;
+                    var col_lo: usize = 0;
+                    if (vx0 > 0) col_lo = @intFromFloat(@floor(vx0 / col_w));
+                    if (vx1 <= 0) continue;
+                    var col_hi_excl: usize = @intFromFloat(@ceil(vx1 / col_w));
+                    col_lo = @min(col_lo, row_span);
+                    col_hi_excl = @min(col_hi_excl, row_span);
+                    if (col_lo >= col_hi_excl) continue;
+
+                    var si: usize = row_start + col_hi_excl;
+                    while (si > row_start + col_lo) {
+                        si -= 1;
+                        if (self.spriteDrawsBubbleTopEdge(si, grid_pan)) continue;
+                        const sr = file.spriteRect(si);
+                        const tl = canvas.screenFromDataPoint(sr.topLeft());
+                        const tr = canvas.screenFromDataPoint(sr.topRight());
+                        appendLineQuad(&builder, .{ .x = tl.x, .y = tl.y - half }, .{ .x = tr.x, .y = tr.y + half }, pma_col);
+                    }
+                }
+            }
         }
     }
 
@@ -2903,6 +3035,8 @@ fn drawBatchedResizeOverlayGrid(
     const screen_y0 = canvas.screenFromDataPoint(.{ .x = 0, .y = layer_rect.y }).y;
     const screen_y1 = canvas.screenFromDataPoint(.{ .x = 0, .y = layer_rect.y + layer_rect.h }).y;
 
+    const grid_pan = bubblePanSharedForGrid(self);
+
     for (1..columns) |i| {
         const gx = @as(f32, @floatFromInt(i * file.column_width));
         const sx = canvas.screenFromDataPoint(.{ .x = gx, .y = 0 }).x;
@@ -2910,15 +3044,59 @@ fn drawBatchedResizeOverlayGrid(
     }
 
     {
-        var si = file.spriteCount();
-        while (si > 0) {
-            si -= 1;
-            if (file.rowFromIndex(si) == 0) continue;
-            if (self.spriteDrawsBubbleTopEdge(si)) continue;
-            const sr = file.spriteRect(si);
-            const tl = canvas.screenFromDataPoint(sr.topLeft());
-            const tr = canvas.screenFromDataPoint(sr.topRight());
-            appendLineQuad(&builder, .{ .x = tl.x, .y = tl.y - half }, .{ .x = tr.x, .y = tr.y + half }, pma_col);
+        const visible_data = canvas.dataFromScreenRect(canvas.rect);
+        const total_rows = file.rows;
+        const cols = file.columns;
+        if (total_rows > 0 and cols > 0) {
+            const row_h: f32 = @floatFromInt(file.row_height);
+            const col_w: f32 = @floatFromInt(file.column_width);
+            if (row_h > 0 and col_w > 0) {
+                const bubble_headroom = @max(row_h, col_w);
+                const max_row_f: f32 = @floatFromInt(total_rows);
+                const first_vis_f = (visible_data.y - bubble_headroom) / row_h;
+                const first_vis_row: usize = if (first_vis_f > 0 and first_vis_f < max_row_f)
+                    @intFromFloat(first_vis_f)
+                else if (first_vis_f >= max_row_f)
+                    total_rows
+                else
+                    0;
+                const last_vis_f = (visible_data.y + visible_data.h) / row_h + 2.0;
+                const last_vis_row: usize = if (last_vis_f > 0 and last_vis_f < max_row_f)
+                    @intFromFloat(last_vis_f)
+                else if (last_vis_f >= max_row_f)
+                    total_rows
+                else
+                    0;
+
+                const vx0 = visible_data.x;
+                const vx1 = visible_data.x + visible_data.w;
+
+                var row: usize = @max(1, first_vis_row);
+                while (row < last_vis_row) : (row += 1) {
+                    const row_start = row * cols;
+                    const row_end = @min(row_start + cols, file.spriteCount());
+                    if (row_end <= row_start) continue;
+
+                    const row_span = row_end - row_start;
+                    var col_lo: usize = 0;
+                    if (vx0 > 0) col_lo = @intFromFloat(@floor(vx0 / col_w));
+                    if (vx1 <= 0) continue;
+                    var col_hi_excl: usize = @intFromFloat(@ceil(vx1 / col_w));
+                    col_lo = @min(col_lo, row_span);
+                    col_hi_excl = @min(col_hi_excl, row_span);
+                    if (col_lo >= col_hi_excl) continue;
+
+                    var si: usize = row_start + col_hi_excl;
+                    while (si > row_start + col_lo) {
+                        si -= 1;
+                        if (self.spriteDrawsBubbleTopEdge(si, grid_pan)) continue;
+                        const sr = file.spriteRect(si);
+                        const tl = canvas.screenFromDataPoint(sr.topLeft());
+                        const tr = canvas.screenFromDataPoint(sr.topRight());
+                        appendLineQuad(&builder, .{ .x = tl.x, .y = tl.y - half }, .{ .x = tr.x, .y = tr.y + half }, pma_col);
+                    }
+                }
+            }
         }
     }
 
@@ -4697,25 +4875,13 @@ pub fn processEvents(self: *FileWidget) void {
     self.drawLayers();
 
     if ((self.active() or self.hovered()) and !transform and !reorder) {
-        // #region agent log
-        const _t0 = std.time.nanoTimestamp();
-        // #endregion
         self.drawSpriteBubbles();
-        // #region agent log
-        const _t1 = std.time.nanoTimestamp();
-        // #endregion
         self.processResize();
 
         self.processAnimationSelection();
 
         self.processSpriteSelection();
         self.drawSpriteSelection();
-        // #region agent log
-        const _t2 = std.time.nanoTimestamp();
-        const bubble_us: i64 = @intCast(@divTrunc(_t1 - _t0, 1000));
-        const other_us: i64 = @intCast(@divTrunc(_t2 - _t1, 1000));
-        pixi.perf.debugLog9b("overlay_timing", bubble_us, other_us);
-        // #endregion
     }
 
     // Draw shadows for the scroll container

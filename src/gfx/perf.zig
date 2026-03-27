@@ -1,3 +1,7 @@
+//! Frame and drawing-session counters for tuning. For ground truth use macOS Instruments (Time Profiler).
+//! Validating first-stroke warmup: compare DRAW line tex_new= and split_rb= before/after composite warmup;
+//! after warmup, the first stroke should avoid extra tex_new and split rebuilds. Toggle verbose_frame_log
+//! to log every frame while profiling.
 const std = @import("std");
 const builtin = @import("builtin");
 
@@ -76,6 +80,20 @@ var tick_start_ts: i128 = 0;
 var frame_index: u64 = 0;
 const log_interval_frames: u64 = 120;
 
+/// When true, `endFrameAndMaybeLog` prints every frame (very noisy; hurts fps). Default off.
+pub var verbose_frame_log: bool = false;
+
+/// Last split-composite rebuild: time spent in `renderLayersIntoTarget` for below / above (nanoseconds).
+pub var split_composite_below_ns: u64 = 0;
+pub var split_composite_above_ns: u64 = 0;
+
+/// Enable `debugAgentLog` (writes NDJSON to a fixed path). Off by default.
+pub const debug_agent_log: bool = false;
+
+/// `warmupDrawingComposites` calls (session total) and duration of the last run (nanoseconds).
+pub var composite_warmup_total: u64 = 0;
+pub var composite_warmup_last_ns: u64 = 0;
+
 pub fn beginFrame() void {
     if (!record) return;
     frame_index +%= 1;
@@ -103,7 +121,7 @@ pub fn endFrameAndMaybeLog() void {
     const tick_end_ts = std.time.nanoTimestamp();
     tick_total_ns = @intCast(tick_end_ts - tick_start_ts);
 
-    if (frame_index % log_interval_frames != 0) return;
+    if (!verbose_frame_log and frame_index % log_interval_frames != 0) return;
 
     const rl_avg: u64 = if (render_layers_calls > 0) render_layers_ns / render_layers_calls else 0;
     const dl_avg: u64 = if (draw_layers_calls > 0) draw_layers_ns / draw_layers_calls else 0;
@@ -121,6 +139,8 @@ pub fn endFrameAndMaybeLog() void {
         \\  sprite preview: {d} calls, {d} us
         \\  temp memset: {d} calls, {d} pixels
         \\  visible canvas panes: {d}
+        \\  split last rebuild only (not per-frame): below {d} us, above {d} us
+        \\  composite warmup (session total calls, last run us): {d} / {d}
     , .{
         frame_index,
         tick_total_ns / 1000,
@@ -141,6 +161,10 @@ pub fn endFrameAndMaybeLog() void {
         temp_memset_calls,
         temp_memset_pixels,
         visible_canvas_panes,
+        split_composite_below_ns / 1000,
+        split_composite_above_ns / 1000,
+        composite_warmup_total,
+        composite_warmup_last_ns / 1000,
     });
 }
 
@@ -229,8 +253,13 @@ pub inline fn processEventsEnd(start: i128) void {
     process_events_ns +%= @intCast(std.time.nanoTimestamp() - start);
 }
 
+pub fn debugAgentLog(msg: []const u8, d1: i64, d2: i64) void {
+    if (!debug_agent_log) return;
+    debugLog9b(msg, d1, d2);
+}
+
 // #region agent log
-pub fn debugLog9b(msg: []const u8, d1: i64, d2: i64) void {
+fn debugLog9b(msg: []const u8, d1: i64, d2: i64) void {
     const path = "/Users/foxnne/dev/proj/pixi/.cursor/debug-9b423f.log";
     var f = std.fs.cwd().openFile(path, .{ .mode = .read_write }) catch |e| blk: {
         if (e != error.FileNotFound) return;
@@ -244,5 +273,3 @@ pub fn debugLog9b(msg: []const u8, d1: i64, d2: i64) void {
     w.end() catch return;
 }
 // #endregion
-
-

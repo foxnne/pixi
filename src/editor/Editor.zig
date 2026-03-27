@@ -77,6 +77,9 @@ window_opacity: f32 = 1.0,
 pending_native_menu_actions: [16]pixi.backend.NativeMenuAction = undefined,
 pending_native_menu_actions_len: u8 = 0,
 
+/// When set, next `tick` runs `warmupDrawingComposites` on the active file (after open or drawing-tool select).
+composite_warmup_pending: bool = false,
+
 pub const SpriteClipboard = struct {
     source: dvui.ImageSource,
     offset: dvui.Point,
@@ -293,6 +296,23 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     pixi.render.frame_index +%= 1;
     if (pixi.perf.record) pixi.perf.beginFrame();
     defer if (pixi.perf.record) pixi.perf.endFrameAndMaybeLog();
+
+    if (editor.composite_warmup_pending) {
+        editor.composite_warmup_pending = false;
+        if (editor.activeFile()) |file| {
+            const w = file.width();
+            const h = file.height();
+            if (w > 0 and h > 0) {
+                const area = @as(u64, w) * @as(u64, h);
+                // Skip tiny canvases; large docs benefit most from moving split-target work off the first stroke.
+                if (area >= 512 * 512) {
+                    pixi.render.warmupDrawingComposites(file) catch |err| {
+                        dvui.log.err("Composite warmup failed: {any}", .{err});
+                    };
+                }
+            }
+        }
+    }
 
     {
         var any_drawing = false;
@@ -1062,9 +1082,14 @@ pub fn openFilePath(editor: *Editor, path: []const u8, grouping: u64) !bool {
 
         // If the workspace grouping does exist, go ahead and set the active file
         editor.setActiveFile(editor.open_files.count() - 1);
+        editor.composite_warmup_pending = true;
         return true;
     }
     return error.FailedToOpenFile;
+}
+
+pub fn requestCompositeWarmup(editor: *Editor) void {
+    editor.composite_warmup_pending = true;
 }
 
 pub fn newFile(editor: *Editor, path: []const u8, options: pixi.Internal.File.InitOptions) !*pixi.Internal.File {
@@ -1079,6 +1104,7 @@ pub fn newFile(editor: *Editor, path: []const u8, options: pixi.Internal.File.In
 
     try editor.open_files.put(file.id, file);
     editor.setActiveFile(editor.open_files.count() - 1);
+    editor.composite_warmup_pending = true;
 
     return editor.open_files.getPtr(file.id) orelse return error.FailedToCreateFile;
 }
