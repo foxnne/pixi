@@ -5,6 +5,24 @@ const zip = @import("zip");
 
 const Layer = @This();
 
+/// Bit count for layer masks must match `pixels(source).len`. Do not use `imageSize` float
+/// products: `s.w * s.h` loses integer precision once the true pixel count exceeds ~2^24.
+fn pixelCountForSource(source: dvui.ImageSource) usize {
+    return switch (source) {
+        .pixelsPMA => |p| @as(usize, @intCast(p.width)) * @as(usize, @intCast(p.height)),
+        .pixels => |p| @as(usize, @intCast(p.width)) * @as(usize, @intCast(p.height)),
+        .texture => |t| @as(usize, @intCast(t.width)) * @as(usize, @intCast(t.height)),
+        .imageFile => |f| blk: {
+            var w: c_int = undefined;
+            var h: c_int = undefined;
+            var n: c_int = undefined;
+            if (dvui.c.stbi_info_from_memory(f.bytes.ptr, @as(c_int, @intCast(f.bytes.len)), &w, &h, &n) != 1)
+                break :blk 0;
+            break :blk @as(usize, @intCast(w)) * @as(usize, @intCast(h));
+        },
+    };
+}
+
 id: u64,
 name: []const u8,
 source: dvui.ImageSource,
@@ -37,8 +55,7 @@ pub fn init(id: u64, name: []const u8, width: u32, height: u32, default_color: d
 
 pub fn fromImageFilePath(id: u64, name: []const u8, path: []const u8, invalidation: dvui.ImageSource.InvalidationStrategy) !Layer {
     const source = pixi.image.fromImageFilePath(name, path, invalidation) catch return error.ErrorCreatingImageSource;
-    const s: dvui.Size = dvui.imageSize(source) catch .{ .w = 0, .h = 0 };
-    const mask = std.DynamicBitSet.initEmpty(pixi.app.allocator, @as(usize, @intFromFloat(s.w * s.h))) catch return error.MemoryAllocationFailed;
+    const mask = std.DynamicBitSet.initEmpty(pixi.app.allocator, pixelCountForSource(source)) catch return error.MemoryAllocationFailed;
 
     return .{
         .id = id,
@@ -50,8 +67,7 @@ pub fn fromImageFilePath(id: u64, name: []const u8, path: []const u8, invalidati
 
 pub fn fromImageFileBytes(id: u64, name: []const u8, image_bytes: []const u8, invalidation: dvui.ImageSource.InvalidationStrategy) !Layer {
     const source = pixi.image.fromImageFileBytes(name, image_bytes, invalidation) catch return error.ErrorCreatingImageSource;
-    const s: dvui.Size = dvui.imageSize(source) catch .{ .w = 0, .h = 0 };
-    const mask = std.DynamicBitSet.initEmpty(pixi.app.allocator, @as(usize, @intFromFloat(s.w * s.h))) catch return error.MemoryAllocationFailed;
+    const mask = std.DynamicBitSet.initEmpty(pixi.app.allocator, pixelCountForSource(source)) catch return error.MemoryAllocationFailed;
 
     return .{
         .id = id,
@@ -89,8 +105,7 @@ pub fn fromPixels(id: u64, name: []const u8, pixel_data: []u8, width: u32, heigh
 
 pub fn fromTexture(id: u64, name: []const u8, texture: dvui.Texture, invalidation: dvui.ImageSource.InvalidationStrategy) Layer {
     const source = pixi.fs.sourceFromTexture(name, texture, invalidation) catch return error.ErrorCreatingImageSource;
-    const s: dvui.Size = dvui.imageSize(source) catch .{ .w = 0, .h = 0 };
-    const mask = std.DynamicBitSet.initEmpty(pixi.app.allocator, @as(usize, @intFromFloat(s.w * s.h))) catch return error.MemoryAllocationFailed;
+    const mask = std.DynamicBitSet.initEmpty(pixi.app.allocator, pixelCountForSource(source)) catch return error.MemoryAllocationFailed;
 
     return .{
         .id = id,
@@ -179,6 +194,10 @@ pub fn setMaskFromColor(self: *Layer, color: dvui.Color, value: bool) void {
 
 /// Sets all pixels in the mask that are not transparent
 pub fn setMaskFromTransparency(self: *Layer, value: bool) void {
+    const pix_n = self.pixels().len;
+    if (self.mask.capacity() != pix_n) {
+        self.mask.resize(pix_n, false) catch return;
+    }
     for (self.pixels(), 0..) |*p, index| {
         if (p[3] != 0) {
             self.mask.setValue(index, value);
