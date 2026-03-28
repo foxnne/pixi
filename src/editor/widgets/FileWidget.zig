@@ -22,6 +22,9 @@ const icons = @import("icons");
 init_options: InitOptions,
 options: Options,
 drag_data_point: ?dvui.Point = null,
+/// Absolute Δx/Δy from opposite corner → dragged corner at transform vertex press; used for default (no-mod) aspect lock.
+transform_aspect_w: ?f32 = null,
+transform_aspect_h: ?f32 = null,
 sample_data_point: ?dvui.Point = null,
 resize_data_point: ?dvui.Point = null,
 previous_mods: dvui.enums.Mod = .none,
@@ -55,6 +58,8 @@ pub fn init(src: std.builtin.SourceLocation, init_opts: InitOptions, opts: Optio
         .init_options = init_opts,
         .options = opts,
         .drag_data_point = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "drag_data_point", dvui.Point)) |point| point else null,
+        .transform_aspect_w = dvui.dataGet(null, init_opts.file.editor.canvas.id, "transform_aspect_w", f32),
+        .transform_aspect_h = dvui.dataGet(null, init_opts.file.editor.canvas.id, "transform_aspect_h", f32),
         .sample_data_point = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "sample_data_point", dvui.Point)) |point| point else null,
         .sample_key_down = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "sample_key_down", bool)) |key| key else false,
         .resize_data_point = if (dvui.dataGet(null, init_opts.file.editor.canvas.id, "resize_data_point", dvui.Point)) |point| point else null,
@@ -2210,6 +2215,19 @@ pub fn processTransform(self: *FileWidget) void {
                                     dvui.dragPreStart(me.p, .{ .name = "transform_vertex_drag" });
                                     self.drag_data_point = current_point;
                                     transform.start_rotation = transform.rotation;
+                                    if (point_index < 4) {
+                                        const oi: usize = switch (point_index) {
+                                            0 => 2,
+                                            1 => 3,
+                                            2 => 0,
+                                            3 => 1,
+                                            else => unreachable,
+                                        };
+                                        const opp = transform.data_points[oi];
+                                        const cur = transform.data_points[point_index];
+                                        self.transform_aspect_w = @abs(cur.x - opp.x);
+                                        self.transform_aspect_h = @abs(cur.y - opp.y);
+                                    }
                                 }
                             } else if (me.action == .release and me.button.pointer()) {
                                 if (dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id)) {
@@ -2226,6 +2244,8 @@ pub fn processTransform(self: *FileWidget) void {
                                     transform.active_point = null;
                                     dvui.refresh(null, @src(), self.init_options.file.editor.canvas.scroll_container.data().id);
                                     self.drag_data_point = null;
+                                    self.transform_aspect_w = null;
+                                    self.transform_aspect_h = null;
                                     transform.dragging = false;
                                 }
                             } else if (me.action == .motion or me.action == .wheel_x or me.action == .wheel_y) {
@@ -2252,15 +2272,46 @@ pub fn processTransform(self: *FileWidget) void {
 
                                                     // Now we have to un-rotate the vertex and set the original location
                                                     new_point = pixi.math.rotate(new_point, transform.point(.pivot).*, -transform.rotation);
-                                                    data_point.* = new_point;
 
-                                                    transform.ortho = false;
+                                                    const opposite_index: usize = switch (point_index) {
+                                                        0 => 2,
+                                                        1 => 3,
+                                                        2 => 0,
+                                                        3 => 1,
+                                                        else => unreachable,
+                                                    };
 
-                                                    // data_point is the currently dragged point, but we also need to update adjacent points if we are keeping the transform square
-                                                    blk_vert: {
-                                                        if (!me.mod.matchBind("ctrl/cmd")) {
-                                                            transform.ortho = true;
+                                                    // ctrl/cmd: free skew. shift: axis-aligned rect (old default). no mod: same rect + locked aspect vs opposite corner.
+                                                    if (me.mod.matchBind("ctrl/cmd")) {
+                                                        data_point.* = new_point;
+                                                        transform.ortho = false;
+                                                    } else {
+                                                        transform.ortho = true;
+                                                        if (me.mod.matchBind("shift")) {
+                                                            data_point.* = new_point;
+                                                        } else {
+                                                            const opp = transform.data_points[opposite_index];
+                                                            var constrained = new_point;
+                                                            if (self.transform_aspect_w) |aw| {
+                                                                if (self.transform_aspect_h) |ah| {
+                                                                    if (aw > 1e-4 and ah > 1e-4) {
+                                                                        const mx = new_point.x - opp.x;
+                                                                        const my = new_point.y - opp.y;
+                                                                        const ax = @abs(mx);
+                                                                        const ay = @abs(my);
+                                                                        const den = aw * aw + ah * ah;
+                                                                        if (den > 1e-8) {
+                                                                            const t = (aw * ax + ah * ay) / den;
+                                                                            constrained.x = @round(opp.x + math.copysign(aw * t, mx));
+                                                                            constrained.y = @round(opp.y + math.copysign(ah * t, my));
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                            data_point.* = constrained;
+                                                        }
 
+                                                        blk_vert: {
                                                             // Find adjacent verts
                                                             const adjacent_index_cw = if (point_index < 3) point_index + 1 else 0;
                                                             const adjacent_index_ccw = if (point_index > 0) point_index - 1 else 3;
@@ -2268,14 +2319,6 @@ pub fn processTransform(self: *FileWidget) void {
                                                             // Get the adjacent points
                                                             const adjacent_point_cw = &transform.data_points[adjacent_index_cw];
                                                             const adjacent_point_ccw = &transform.data_points[adjacent_index_ccw];
-
-                                                            const opposite_index: usize = switch (point_index) {
-                                                                0 => 2,
-                                                                1 => 3,
-                                                                2 => 0,
-                                                                3 => 1,
-                                                                else => unreachable,
-                                                            };
 
                                                             const opposite_point = &transform.data_points[opposite_index];
 
@@ -4970,6 +5013,17 @@ pub fn processEvents(self: *FileWidget) void {
         dvui.dataSet(null, self.init_options.file.editor.canvas.id, "drag_data_point", drag_data_point);
     } else {
         dvui.dataRemove(null, self.init_options.file.editor.canvas.id, "drag_data_point");
+    };
+
+    defer if (self.transform_aspect_w) |v| {
+        dvui.dataSet(null, self.init_options.file.editor.canvas.id, "transform_aspect_w", v);
+    } else {
+        dvui.dataRemove(null, self.init_options.file.editor.canvas.id, "transform_aspect_w");
+    };
+    defer if (self.transform_aspect_h) |v| {
+        dvui.dataSet(null, self.init_options.file.editor.canvas.id, "transform_aspect_h", v);
+    } else {
+        dvui.dataRemove(null, self.init_options.file.editor.canvas.id, "transform_aspect_h");
     };
 
     defer if (self.sample_data_point) |sample_data_point| {
