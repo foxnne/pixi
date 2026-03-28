@@ -2457,6 +2457,13 @@ pub fn drawTransform(self: *FileWidget) void {
     const file = self.init_options.file;
 
     if (file.editor.transform) |*transform| {
+        const show_ortho_dims = transform.ortho and blk: {
+            if (transform.active_point) |ap| {
+                break :blk @intFromEnum(ap) < 4;
+            }
+            break :blk transform.dragging;
+        };
+
         var path = dvui.Path.Builder.init(dvui.currentWindow().arena());
         for (transform.data_points[0..4]) |*point| {
             const screen_point = file.editor.canvas.screenFromDataPoint(point.*);
@@ -2514,7 +2521,7 @@ pub fn drawTransform(self: *FileWidget) void {
             });
         }
 
-        {
+        if (!show_ortho_dims) {
             { // Draw circular outline for the rotation path
                 var rotate_path = dvui.Path.Builder.init(dvui.currentWindow().arena());
                 var outline_rect = dvui.Rect.fromSize(.{ .w = transform.radius * 2, .h = transform.radius * 2 });
@@ -2591,197 +2598,264 @@ pub fn drawTransform(self: *FileWidget) void {
 
             // Dimensions and angle labels
             {
-                // Draw dimensions if the transform is square and there is an active point
-                if (transform.active_point) |active_point| {
-                    if (@intFromEnum(active_point) < 4) {
-                        if (transform.ortho) {
-                            { // Vertical dimension
-                                const top_left: dvui.Point = .{ .x = triangles.vertexes[0].pos.x, .y = triangles.vertexes[0].pos.y };
-                                const bottom_left: dvui.Point = .{ .x = triangles.vertexes[3].pos.x, .y = triangles.vertexes[3].pos.y };
+                const dim_font = dvui.Font.theme(.mono).larger(-2);
 
-                                var offset: dvui.Point = .{ .x = -3 * dvui.currentWindow().natural_scale * file.editor.canvas.scale, .y = 0 };
-                                offset = pixi.math.rotate(offset, .{ .x = 0, .y = 0 }, transform.rotation);
+                if (show_ortho_dims) {
+                    const ns = dvui.currentWindow().natural_scale;
+                    const canvas = &file.editor.canvas;
+                    const px_per_data_x = blk: {
+                        const a = canvas.screenFromDataPoint(.{ .x = 0, .y = 0 });
+                        const b = canvas.screenFromDataPoint(.{ .x = 1, .y = 0 });
+                        break :blk @max(@abs(b.x - a.x), 0.001);
+                    };
+                    const px_per_data_y = blk: {
+                        const a = canvas.screenFromDataPoint(.{ .x = 0, .y = 0 });
+                        const b = canvas.screenFromDataPoint(.{ .x = 0, .y = 1 });
+                        break :blk @max(@abs(b.y - a.y), 0.001);
+                    };
+                    const tick_half_px = 2.9 * ns;
+                    const label_off_screen = 9 * ns;
 
-                                const dim_top_left: dvui.Point = top_left.plus(offset);
-                                const dim_bottom_left: dvui.Point = bottom_left.plus(offset);
+                    const tl_d = transform.data_points[0];
+                    const tr_d = transform.data_points[1];
+                    const br_d = transform.data_points[2];
+                    const bl_d = transform.data_points[3];
+                    const bbox_min_x = @min(@min(tl_d.x, tr_d.x), @min(bl_d.x, br_d.x));
+                    const bbox_max_x = @max(@max(tl_d.x, tr_d.x), @max(bl_d.x, br_d.x));
+                    const bbox_min_y = @min(@min(tl_d.y, tr_d.y), @min(bl_d.y, br_d.y));
+                    const bbox_max_y = @max(@max(tl_d.y, tr_d.y), @max(bl_d.y, br_d.y));
 
-                                const dim_arm_top_left = dim_top_left.plus(pixi.math.rotate(.{ .x = -(0.75 * dvui.currentWindow().natural_scale) * file.editor.canvas.scale, .y = 0 }, .{ .x = 0, .y = 0 }, transform.rotation));
-                                const dim_arm_top_right = dim_top_left.plus(pixi.math.rotate(.{ .x = (0.75 * dvui.currentWindow().natural_scale) * file.editor.canvas.scale, .y = 0 }, .{ .x = 0, .y = 0 }, transform.rotation));
-                                const dim_arm_bottom_left = dim_bottom_left.plus(pixi.math.rotate(.{ .x = -(0.75 * dvui.currentWindow().natural_scale) * file.editor.canvas.scale, .y = 0 }, .{ .x = 0, .y = 0 }, transform.rotation));
-                                const dim_arm_bottom_right = dim_bottom_left.plus(pixi.math.rotate(.{ .x = (0.75 * dvui.currentWindow().natural_scale) * file.editor.canvas.scale, .y = 0 }, .{ .x = 0, .y = 0 }, transform.rotation));
+                    const cell_idx_opt = file.spriteIndex(transform.centroid());
+                    const cell_cap_x: f32 = if (cell_idx_opt) |ci| file.spriteRect(ci).w else bbox_max_x - bbox_min_x;
+                    const cell_cap_y: f32 = if (cell_idx_opt) |ci| file.spriteRect(ci).h else bbox_max_y - bbox_min_y;
+                    const arm_x_data = @max(0.2, @min(tick_half_px / px_per_data_x, cell_cap_x * 0.11));
+                    const arm_y_data = @max(0.2, @min(tick_half_px / px_per_data_y, cell_cap_y * 0.11));
+                    const dim_tick_thick: f32 = 0.65;
 
-                                doubleStroke(&.{
-                                    .{ .x = dim_top_left.x, .y = dim_top_left.y },
-                                    .{ .x = dim_bottom_left.x, .y = dim_bottom_left.y },
-                                }, dvui.themeGet().color(.control, .text), 1);
+                    const x_c = (bbox_min_x + bbox_max_x) * 0.5;
+                    const y_c = (bbox_min_y + bbox_max_y) * 0.5;
 
-                                doubleStroke(&.{
-                                    .{ .x = dim_arm_top_left.x, .y = dim_arm_top_left.y },
-                                    .{ .x = dim_arm_top_right.x, .y = dim_arm_top_right.y },
-                                }, dvui.themeGet().color(.control, .text), 1);
+                    if (cell_idx_opt) |ci| {
+                        const cell = file.spriteRect(ci);
+                        const cell_left = cell.x;
+                        const cell_right = cell.x + cell.w;
+                        const cell_top = cell.y;
+                        const cell_bot = cell.y + cell.h;
+                        const arena = dvui.currentWindow().arena();
 
-                                doubleStroke(&.{
-                                    .{ .x = dim_arm_bottom_left.x, .y = dim_arm_bottom_left.y },
-                                    .{ .x = dim_arm_bottom_right.x, .y = dim_arm_bottom_right.y },
-                                }, dvui.themeGet().color(.control, .text), 1);
-
-                                const center = top_left.plus(bottom_left).scale(0.5, dvui.Point);
-
-                                const dimension_text = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d:0.0}", .{transform.data_points[0].diff(transform.data_points[3]).length()}) catch "Failed to allocate dimension text";
-
-                                const font = dvui.Font.theme(.mono);
-                                const text_size = font.textSize(dimension_text);
-
-                                var text_rect = dvui.currentWindow().rectScale().rectToPhysical(.fromSize(.{ .w = text_size.w, .h = text_size.h }));
-                                text_rect.x = center.x + offset.x - text_rect.w / 2;
-                                text_rect.y = center.y + offset.y - text_rect.h / 2;
-
-                                var outline_rect = text_rect.outsetAll(2 * dvui.currentWindow().natural_scale);
-
-                                outline_rect.fill(dvui.Rect.Physical.all(100000), .{
-                                    .color = dvui.themeGet().color(.control, .fill),
-                                });
-
-                                dvui.renderText(.{
-                                    .text = dimension_text,
-                                    .font = font,
-                                    .color = dvui.themeGet().color(.window, .text),
-                                    .rs = .{ .r = text_rect, .s = dvui.currentWindow().natural_scale },
-                                }) catch {
-                                    dvui.log.err("Failed to render dimension text", .{});
-                                };
-                            }
-
-                            { // Horizontal dimension
-                                const bottom_right: dvui.Point = .{ .x = triangles.vertexes[2].pos.x, .y = triangles.vertexes[2].pos.y };
-                                const bottom_left: dvui.Point = .{ .x = triangles.vertexes[3].pos.x, .y = triangles.vertexes[3].pos.y };
-
-                                var offset: dvui.Point = .{ .x = 0, .y = 3 * dvui.currentWindow().natural_scale * file.editor.canvas.scale };
-                                offset = pixi.math.rotate(offset, .{ .x = 0, .y = 0 }, transform.rotation);
-
-                                const dim_bottom_right: dvui.Point = bottom_right.plus(offset);
-                                const dim_bottom_left: dvui.Point = bottom_left.plus(offset);
-
-                                const dim_arm_right_bottom = dim_bottom_right.plus(pixi.math.rotate(.{ .x = 0, .y = -(0.75 * dvui.currentWindow().natural_scale) * file.editor.canvas.scale }, .{ .x = 0, .y = 0 }, transform.rotation));
-                                const dim_arm_right_top = dim_bottom_right.plus(pixi.math.rotate(.{ .x = 0, .y = (0.75 * dvui.currentWindow().natural_scale) * file.editor.canvas.scale }, .{ .x = 0, .y = 0 }, transform.rotation));
-                                const dim_arm_left_bottom = dim_bottom_left.plus(pixi.math.rotate(.{ .x = 0, .y = -(0.75 * dvui.currentWindow().natural_scale) * file.editor.canvas.scale }, .{ .x = 0, .y = 0 }, transform.rotation));
-                                const dim_arm_left_top = dim_bottom_left.plus(pixi.math.rotate(.{ .x = 0, .y = (0.75 * dvui.currentWindow().natural_scale) * file.editor.canvas.scale }, .{ .x = 0, .y = 0 }, transform.rotation));
-
-                                doubleStroke(&.{
-                                    .{ .x = dim_bottom_right.x, .y = dim_bottom_right.y },
-                                    .{ .x = dim_bottom_left.x, .y = dim_bottom_left.y },
-                                }, dvui.themeGet().color(.control, .text), 1);
-
-                                doubleStroke(&.{
-                                    .{ .x = dim_arm_right_bottom.x, .y = dim_arm_right_bottom.y },
-                                    .{ .x = dim_arm_right_top.x, .y = dim_arm_right_top.y },
-                                }, dvui.themeGet().color(.control, .text), 1);
-
-                                doubleStroke(&.{
-                                    .{ .x = dim_arm_left_bottom.x, .y = dim_arm_left_bottom.y },
-                                    .{ .x = dim_arm_left_top.x, .y = dim_arm_left_top.y },
-                                }, dvui.themeGet().color(.control, .text), 1);
-
-                                const center = bottom_right.plus(bottom_left).scale(0.5, dvui.Point);
-
-                                const dimension_text = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d:0.0}", .{transform.data_points[3].diff(transform.data_points[2]).length()}) catch "Failed to allocate dimension text";
-
-                                const font = dvui.Font.theme(.mono);
-                                const text_size = font.textSize(dimension_text);
-
-                                var text_rect = dvui.currentWindow().rectScale().rectToPhysical(.fromSize(.{ .w = text_size.w, .h = text_size.h }));
-                                text_rect.x = center.x + offset.x - text_rect.w / 2;
-                                text_rect.y = center.y + offset.y - text_rect.h / 2;
-
-                                var outline_rect = text_rect.outsetAll(2 * dvui.currentWindow().natural_scale);
-
-                                outline_rect.fill(dvui.Rect.Physical.all(100000), .{
-                                    .color = dvui.themeGet().color(.control, .fill),
-                                });
-
-                                dvui.renderText(.{
-                                    .text = dimension_text,
-                                    .font = font,
-                                    .color = dvui.themeGet().color(.window, .text),
-                                    .rs = .{ .r = text_rect, .s = dvui.currentWindow().natural_scale },
-                                }) catch {
-                                    dvui.log.err("Failed to render dimension text", .{});
-                                };
+                        // Left: edge midpoint (bbox left, vertical center) → cell left; label near line.
+                        {
+                            const span = bbox_min_x - cell_left;
+                            if (@abs(span) > 0.001) {
+                                doubleStrokeDimensionTick(&.{
+                                    canvas.screenFromDataPoint(.{ .x = cell_left, .y = y_c }),
+                                    canvas.screenFromDataPoint(.{ .x = bbox_min_x, .y = y_c }),
+                                }, 1);
+                                doubleStrokeDimensionTick(&.{
+                                    canvas.screenFromDataPoint(.{ .x = cell_left, .y = y_c - arm_y_data }),
+                                    canvas.screenFromDataPoint(.{ .x = cell_left, .y = y_c + arm_y_data }),
+                                }, dim_tick_thick);
+                                doubleStrokeDimensionTick(&.{
+                                    canvas.screenFromDataPoint(.{ .x = bbox_min_x, .y = y_c - arm_y_data }),
+                                    canvas.screenFromDataPoint(.{ .x = bbox_min_x, .y = y_c + arm_y_data }),
+                                }, dim_tick_thick);
+                                const t = std.fmt.allocPrint(arena, "{d}", .{@as(i32, @intFromFloat(@round(span)))}) catch "—";
+                                var lp = canvas.screenFromDataPoint(.{ .x = (cell_left + bbox_min_x) * 0.5, .y = y_c });
+                                lp.x -= label_off_screen;
+                                renderTransformDimLabel(dim_font, t, lp);
                             }
                         }
+                        // Right: bbox right → cell right
+                        {
+                            const span = cell_right - bbox_max_x;
+                            if (@abs(span) > 0.001) {
+                                doubleStrokeDimensionTick(&.{
+                                    canvas.screenFromDataPoint(.{ .x = bbox_max_x, .y = y_c }),
+                                    canvas.screenFromDataPoint(.{ .x = cell_right, .y = y_c }),
+                                }, 1);
+                                doubleStrokeDimensionTick(&.{
+                                    canvas.screenFromDataPoint(.{ .x = bbox_max_x, .y = y_c - arm_y_data }),
+                                    canvas.screenFromDataPoint(.{ .x = bbox_max_x, .y = y_c + arm_y_data }),
+                                }, dim_tick_thick);
+                                doubleStrokeDimensionTick(&.{
+                                    canvas.screenFromDataPoint(.{ .x = cell_right, .y = y_c - arm_y_data }),
+                                    canvas.screenFromDataPoint(.{ .x = cell_right, .y = y_c + arm_y_data }),
+                                }, dim_tick_thick);
+                                const t = std.fmt.allocPrint(arena, "{d}", .{@as(i32, @intFromFloat(@round(span)))}) catch "—";
+                                var lp = canvas.screenFromDataPoint(.{ .x = (bbox_max_x + cell_right) * 0.5, .y = y_c });
+                                lp.x += label_off_screen;
+                                renderTransformDimLabel(dim_font, t, lp);
+                            }
+                        }
+                        // Top: horizontal center of top edge → cell top
+                        {
+                            const span = bbox_min_y - cell_top;
+                            if (@abs(span) > 0.001) {
+                                doubleStrokeDimensionTick(&.{
+                                    canvas.screenFromDataPoint(.{ .x = x_c, .y = cell_top }),
+                                    canvas.screenFromDataPoint(.{ .x = x_c, .y = bbox_min_y }),
+                                }, 1);
+                                doubleStrokeDimensionTick(&.{
+                                    canvas.screenFromDataPoint(.{ .x = x_c - arm_x_data, .y = cell_top }),
+                                    canvas.screenFromDataPoint(.{ .x = x_c + arm_x_data, .y = cell_top }),
+                                }, dim_tick_thick);
+                                doubleStrokeDimensionTick(&.{
+                                    canvas.screenFromDataPoint(.{ .x = x_c - arm_x_data, .y = bbox_min_y }),
+                                    canvas.screenFromDataPoint(.{ .x = x_c + arm_x_data, .y = bbox_min_y }),
+                                }, dim_tick_thick);
+                                const t = std.fmt.allocPrint(arena, "{d}", .{@as(i32, @intFromFloat(@round(span)))}) catch "—";
+                                var lp = canvas.screenFromDataPoint(.{ .x = x_c, .y = (cell_top + bbox_min_y) * 0.5 });
+                                lp.y -= label_off_screen;
+                                renderTransformDimLabel(dim_font, t, lp);
+                            }
+                        }
+                        // Bottom: bbox bottom → cell bottom
+                        {
+                            const span = cell_bot - bbox_max_y;
+                            if (@abs(span) > 0.001) {
+                                doubleStrokeDimensionTick(&.{
+                                    canvas.screenFromDataPoint(.{ .x = x_c, .y = bbox_max_y }),
+                                    canvas.screenFromDataPoint(.{ .x = x_c, .y = cell_bot }),
+                                }, 1);
+                                doubleStrokeDimensionTick(&.{
+                                    canvas.screenFromDataPoint(.{ .x = x_c - arm_x_data, .y = bbox_max_y }),
+                                    canvas.screenFromDataPoint(.{ .x = x_c + arm_x_data, .y = bbox_max_y }),
+                                }, dim_tick_thick);
+                                doubleStrokeDimensionTick(&.{
+                                    canvas.screenFromDataPoint(.{ .x = x_c - arm_x_data, .y = cell_bot }),
+                                    canvas.screenFromDataPoint(.{ .x = x_c + arm_x_data, .y = cell_bot }),
+                                }, dim_tick_thick);
+                                const t = std.fmt.allocPrint(arena, "{d}", .{@as(i32, @intFromFloat(@round(span)))}) catch "—";
+                                var lp = canvas.screenFromDataPoint(.{ .x = x_c, .y = (bbox_max_y + cell_bot) * 0.5 });
+                                lp.y += label_off_screen;
+                                renderTransformDimLabel(dim_font, t, lp);
+                            }
+                        }
+
+                        // Transform width (bottom edge) and height (left edge): labels only, no dimension lines.
+                        {
+                            const top_left_v = triangles.vertexes[0].pos;
+                            const bottom_left_v = triangles.vertexes[3].pos;
+                            const bottom_right_v = triangles.vertexes[2].pos;
+
+                            const offset_v = pixi.math.rotate(
+                                dvui.Point{ .x = -label_off_screen, .y = 0 },
+                                .{ .x = 0, .y = 0 },
+                                transform.rotation,
+                            );
+                            const off_v: dvui.Point.Physical = .{ .x = offset_v.x, .y = offset_v.y };
+
+                            const center_v = top_left_v.plus(bottom_left_v).scale(0.5, dvui.Point.Physical);
+                            const inner_h_f = transform.data_points[0].diff(transform.data_points[3]).length();
+                            const simple_v = std.fmt.allocPrint(arena, "{d}", .{@as(i32, @intFromFloat(@round(inner_h_f)))}) catch "—";
+                            renderTransformDimLabel(dim_font, simple_v, center_v.plus(off_v));
+
+                            const offset_h = pixi.math.rotate(
+                                dvui.Point{ .x = 0, .y = label_off_screen },
+                                .{ .x = 0, .y = 0 },
+                                transform.rotation,
+                            );
+                            const off_h: dvui.Point.Physical = .{ .x = offset_h.x, .y = offset_h.y };
+
+                            const center_h = bottom_right_v.plus(bottom_left_v).scale(0.5, dvui.Point.Physical);
+                            const inner_w_f = transform.data_points[3].diff(transform.data_points[2]).length();
+                            const simple_h = std.fmt.allocPrint(arena, "{d}", .{@as(i32, @intFromFloat(@round(inner_w_f)))}) catch "—";
+                            renderTransformDimLabel(dim_font, simple_h, center_h.plus(off_h));
+                        }
+                    } else {
+                        const top_left = triangles.vertexes[0].pos;
+                        const bottom_left = triangles.vertexes[3].pos;
+                        const bottom_right = triangles.vertexes[2].pos;
+
+                        const offset_v = pixi.math.rotate(
+                            dvui.Point{ .x = -label_off_screen, .y = 0 },
+                            .{ .x = 0, .y = 0 },
+                            transform.rotation,
+                        );
+                        const off_v: dvui.Point.Physical = .{ .x = offset_v.x, .y = offset_v.y };
+
+                        const center_v = top_left.plus(bottom_left).scale(0.5, dvui.Point.Physical);
+                        const inner_h_f = transform.data_points[0].diff(transform.data_points[3]).length();
+                        const simple_v = std.fmt.allocPrint(
+                            dvui.currentWindow().arena(),
+                            "{d}",
+                            .{@as(i32, @intFromFloat(@round(inner_h_f)))},
+                        ) catch "—";
+                        renderTransformDimLabel(dim_font, simple_v, center_v.plus(off_v));
+
+                        const offset_h = pixi.math.rotate(
+                            dvui.Point{ .x = 0, .y = label_off_screen },
+                            .{ .x = 0, .y = 0 },
+                            transform.rotation,
+                        );
+                        const off_h: dvui.Point.Physical = .{ .x = offset_h.x, .y = offset_h.y };
+
+                        const center_h = bottom_right.plus(bottom_left).scale(0.5, dvui.Point.Physical);
+                        const inner_w_f = transform.data_points[3].diff(transform.data_points[2]).length();
+                        const simple_h = std.fmt.allocPrint(
+                            dvui.currentWindow().arena(),
+                            "{d}",
+                            .{@as(i32, @intFromFloat(@round(inner_w_f)))},
+                        ) catch "—";
+                        renderTransformDimLabel(dim_font, simple_h, center_h.plus(off_h));
+                    }
+                }
+
+                if (transform.active_point == .rotate and !show_ortho_dims) {
+                    // Draw a stroke from transform.point(.rotate).* to the point on the circle at the midpoint of the rotation arc,
+                    // but if the arc is > 180 degrees, the midpoint angle needs to be flipped 180 degrees.
+                    const pivot = transform.point(.pivot).*;
+                    const radius = transform.radius;
+
+                    // Find the angle of the start (drag) and end (current) rotation arms
+                    const start_angle = blk: {
+                        if (self.drag_data_point) |drag_data_point| {
+                            const drag_diff = drag_data_point.diff(pivot);
+                            break :blk std.math.atan2(drag_diff.y, drag_diff.x);
+                        } else {
+                            // Fallback: use current rotation
+                            break :blk std.math.atan2(transform.point(.rotate).y - pivot.y, transform.point(.rotate).x - pivot.x);
+                        }
+                    };
+
+                    // Compute the shortest arc between start and end
+                    var delta_angle = transform.rotation - transform.start_rotation;
+                    // Normalize to [-pi, pi]
+                    if (delta_angle > std.math.pi) {
+                        delta_angle -= 2.0 * std.math.pi;
+                    } else if (delta_angle < -std.math.pi) {
+                        delta_angle += 2.0 * std.math.pi;
                     }
 
-                    if (transform.active_point == .rotate) {
-                        // Draw a stroke from transform.point(.rotate).* to the point on the circle at the midpoint of the rotation arc,
-                        // but if the arc is > 180 degrees, the midpoint angle needs to be flipped 180 degrees.
-                        const pivot = transform.point(.pivot).*;
-                        const radius = transform.radius;
+                    // The midpoint angle along the arc
+                    var mid_angle = start_angle + delta_angle / 2.0;
 
-                        // Find the angle of the start (drag) and end (current) rotation arms
-                        const start_angle = blk: {
-                            if (self.drag_data_point) |drag_data_point| {
-                                const drag_diff = drag_data_point.diff(pivot);
-                                break :blk std.math.atan2(drag_diff.y, drag_diff.x);
-                            } else {
-                                // Fallback: use current rotation
-                                break :blk std.math.atan2(transform.point(.rotate).y - pivot.y, transform.point(.rotate).x - pivot.x);
-                            }
-                        };
-
-                        // Compute the shortest arc between start and end
-                        var delta_angle = transform.rotation - transform.start_rotation;
-                        // Normalize to [-pi, pi]
-                        if (delta_angle > std.math.pi) {
-                            delta_angle -= 2.0 * std.math.pi;
-                        } else if (delta_angle < -std.math.pi) {
-                            delta_angle += 2.0 * std.math.pi;
-                        }
-
-                        // The midpoint angle along the arc
-                        var mid_angle = start_angle + delta_angle / 2.0;
-
-                        // If the arc is more than 180 degrees, flip the midpoint angle by 180 degrees
-                        if (delta_angle < 0) {
-                            mid_angle += std.math.pi;
-                        }
-
-                        // Calculate the point on the circle at the midpoint angle
-                        const center = file.editor.canvas.screenFromDataPoint(pivot.plus(.{
-                            .x = radius * (1.0 + 0.075 * dvui.currentWindow().natural_scale) * std.math.cos(mid_angle),
-                            .y = radius * (1.0 + 0.075 * dvui.currentWindow().natural_scale) * std.math.sin(mid_angle),
-                        }));
-
-                        var degrees = std.math.radiansToDegrees(delta_angle);
-                        if (degrees < 0) degrees += 360.0;
-
-                        const dimension_text = std.fmt.allocPrint(dvui.currentWindow().arena(), "{d:0.0}°", .{degrees}) catch "Failed to allocate dimension text";
-
-                        const font = dvui.Font.theme(.mono);
-                        const text_size = font.textSize(dimension_text);
-
-                        var text_rect = dvui.currentWindow().rectScale().rectToPhysical(.fromSize(.{ .w = text_size.w, .h = text_size.h }));
-                        text_rect.x = center.x - text_rect.w / 2;
-                        text_rect.y = center.y - text_rect.h / 2;
-
-                        var outline_rect = text_rect.outsetAll(2 * dvui.currentWindow().natural_scale);
-
-                        outline_rect.fill(dvui.Rect.Physical.all(100000), .{
-                            .color = dvui.themeGet().color(.control, .fill),
-                        });
-
-                        dvui.renderText(.{
-                            .text = dimension_text,
-                            .font = font,
-                            .color = dvui.themeGet().color(.window, .text),
-                            .rs = .{ .r = text_rect, .s = dvui.currentWindow().natural_scale },
-                        }) catch {
-                            dvui.log.err("Failed to render dimension text", .{});
-                        };
+                    // If the arc is more than 180 degrees, flip the midpoint angle by 180 degrees
+                    if (delta_angle < 0) {
+                        mid_angle += std.math.pi;
                     }
+
+                    // Calculate the point on the circle at the midpoint angle
+                    const center = file.editor.canvas.screenFromDataPoint(pivot.plus(.{
+                        .x = radius * (1.0 + 0.075 * dvui.currentWindow().natural_scale) * std.math.cos(mid_angle),
+                        .y = radius * (1.0 + 0.075 * dvui.currentWindow().natural_scale) * std.math.sin(mid_angle),
+                    }));
+
+                    var degrees = std.math.radiansToDegrees(delta_angle);
+                    if (degrees < 0) degrees += 360.0;
+
+                    const angle_text = std.fmt.allocPrint(
+                        dvui.currentWindow().arena(),
+                        "{d}°",
+                        .{@as(i32, @intFromFloat(@round(degrees)))},
+                    ) catch "—";
+
+                    renderTransformDimLabel(dim_font, angle_text, center);
                 }
             }
 
             for (transform.data_points[0..6], 0..) |*point, point_index| {
+                if (show_ortho_dims and point_index == 5) continue;
                 if (transform.active_point) |active_point| {
                     if (active_point == .pivot) {
                         if (point_index == 5) continue; // skip drawing the rotate point if we are dragging the pivot
@@ -2829,6 +2903,47 @@ pub fn drawTransform(self: *FileWidget) void {
     }
 }
 
+/// Text size in physical pixels for `renderText` with `.rs.s == render_s` (must stay in sync with
+/// `dvui.renderText` / `Font.textSizeEx` fraction rules).
+fn transformDimTextSizePhysical(font: dvui.Font, text: []const u8, render_s: f32) dvui.Size {
+    if (text.len == 0 or render_s == 0) return .{};
+    const cw = dvui.currentWindow();
+    const target_size = font.size * render_s;
+    const sized_font = font.withSize(target_size);
+    const fce = dvui.fontCacheGet(sized_font) catch return .{};
+    const target_fraction = if (cw.snap_to_pixels) 1.0 else target_size / fce.em_height;
+    var opts: dvui.Font.TextSizeOptions = .{};
+    opts.kerning = cw.kerning;
+    const s = fce.textSizeRaw(cw.gpa, text, opts) catch return .{};
+    return s.scale(target_fraction, dvui.Size);
+}
+
+/// Constant on-screen size: render at `natural_scale` only.
+fn renderTransformDimLabel(font: dvui.Font, text: []const u8, center_phys: dvui.Point.Physical) void {
+    const ns = dvui.currentWindow().natural_scale;
+    const ts = transformDimTextSizePhysical(font, text, ns);
+    const pad = 2 * ns;
+    const text_rect = dvui.Rect.Physical.rect(
+        center_phys.x - ts.w / 2,
+        center_phys.y - ts.h / 2,
+        ts.w,
+        ts.h,
+    );
+    var outline_rect = text_rect.outsetAll(pad);
+    const corner = @min(4 * ns, @min(outline_rect.w, outline_rect.h) * 0.48);
+    outline_rect.fill(dvui.Rect.Physical.all(corner), .{
+        .color = dvui.themeGet().color(.control, .fill).opacity(0.5),
+    });
+    dvui.renderText(.{
+        .text = text,
+        .font = font,
+        .color = dvui.themeGet().color(.window, .text),
+        .rs = .{ .r = text_rect, .s = ns },
+    }) catch {
+        dvui.log.err("Failed to render transform dimension label", .{});
+    };
+}
+
 fn doubleStroke(points: []const dvui.Point.Physical, color: dvui.Color, thickness: f32) void {
     dvui.Path.stroke(.{
         .points = points,
@@ -2842,6 +2957,32 @@ fn doubleStroke(points: []const dvui.Point.Physical, color: dvui.Color, thicknes
         .thickness = thickness,
         .color = color,
     });
+}
+
+/// Double stroke for dimension lines: outer control fill, inner magenta (`doubleStroke` colors).
+fn doubleStrokeDimensionLike(points: []const dvui.Point.Physical, thickness: f32, inner_thickness: f32) void {
+    const ns = dvui.currentWindow().natural_scale;
+    dvui.Path.stroke(.{
+        .points = points,
+    }, .{
+        .thickness = thickness * 2 * ns,
+        .color = dvui.themeGet().color(.control, .fill),
+    });
+    dvui.Path.stroke(.{
+        .points = points,
+    }, .{
+        .thickness = inner_thickness,
+        .color = .magenta,
+    });
+}
+
+fn doubleStrokeDimension(points: []const dvui.Point.Physical, thickness: f32) void {
+    doubleStrokeDimensionLike(points, thickness, thickness);
+}
+
+/// Tick marks: inner (magenta) stroke is one physical pixel thicker for visibility.
+fn doubleStrokeDimensionTick(points: []const dvui.Point.Physical, thickness: f32) void {
+    doubleStrokeDimensionLike(points, thickness, thickness + 1.0);
 }
 
 /// Batches all grid lines into a single draw call. Each line becomes a thin
@@ -4277,66 +4418,68 @@ fn drawReorderPreviewForAxis(
         });
     }
 
-    defer if (removed_index != target_i) {
-        if (axis == .columns) {
-            const top = if (removed_index < target_i) removed_rect.topLeft() else removed_rect.topRight();
-            const bottom = if (removed_index < target_i) removed_rect.bottomLeft() else removed_rect.bottomRight();
-            dvui.Path.stroke(.{ .points = &.{
-                file.editor.canvas.screenFromDataPoint(top),
-                file.editor.canvas.screenFromDataPoint(bottom),
-            } }, .{ .thickness = 3, .color = dvui.themeGet().color(.highlight, .fill) });
-
-            dvui.Path.fillConvex(.{
-                .points = &.{
+    defer {
+        if (removed_index != target_i) {
+            if (axis == .columns) {
+                const top = if (removed_index < target_i) removed_rect.topLeft() else removed_rect.topRight();
+                const bottom = if (removed_index < target_i) removed_rect.bottomLeft() else removed_rect.bottomRight();
+                dvui.Path.stroke(.{ .points = &.{
                     file.editor.canvas.screenFromDataPoint(top),
-                    file.editor.canvas.screenFromDataPoint(top.plus(.{ .x = 5.0 / scale, .y = -10.0 / scale })),
-                    file.editor.canvas.screenFromDataPoint(top.plus(.{ .x = -5.0 / scale, .y = -10.0 / scale })),
-                },
-            }, .{
-                .color = dvui.themeGet().color(.highlight, .fill),
-                .fade = 1.0,
-            });
-
-            dvui.Path.fillConvex(.{
-                .points = &.{
                     file.editor.canvas.screenFromDataPoint(bottom),
-                    file.editor.canvas.screenFromDataPoint(bottom.plus(.{ .x = 5.0 / scale, .y = 10.0 / scale })),
-                    file.editor.canvas.screenFromDataPoint(bottom.plus(.{ .x = -5.0 / scale, .y = 10.0 / scale })),
-                },
-            }, .{
-                .color = dvui.themeGet().color(.highlight, .fill),
-                .fade = 1.0,
-            });
-        } else {
-            const left = if (removed_index < target_i) removed_rect.topLeft() else removed_rect.bottomLeft();
-            const right = if (removed_index < target_i) removed_rect.topRight() else removed_rect.bottomRight();
-            dvui.Path.stroke(.{ .points = &.{
-                file.editor.canvas.screenFromDataPoint(left),
-                file.editor.canvas.screenFromDataPoint(right),
-            } }, .{ .thickness = 3, .color = dvui.themeGet().color(.highlight, .fill) });
+                } }, .{ .thickness = 3, .color = dvui.themeGet().color(.highlight, .fill) });
 
-            dvui.Path.fillConvex(.{
-                .points = &.{
+                dvui.Path.fillConvex(.{
+                    .points = &.{
+                        file.editor.canvas.screenFromDataPoint(top),
+                        file.editor.canvas.screenFromDataPoint(top.plus(.{ .x = 5.0 / scale, .y = -10.0 / scale })),
+                        file.editor.canvas.screenFromDataPoint(top.plus(.{ .x = -5.0 / scale, .y = -10.0 / scale })),
+                    },
+                }, .{
+                    .color = dvui.themeGet().color(.highlight, .fill),
+                    .fade = 1.0,
+                });
+
+                dvui.Path.fillConvex(.{
+                    .points = &.{
+                        file.editor.canvas.screenFromDataPoint(bottom),
+                        file.editor.canvas.screenFromDataPoint(bottom.plus(.{ .x = 5.0 / scale, .y = 10.0 / scale })),
+                        file.editor.canvas.screenFromDataPoint(bottom.plus(.{ .x = -5.0 / scale, .y = 10.0 / scale })),
+                    },
+                }, .{
+                    .color = dvui.themeGet().color(.highlight, .fill),
+                    .fade = 1.0,
+                });
+            } else {
+                const left = if (removed_index < target_i) removed_rect.topLeft() else removed_rect.bottomLeft();
+                const right = if (removed_index < target_i) removed_rect.topRight() else removed_rect.bottomRight();
+                dvui.Path.stroke(.{ .points = &.{
                     file.editor.canvas.screenFromDataPoint(left),
-                    file.editor.canvas.screenFromDataPoint(left.plus(.{ .x = -8.0 / scale, .y = -5.0 / scale })),
-                    file.editor.canvas.screenFromDataPoint(left.plus(.{ .x = -8.0 / scale, .y = 5.0 / scale })),
-                },
-            }, .{
-                .color = dvui.themeGet().color(.highlight, .fill),
-                .fade = 1.0,
-            });
-            dvui.Path.fillConvex(.{
-                .points = &.{
                     file.editor.canvas.screenFromDataPoint(right),
-                    file.editor.canvas.screenFromDataPoint(right.plus(.{ .x = 8.0 / scale, .y = -5.0 / scale })),
-                    file.editor.canvas.screenFromDataPoint(right.plus(.{ .x = 8.0 / scale, .y = 5.0 / scale })),
-                },
-            }, .{
-                .color = dvui.themeGet().color(.highlight, .fill),
-                .fade = 1.0,
-            });
+                } }, .{ .thickness = 3, .color = dvui.themeGet().color(.highlight, .fill) });
+
+                dvui.Path.fillConvex(.{
+                    .points = &.{
+                        file.editor.canvas.screenFromDataPoint(left),
+                        file.editor.canvas.screenFromDataPoint(left.plus(.{ .x = -8.0 / scale, .y = -5.0 / scale })),
+                        file.editor.canvas.screenFromDataPoint(left.plus(.{ .x = -8.0 / scale, .y = 5.0 / scale })),
+                    },
+                }, .{
+                    .color = dvui.themeGet().color(.highlight, .fill),
+                    .fade = 1.0,
+                });
+                dvui.Path.fillConvex(.{
+                    .points = &.{
+                        file.editor.canvas.screenFromDataPoint(right),
+                        file.editor.canvas.screenFromDataPoint(right.plus(.{ .x = 8.0 / scale, .y = -5.0 / scale })),
+                        file.editor.canvas.screenFromDataPoint(right.plus(.{ .x = 8.0 / scale, .y = 5.0 / scale })),
+                    },
+                }, .{
+                    .color = dvui.themeGet().color(.highlight, .fill),
+                    .fade = 1.0,
+                });
+            }
         }
-    };
+    }
 
     const segments = reorderSegmentRects(axis, file, target_i, removed_index, target_rect, removed_rect);
 
