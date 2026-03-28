@@ -5066,7 +5066,10 @@ pub fn processEvents(self: *FileWidget) void {
         }
     }
 
-    if (self.hovered() and self.init_options.file.editor.transform != null) {
+    // Use `active()`, not `hovered()`: `hovered` is tied to `canvas.rect` (image bounds in screen
+    // space). The transform quad can extend outside that rect; we still need presses/drags there and
+    // continued drags after the cursor leaves the image (capture + motion).
+    if (self.active() and self.init_options.file.editor.transform != null) {
         self.processTransform();
     }
 
