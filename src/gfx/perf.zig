@@ -1,7 +1,8 @@
 //! Frame and drawing-session counters for tuning. For ground truth use macOS Instruments (Time Profiler).
-//! Validating first-stroke warmup: compare DRAW line tex_new= and split_rb= before/after composite warmup;
-//! after warmup, the first stroke should avoid extra tex_new and split rebuilds. Toggle verbose_frame_log
-//! to log every frame while profiling.
+//! First-stroke warmup: compare DRAW tex_new= / split_rb= before vs after composite warmup.
+//! With console perf logging: DRAW lines include stroke_buf; stroke/toChange/history detail and
+//! transform-accept timings log when those paths run. Deferred stroke undo keeps stroke_buf at 0
+//! until release (commit builds the stroke map from the snapshot diff).
 const std = @import("std");
 const builtin = @import("builtin");
 
@@ -26,11 +27,19 @@ pub fn drawFrameBegin(active_drawing: bool) void {
     draw_event_count = 0;
     draw_active_rect_area = 0;
     draw_temp_rect_area = 0;
-    draw_stroke_buf_count = 0;
+    // draw_stroke_buf_count: sampled in Editor.tick before this call; do not reset here.
     draw_render_layers_calls = 0;
     draw_split_rebuilds = 0;
     draw_full_composite_rebuilds = 0;
     draw_texture_creates = 0;
+    stroke_append_calls = 0;
+    stroke_append_new_keys = 0;
+    stroke_to_change_ns = 0;
+    stroke_to_change_calls = 0;
+    stroke_to_change_pixels_out = 0;
+    history_append_pixels_ns = 0;
+    history_append_pixels_calls = 0;
+    history_append_pixels_slots = 0;
     draw_frame_active = active_drawing;
     if (active_drawing) {
         draw_frame_start_ts = std.time.nanoTimestamp();
@@ -59,10 +68,42 @@ pub fn drawFrameEnd() void {
 
     if (console_logging_enabled and (draw_frames_total <= 5 or draw_frames_total % 30 == 0)) {
         std.debug.print(
-            "DRAW f{d}: {d}us events={d} active_rect={d}px temp_rect={d}px rl={d} split_rb={d} full_rb={d} tex_new={d}\n",
-            .{ draw_frames_total, elapsed_us, draw_event_count, draw_active_rect_area, draw_temp_rect_area, draw_render_layers_calls, draw_split_rebuilds, draw_full_composite_rebuilds, draw_texture_creates },
+            "DRAW f{d}: {d}us events={d} active_rect={d}px temp_rect={d}px rl={d} split_rb={d} full_rb={d} tex_new={d} stroke_buf={d}\n",
+            .{ draw_frames_total, elapsed_us, draw_event_count, draw_active_rect_area, draw_temp_rect_area, draw_render_layers_calls, draw_split_rebuilds, draw_full_composite_rebuilds, draw_texture_creates, draw_stroke_buf_count },
         );
+        if (stroke_append_calls > 0 or stroke_to_change_calls > 0 or history_append_pixels_calls > 0) {
+            std.debug.print(
+                "  stroke: append_calls={d} new_keys={d} | toChange {d} calls {d}us {d}px out | history(pixels) {d} calls {d}us {d} slots\n",
+                .{
+                    stroke_append_calls,
+                    stroke_append_new_keys,
+                    stroke_to_change_calls,
+                    stroke_to_change_ns / 1000,
+                    stroke_to_change_pixels_out,
+                    history_append_pixels_calls,
+                    history_append_pixels_ns / 1000,
+                    history_append_pixels_slots,
+                },
+            );
+        }
     }
+}
+
+/// Call after a successful transform accept (large full-layer paths).
+pub fn logTransformAcceptIf() void {
+    if (!record or !console_logging_enabled) return;
+    if (transform_accept_last_layer_pixels == 0) return;
+    std.log.info(
+        "perf transform accept: total {d} us (gpu_read {d}, merge_loop {d}, to_change {d}, history {d}) layer_px={d}",
+        .{
+            transform_accept_last_total_ns / 1000,
+            transform_accept_last_gpu_read_ns / 1000,
+            transform_accept_last_merge_loop_ns / 1000,
+            transform_accept_last_to_change_ns / 1000,
+            transform_accept_last_history_append_ns / 1000,
+            transform_accept_last_layer_pixels,
+        },
+    );
 }
 
 pub var render_layers_ns: u64 = 0;
@@ -81,6 +122,25 @@ pub var tool_process_ns: u64 = 0;
 pub var update_mask_ns: u64 = 0;
 pub var process_events_ns: u64 = 0;
 
+/// Per drawing frame (`drawFrameBegin`..`drawFrameEnd`): `Stroke.append` / `toChange` / pixel `History.append`.
+/// Reset in `drawFrameBegin`, not `beginFrame`, so release-frame commits stay in the same window.
+pub var stroke_append_calls: u64 = 0;
+pub var stroke_append_new_keys: u64 = 0;
+pub var stroke_to_change_ns: u64 = 0;
+pub var stroke_to_change_calls: u32 = 0;
+pub var stroke_to_change_pixels_out: u64 = 0;
+pub var history_append_pixels_ns: u64 = 0;
+pub var history_append_pixels_calls: u32 = 0;
+pub var history_append_pixels_slots: u64 = 0;
+
+/// Last transform accept (full layer): overwritten each accept; use to spot GPU read vs CPU merge.
+pub var transform_accept_last_total_ns: u64 = 0;
+pub var transform_accept_last_gpu_read_ns: u64 = 0;
+pub var transform_accept_last_merge_loop_ns: u64 = 0;
+pub var transform_accept_last_to_change_ns: u64 = 0;
+pub var transform_accept_last_history_append_ns: u64 = 0;
+pub var transform_accept_last_layer_pixels: u64 = 0;
+
 var tick_start_ts: i128 = 0;
 var frame_index: u64 = 0;
 const log_interval_frames: u64 = 120;
@@ -92,6 +152,8 @@ pub var verbose_frame_log: bool = false;
 pub var console_logging_enabled: bool = false;
 
 /// Last split-composite rebuild: time spent in `renderLayersIntoTarget` for below / above (nanoseconds).
+/// `split_composite_dirty` is set from layer visibility/order/restore and render teardown; toggling
+/// layer row collapse alone does not (see `History.layer_settings`).
 pub var split_composite_below_ns: u64 = 0;
 pub var split_composite_above_ns: u64 = 0;
 

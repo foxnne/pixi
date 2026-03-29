@@ -317,6 +317,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
 
     {
         var any_drawing = false;
+        pixi.perf.draw_stroke_buf_count = 0; // no active stroke → 0; else first active file's map size
         for (editor.open_files.values()) |*file| {
             if (file.editor.active_drawing) {
                 any_drawing = true;

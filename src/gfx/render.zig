@@ -16,6 +16,62 @@ pub const RenderFileOptions = struct {
     allow_peek: bool = true,
 };
 
+/// Pushes pending CPU pixel edits to GPU textures. Must run even when `renderLayers` returns early
+/// (scale zero / clip empty): otherwise `defer` blocks that normally perform uploads are never
+/// registered, and `temp_gpu_dirty_rect` keeps unioning every frame until it covers the whole image.
+fn flushPendingLayerTextureUploads(init_opts: RenderFileOptions) void {
+    const file = init_opts.file;
+
+    if (file.editor.active_layer_dirty_rect) |dirty| {
+        if (dirty.w > 0 and dirty.h > 0) {
+            perf.draw_active_rect_area += @intFromFloat(dirty.w * dirty.h);
+            const source = file.layers.items(.source)[file.selected_layer_index];
+            if (dvui.textureGetCached(source.hash())) |cached| {
+                var tex = cached;
+                tex.updateSubRect(
+                    pixi.image.bytes(source).ptr,
+                    @intFromFloat(dirty.x),
+                    @intFromFloat(dirty.y),
+                    @intFromFloat(dirty.w),
+                    @intFromFloat(dirty.h),
+                ) catch |err| {
+                    dvui.log.err("Sub-rect texture upload failed: {any}", .{err});
+                };
+            }
+        }
+        file.editor.active_layer_dirty_rect = null;
+    }
+
+    if (file.editor.temp_layer_has_content or
+        file.editor.temp_gpu_dirty_rect != null)
+    {
+        const temp_source = file.editor.temporary_layer.source;
+        if (dvui.textureGetCached(temp_source.hash())) |cached| {
+            if (file.editor.temp_gpu_dirty_rect) |dirty| {
+                if (dirty.w > 0 and dirty.h > 0) {
+                    perf.draw_temp_rect_area += @intFromFloat(dirty.w * dirty.h);
+                    var tex = cached;
+                    tex.updateSubRect(
+                        pixi.image.bytes(temp_source).ptr,
+                        @intFromFloat(dirty.x),
+                        @intFromFloat(dirty.y),
+                        @intFromFloat(dirty.w),
+                        @intFromFloat(dirty.h),
+                    ) catch |err| {
+                        dvui.log.err("Temp sub-rect upload failed: {any}", .{err});
+                    };
+                }
+                file.editor.temp_gpu_dirty_rect = null;
+            }
+        } else if (file.editor.temp_layer_has_content) {
+            _ = temp_source.getTexture() catch null;
+            file.editor.temp_gpu_dirty_rect = null;
+        } else if (file.editor.temp_gpu_dirty_rect != null) {
+            file.editor.temp_gpu_dirty_rect = null;
+        }
+    }
+}
+
 fn layerViewStateForRender(init_opts: RenderFileOptions) struct { min_layer_index: usize, needs_dimmed: bool } {
     var min_layer_index: usize = 0;
     if (init_opts.allow_peek) {
@@ -392,28 +448,10 @@ pub fn renderLayers(init_opts: RenderFileOptions) !void {
 
     const content_rs = init_opts.rs;
 
+    flushPendingLayerTextureUploads(init_opts);
+
     if (content_rs.s == 0) return;
     if (dvui.clipGet().intersect(content_rs.r).empty()) return;
-
-    if (init_opts.file.editor.active_layer_dirty_rect) |dirty| {
-        if (dirty.w > 0 and dirty.h > 0) {
-            perf.draw_active_rect_area += @intFromFloat(dirty.w * dirty.h);
-            const source = init_opts.file.layers.items(.source)[init_opts.file.selected_layer_index];
-            if (dvui.textureGetCached(source.hash())) |cached| {
-                var tex = cached;
-                tex.updateSubRect(
-                    pixi.image.bytes(source).ptr,
-                    @intFromFloat(dirty.x),
-                    @intFromFloat(dirty.y),
-                    @intFromFloat(dirty.w),
-                    @intFromFloat(dirty.h),
-                ) catch |err| {
-                    dvui.log.err("Sub-rect texture upload failed: {any}", .{err});
-                };
-            }
-        }
-        init_opts.file.editor.active_layer_dirty_rect = null;
-    }
 
     const vs = layerViewStateForRender(init_opts);
     const min_layer_index = vs.min_layer_index;
@@ -446,39 +484,18 @@ pub fn renderLayers(init_opts: RenderFileOptions) !void {
             dvui.log.err("Failed to render selection layer", .{});
         };
 
-        if (init_opts.file.editor.temp_layer_has_content or
-            init_opts.file.editor.temp_gpu_dirty_rect != null)
-        {
+        if (init_opts.file.editor.temp_layer_has_content) {
             const temp_source = init_opts.file.editor.temporary_layer.source;
             if (dvui.textureGetCached(temp_source.hash()) == null)
                 perf.draw_texture_creates += 1;
             if (dvui.textureGetCached(temp_source.hash())) |cached| {
-                if (init_opts.file.editor.temp_gpu_dirty_rect) |dirty| {
-                    if (dirty.w > 0 and dirty.h > 0) {
-                        perf.draw_temp_rect_area += @intFromFloat(dirty.w * dirty.h);
-                        var tex = cached;
-                        tex.updateSubRect(
-                            pixi.image.bytes(temp_source).ptr,
-                            @intFromFloat(dirty.x),
-                            @intFromFloat(dirty.y),
-                            @intFromFloat(dirty.w),
-                            @intFromFloat(dirty.h),
-                        ) catch |err| {
-                            dvui.log.err("Temp sub-rect upload failed: {any}", .{err});
-                        };
-                    }
-                    init_opts.file.editor.temp_gpu_dirty_rect = null;
-                }
-                if (init_opts.file.editor.temp_layer_has_content) {
-                    dvui.renderTriangles(triangles, cached) catch {
-                        dvui.log.err("Failed to render temporary layer", .{});
-                    };
-                }
-            } else if (init_opts.file.editor.temp_layer_has_content) {
+                dvui.renderTriangles(triangles, cached) catch {
+                    dvui.log.err("Failed to render temporary layer", .{});
+                };
+            } else {
                 dvui.renderTriangles(triangles, temp_source.getTexture() catch null) catch {
                     dvui.log.err("Failed to render temporary layer", .{});
                 };
-                init_opts.file.editor.temp_gpu_dirty_rect = null;
             }
         }
 

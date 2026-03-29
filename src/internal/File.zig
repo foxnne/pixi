@@ -13,6 +13,9 @@ const Animation = @import("Animation.zig");
 
 const alpha_checkerboard_count: u32 = 8;
 
+/// Deferred brush snapshot is skipped above this area (width×height); drawing falls back to per-pixel stroke recording.
+pub const stroke_undo_max_snapshot_pixels: u64 = 16 * 1024 * 1024;
+
 id: u64,
 path: []const u8,
 
@@ -109,6 +112,16 @@ pub const EditorData = struct {
     /// Accumulated dirty rect for the active layer during the current frame.
     /// Used to perform a sub-rect texture upload instead of a full invalidate.
     active_layer_dirty_rect: ?dvui.Rect = null,
+
+    /// While true, brush painting skips per-pixel `buffers.stroke.append` during the drag; the
+    /// pre-stroke region is snapshotted and diffed on commit (mouse release) instead.
+    stroke_undo_deferred: bool = false,
+    /// Row-major RGBA snapshot for `stroke_undo_{x,y,w,h}` (length `w * h * 4`).
+    stroke_undo_pixels: ?[]u8 = null,
+    stroke_undo_x: u32 = 0,
+    stroke_undo_y: u32 = 0,
+    stroke_undo_w: u32 = 0,
+    stroke_undo_h: u32 = 0,
 };
 
 pub const History = @import("History.zig");
@@ -185,11 +198,11 @@ pub fn init(path: []const u8, options: InitOptions) !pixi.Internal.File {
     return internal;
 }
 
-pub fn width(file: *File) u32 {
+pub fn width(file: *const File) u32 {
     return file.columns * file.column_width;
 }
 
-pub fn height(file: *File) u32 {
+pub fn height(file: *const File) u32 {
     return file.rows * file.row_height;
 }
 
@@ -1058,6 +1071,8 @@ pub fn reorderRows(file: *File, removed_row_index: usize, insert_before_row_inde
 pub fn deinit(file: *File) void {
     pixi.render.destroyLayerCompositeResources(file);
 
+    strokeUndoFreeSnapshot(file);
+
     file.history.deinit();
     file.buffers.deinit();
 
@@ -1410,6 +1425,8 @@ pub const DrawOptions = struct {
     to_change: bool = false,
     constrain_to_tile: bool = false,
     color: dvui.Color = .{ .r = 0, .g = 0, .b = 0, .a = 255 },
+    /// When set, only writes pixels inside this rect (data space). Used for temporary preview draws.
+    clip_rect: ?dvui.Rect = null,
 };
 
 /// Computes the pixel bounding rect of a brush stamp, clamped to image bounds.
@@ -1442,6 +1459,203 @@ fn expandActiveLayerDirtyRect(file: *File, new_rect: dvui.Rect) void {
     file.editor.layer_composite_dirty = true;
 }
 
+fn intRectFromDvuiRect(r: dvui.Rect, img_w: u32, img_h: u32) struct { x: u32, y: u32, w: u32, h: u32 } {
+    const x0 = @as(i32, @intFromFloat(@floor(r.x)));
+    const y0 = @as(i32, @intFromFloat(@floor(r.y)));
+    const x1 = @as(i32, @intFromFloat(@ceil(r.x + r.w)));
+    const y1 = @as(i32, @intFromFloat(@ceil(r.y + r.h)));
+    const wlim: i32 = @intCast(img_w);
+    const hlim: i32 = @intCast(img_h);
+    const ix0 = @max(x0, 0);
+    const iy0 = @max(y0, 0);
+    const ix1 = @min(x1, wlim);
+    const iy1 = @min(y1, hlim);
+    const cw: u32 = @intCast(@max(ix1 - ix0, 0));
+    const ch: u32 = @intCast(@max(iy1 - iy0, 0));
+    return .{ .x = @intCast(ix0), .y = @intCast(iy0), .w = cw, .h = ch };
+}
+
+/// Bounding box (clamped to image) that covers a brush stroke along the segment between two points.
+pub fn lineBrushCoverRect(file: *const File, p1: dvui.Point, p2: dvui.Point, stroke_size: usize) dvui.Rect {
+    const iw = file.width();
+    const ih = file.height();
+    const w: i32 = @intCast(iw);
+    const h: i32 = @intCast(ih);
+    const s: i32 = @intCast(stroke_size);
+    const half = @divFloor(s, 2);
+    const ix1 = @as(i32, @intFromFloat(@floor(p1.x)));
+    const iy1 = @as(i32, @intFromFloat(@floor(p1.y)));
+    const ix2 = @as(i32, @intFromFloat(@floor(p2.x)));
+    const iy2 = @as(i32, @intFromFloat(@floor(p2.y)));
+    const min_px = @min(ix1, ix2) - half;
+    const min_py = @min(iy1, iy2) - half;
+    const max_px = @max(ix1, ix2) - half + s;
+    const max_py = @max(iy1, iy2) - half + s;
+    const x0 = @max(min_px, 0);
+    const y0 = @max(min_py, 0);
+    const x1 = @min(max_px, w);
+    const y1 = @min(max_py, h);
+    return .{
+        .x = @floatFromInt(x0),
+        .y = @floatFromInt(y0),
+        .w = @floatFromInt(@max(x1 - x0, 0)),
+        .h = @floatFromInt(@max(y1 - y0, 0)),
+    };
+}
+
+pub fn brushStampRect(file: *const File, point: dvui.Point, stroke_size: usize) dvui.Rect {
+    return brushRect(point, stroke_size, file.width(), file.height());
+}
+
+fn strokeUndoFreeSnapshot(file: *File) void {
+    if (file.editor.stroke_undo_pixels) |p| {
+        pixi.app.allocator.free(p);
+        file.editor.stroke_undo_pixels = null;
+    }
+    file.editor.stroke_undo_x = 0;
+    file.editor.stroke_undo_y = 0;
+    file.editor.stroke_undo_w = 0;
+    file.editor.stroke_undo_h = 0;
+    file.editor.stroke_undo_deferred = false;
+}
+
+/// Clears any prior snapshot and captures the current active layer pixels under `cover` (clamped).
+pub fn strokeUndoBegin(file: *File, cover: dvui.Rect) !void {
+    strokeUndoFreeSnapshot(file);
+
+    const iw = file.width();
+    const ih = file.height();
+    const b = intRectFromDvuiRect(cover, iw, ih);
+    if (b.w == 0 or b.h == 0) {
+        return;
+    }
+
+    const snap_area = @as(u64, b.w) * @as(u64, b.h);
+    if (snap_area > stroke_undo_max_snapshot_pixels) {
+        return;
+    }
+
+    const n = @as(usize, b.w) * @as(usize, b.h) * 4;
+    const buf = try pixi.app.allocator.alloc(u8, n);
+
+    const layer = file.layers.get(file.selected_layer_index);
+    const pix = layer.pixels();
+    const stride: usize = @intCast(iw);
+    var row: u32 = 0;
+    while (row < b.h) : (row += 1) {
+        const gy: usize = @intCast(b.y + row);
+        const src_start: usize = gy * stride + @as(usize, b.x);
+        const dst_start: usize = @as(usize, row) * @as(usize, b.w) * 4;
+        const row_px: usize = @intCast(b.w);
+        @memcpy(buf[dst_start..][0 .. row_px * 4], std.mem.sliceAsBytes(pix[src_start..][0..row_px]));
+    }
+
+    file.editor.stroke_undo_pixels = buf;
+    file.editor.stroke_undo_x = b.x;
+    file.editor.stroke_undo_y = b.y;
+    file.editor.stroke_undo_w = b.w;
+    file.editor.stroke_undo_h = b.h;
+    file.editor.stroke_undo_deferred = true;
+}
+
+/// Grows the snapshot so it includes `cover` (copying newly exposed pixels from the layer before paint).
+pub fn strokeUndoExpandToCoverRect(file: *File, cover: dvui.Rect) !void {
+    if (!file.editor.stroke_undo_deferred) return;
+
+    const old_buf = file.editor.stroke_undo_pixels orelse return;
+    const iw = file.width();
+    const ih = file.height();
+    const ox = file.editor.stroke_undo_x;
+    const oy = file.editor.stroke_undo_y;
+    const ow = file.editor.stroke_undo_w;
+    const oh = file.editor.stroke_undo_h;
+
+    const nb = intRectFromDvuiRect(cover, iw, ih);
+    if (nb.w == 0 or nb.h == 0) return;
+
+    const tx: u32 = @min(ox, nb.x);
+    const ty: u32 = @min(oy, nb.y);
+    const tw: u32 = @max(ox + ow, nb.x + nb.w) - tx;
+    const th: u32 = @max(oy + oh, nb.y + nb.h) - ty;
+
+    if (tw == ow and th == oh and tx == ox and ty == oy) return;
+
+    const new_n = @as(usize, tw) * @as(usize, th) * 4;
+    const new_buf = try pixi.app.allocator.alloc(u8, new_n);
+
+    const layer = file.layers.get(file.selected_layer_index);
+    const pix = layer.pixels();
+    const stride: usize = @intCast(iw);
+
+    var gy: u32 = 0;
+    while (gy < th) : (gy += 1) {
+        var gx_off: u32 = 0;
+        while (gx_off < tw) : (gx_off += 1) {
+            const gx: u32 = tx + gx_off;
+            const gyy: u32 = ty + gy;
+            const dst: usize = (@as(usize, gy) * @as(usize, tw) + @as(usize, gx_off)) * 4;
+            const in_old = gx >= ox and gx < ox + ow and gyy >= oy and gyy < oy + oh;
+            if (in_old) {
+                const ox_l = gx - ox;
+                const oy_l = gyy - oy;
+                const src: usize = (@as(usize, oy_l) * @as(usize, ow) + @as(usize, ox_l)) * 4;
+                @memcpy(new_buf[dst..][0..4], old_buf[src..][0..4]);
+            } else {
+                const idx: usize = @as(usize, gyy) * stride + @as(usize, gx);
+                @memcpy(new_buf[dst..][0..4], std.mem.asBytes(&pix[idx]));
+            }
+        }
+    }
+
+    pixi.app.allocator.free(old_buf);
+    file.editor.stroke_undo_pixels = new_buf;
+    file.editor.stroke_undo_x = tx;
+    file.editor.stroke_undo_y = ty;
+    file.editor.stroke_undo_w = tw;
+    file.editor.stroke_undo_h = th;
+}
+
+pub fn strokeUndoCommit(file: *File) void {
+    defer strokeUndoFreeSnapshot(file);
+    const snap = file.editor.stroke_undo_pixels orelse return;
+
+    const layer = file.layers.get(file.selected_layer_index);
+    const pixels = layer.pixels();
+    const iw: usize = @intCast(file.width());
+
+    const sx = file.editor.stroke_undo_x;
+    const sy = file.editor.stroke_undo_y;
+    const sw = file.editor.stroke_undo_w;
+    const sh = file.editor.stroke_undo_h;
+
+    file.buffers.stroke.clearAndFree();
+
+    var row: u32 = 0;
+    while (row < sh) : (row += 1) {
+        var col: u32 = 0;
+        while (col < sw) : (col += 1) {
+            const gx: usize = @as(usize, sx + col);
+            const gyy: usize = @as(usize, sy + row);
+            const idx: usize = gyy * iw + gx;
+            const off: usize = (@as(usize, row) * @as(usize, sw) + @as(usize, col)) * 4;
+            const old_px: [4]u8 = .{ snap[off], snap[off + 1], snap[off + 2], snap[off + 3] };
+            const cur = pixels[idx];
+            if (!std.mem.eql(u8, &old_px, &cur)) {
+                file.buffers.stroke.append(idx, old_px) catch {
+                    dvui.log.err("Failed to append to stroke buffer (deferred commit)", .{});
+                };
+            }
+        }
+    }
+
+    const change_opt = file.buffers.stroke.toChange(layer.id) catch null;
+    if (change_opt) |change| {
+        file.history.append(change) catch {
+            dvui.log.err("Failed to append to history", .{});
+        };
+    }
+}
+
 /// Draws a point on the `.selected` (the point will be added to the stroke buffer) or `.temporary` layer.
 /// If `to_change` is true, the point will be added to the stroke buffer and then the history will be appended.
 /// If `invalidate` is true, the layer will be invalidated.
@@ -1460,6 +1674,8 @@ pub fn drawPoint(file: *File, point: dvui.Point, layer: DrawLayer, draw_options:
         return;
     }
 
+    const clip_rect: ?dvui.Rect = if (layer == .temporary) draw_options.clip_rect else null;
+
     const mask_value: bool = draw_options.color.a != 0;
 
     const column = file.columnFromPixel(point);
@@ -1471,11 +1687,19 @@ pub fn drawPoint(file: *File, point: dvui.Point, layer: DrawLayer, draw_options:
     const max_x: f32 = min_x + @as(f32, @floatFromInt(file.column_width));
     const max_y: f32 = min_y + @as(f32, @floatFromInt(file.row_height));
 
+    if (clip_rect) |cr| {
+        const br = brushRect(point, draw_options.stroke_size, file.width(), file.height());
+        if (br.intersect(cr).empty()) return;
+    }
+
     if (draw_options.stroke_size < 10) {
         const size: usize = @intCast(draw_options.stroke_size);
 
         for (0..(size * size)) |index| {
             if (active_layer.getIndexShapeOffset(point, index)) |result| {
+                if (clip_rect) |cr| {
+                    if (!cr.contains(result.point)) continue;
+                }
                 if (draw_options.constrain_to_tile) {
                     if (result.point.x < min_x or result.point.x >= max_x or result.point.y < min_y or result.point.y >= max_y) {
                         continue;
@@ -1488,7 +1712,7 @@ pub fn drawPoint(file: *File, point: dvui.Point, layer: DrawLayer, draw_options:
                     continue;
                 }
 
-                if (layer == .selected) {
+                if (layer == .selected and !file.editor.stroke_undo_deferred) {
                     file.buffers.stroke.append(result.index, result.color) catch {
                         dvui.log.err("Failed to append to stroke buffer", .{});
                     };
@@ -1503,6 +1727,9 @@ pub fn drawPoint(file: *File, point: dvui.Point, layer: DrawLayer, draw_options:
             const offset = pixi.editor.tools.offset_table[i];
             const new_point: dvui.Point = .{ .x = point.x + offset[0], .y = point.y + offset[1] };
 
+            if (clip_rect) |cr| {
+                if (!cr.contains(new_point)) continue;
+            }
             if (draw_options.constrain_to_tile) {
                 if (new_point.x < min_x or new_point.x >= max_x or new_point.y < min_y or new_point.y >= max_y) {
                     continue;
@@ -1514,7 +1741,7 @@ pub fn drawPoint(file: *File, point: dvui.Point, layer: DrawLayer, draw_options:
                 if (draw_options.mask_only) {
                     continue;
                 }
-                if (layer == .selected) {
+                if (layer == .selected and !file.editor.stroke_undo_deferred) {
                     file.buffers.stroke.append(index, active_layer.pixels()[index]) catch {
                         dvui.log.err("Failed to append to stroke buffer", .{});
                     };
@@ -1538,11 +1765,15 @@ pub fn drawPoint(file: *File, point: dvui.Point, layer: DrawLayer, draw_options:
     }
 
     if (draw_options.to_change and layer == .selected) {
-        const change_opt = file.buffers.stroke.toChange(active_layer.id) catch null;
-        if (change_opt) |change| {
-            file.history.append(change) catch {
-                dvui.log.err("Failed to append to history", .{});
-            };
+        if (file.editor.stroke_undo_deferred) {
+            file.strokeUndoCommit();
+        } else {
+            const change_opt = file.buffers.stroke.toChange(active_layer.id) catch null;
+            if (change_opt) |change| {
+                file.history.append(change) catch {
+                    dvui.log.err("Failed to append to history", .{});
+                };
+            }
         }
     }
 }
@@ -1562,6 +1793,10 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, layer: Draw
     if (point2.x < 0 or point2.x >= @as(f32, @floatFromInt(file.width())) or point2.y < 0 or point2.y >= @as(f32, @floatFromInt(file.height()))) {
         return;
     }
+
+    const clip_rect: ?dvui.Rect = if (layer == .temporary) draw_options.clip_rect else null;
+    const iw = file.width();
+    const ih = file.height();
 
     const mask_value: bool = draw_options.color.a != 0;
 
@@ -1590,6 +1825,10 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, layer: Draw
 
     if (pixi.algorithms.brezenham.process(point1, point2) catch null) |points| {
         for (points, 0..) |point, point_i| {
+            if (clip_rect) |cr| {
+                const br = brushRect(point, draw_options.stroke_size, iw, ih);
+                if (br.intersect(cr).empty()) continue;
+            }
             if (draw_options.stroke_size < pixi.Editor.Tools.min_full_stroke_size) {
                 drawPoint(file, point, layer, .{
                     .color = draw_options.color,
@@ -1598,6 +1837,7 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, layer: Draw
                     .invalidate = false,
                     .to_change = false,
                     .constrain_to_tile = draw_options.constrain_to_tile,
+                    .clip_rect = draw_options.clip_rect,
                 });
             } else {
                 var stroke = if (point_i == 0) pixi.editor.tools.stroke else mask;
@@ -1607,6 +1847,9 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, layer: Draw
                     const offset = pixi.editor.tools.offset_table[i];
                     const new_point: dvui.Point = .{ .x = point.x + offset[0], .y = point.y + offset[1] };
 
+                    if (clip_rect) |cr| {
+                        if (!cr.contains(new_point)) continue;
+                    }
                     if (draw_options.constrain_to_tile) {
                         if (new_point.x < min_x or new_point.x >= max_x or new_point.y < min_y or new_point.y >= max_y) {
                             continue;
@@ -1618,7 +1861,7 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, layer: Draw
                         if (draw_options.mask_only) {
                             continue;
                         }
-                        if (layer == .selected) {
+                        if (layer == .selected and !file.editor.stroke_undo_deferred) {
                             file.buffers.stroke.append(index, active_layer.pixels()[index]) catch {
                                 dvui.log.err("Failed to append to stroke buffer", .{});
                             };
@@ -1645,11 +1888,15 @@ pub fn drawLine(file: *File, point1: dvui.Point, point2: dvui.Point, layer: Draw
         }
 
         if (draw_options.to_change and layer == .selected) {
-            const change_opt = file.buffers.stroke.toChange(active_layer.id) catch null;
-            if (change_opt) |change| {
-                file.history.append(change) catch {
-                    dvui.log.err("Failed to append to history", .{});
-                };
+            if (file.editor.stroke_undo_deferred) {
+                file.strokeUndoCommit();
+            } else {
+                const change_opt = file.buffers.stroke.toChange(active_layer.id) catch null;
+                if (change_opt) |change| {
+                    file.history.append(change) catch {
+                        dvui.log.err("Failed to append to history", .{});
+                    };
+                }
             }
         }
     }

@@ -1875,6 +1875,7 @@ pub fn processSelection(self: *FileWidget) void {
 /// Supports using shift to draw a line between two points, and increasing/decreasing stroke size
 pub fn processStroke(self: *FileWidget) void {
     const file = self.init_options.file;
+    const stroke_size = pixi.editor.tools.stroke_size;
 
     if (self.cell_reorder_point != null) return;
 
@@ -1908,6 +1909,11 @@ pub fn processStroke(self: *FileWidget) void {
                     dvui.dragPreStart(me.p, .{ .name = "stroke_drag" });
                     file.editor.active_drawing = true;
 
+                    file.buffers.stroke.clearAndFree();
+                    file.strokeUndoBegin(file.brushStampRect(current_point, stroke_size)) catch |err| {
+                        dvui.log.err("strokeUndoBegin failed: {}", .{err});
+                    };
+
                     if (!me.mod.matchBind("shift")) {
                         file.drawPoint(
                             current_point,
@@ -1916,7 +1922,7 @@ pub fn processStroke(self: *FileWidget) void {
                                 .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
                                 .invalidate = true,
                                 .to_change = false,
-                                .stroke_size = pixi.editor.tools.stroke_size,
+                                .stroke_size = stroke_size,
                             },
                         );
                     }
@@ -1930,29 +1936,37 @@ pub fn processStroke(self: *FileWidget) void {
 
                         if (me.mod.matchBind("shift")) {
                             if (self.drag_data_point) |previous_point| {
-                                file.drawLine(
-                                    previous_point,
+                                if (file.strokeUndoExpandToCoverRect(file.lineBrushCoverRect(previous_point, current_point, stroke_size))) |_| {
+                                    file.drawLine(
+                                        previous_point,
+                                        current_point,
+                                        .selected,
+                                        .{
+                                            .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
+                                            .invalidate = true,
+                                            .to_change = true,
+                                            .stroke_size = stroke_size,
+                                        },
+                                    );
+                                } else |err| {
+                                    dvui.log.err("strokeUndoExpandToCoverRect failed: {}", .{err});
+                                }
+                            }
+                        } else {
+                            if (file.strokeUndoExpandToCoverRect(file.brushStampRect(current_point, stroke_size))) |_| {
+                                file.drawPoint(
                                     current_point,
                                     .selected,
                                     .{
                                         .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
                                         .invalidate = true,
                                         .to_change = true,
-                                        .stroke_size = pixi.editor.tools.stroke_size,
+                                        .stroke_size = stroke_size,
                                     },
                                 );
+                            } else |err| {
+                                dvui.log.err("strokeUndoExpandToCoverRect failed: {}", .{err});
                             }
-                        } else {
-                            file.drawPoint(
-                                current_point,
-                                .selected,
-                                .{
-                                    .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
-                                    .invalidate = true,
-                                    .to_change = true,
-                                    .stroke_size = pixi.editor.tools.stroke_size,
-                                },
-                            );
 
                             // We need one extra frame to go ahead and set the dirty flag and update the ui to show
                             // the dirty flag, since the mouse hasn't moved and we will stop processing events the moment the
@@ -1996,35 +2010,43 @@ pub fn processStroke(self: *FileWidget) void {
 
                             if (me.mod.matchBind("shift")) {
                                 if (self.drag_data_point) |previous_point| {
-                                    clearTempPreview(&file.editor);
-                                    file.drawLine(
-                                        previous_point,
-                                        current_point,
-                                        .temporary,
-                                        .{
-                                            .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
-                                            .stroke_size = pixi.editor.tools.stroke_size,
-                                        },
-                                    );
-                                    const line_rect = tempLineBrushRect(previous_point, current_point, pixi.editor.tools.stroke_size, file.width(), file.height());
-                                    file.editor.temp_preview_dirty_rect = line_rect;
-                                    file.editor.temp_layer_has_content = true;
-                                    expandTempGpuDirtyRect(&file.editor, line_rect);
+                                    const preview_clip = tempStrokePreviewClipRect(&self.init_options.file.editor.canvas, file, stroke_size);
+                                    const line_cover = file.lineBrushCoverRect(previous_point, current_point, stroke_size);
+                                    const dirty = dvui.Rect.intersect(line_cover, preview_clip);
+                                    if (!dirty.empty()) {
+                                        file.drawLine(
+                                            previous_point,
+                                            current_point,
+                                            .temporary,
+                                            .{
+                                                .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
+                                                .stroke_size = stroke_size,
+                                                .clip_rect = preview_clip,
+                                            },
+                                        );
+                                        file.editor.temp_preview_dirty_rect = dirty;
+                                        file.editor.temp_layer_has_content = true;
+                                        expandTempGpuDirtyRect(&file.editor, dirty);
+                                    }
                                 }
                             } else {
                                 if (self.drag_data_point) |previous_point| {
-                                    file.drawLine(
-                                        previous_point,
-                                        current_point,
-                                        .selected,
-                                        .{
-                                            .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
-                                            .invalidate = true,
-                                            .to_change = false,
-                                            .stroke_size = pixi.editor.tools.stroke_size,
-                                        },
-                                    );
-                                    pixi.perf.draw_event_count += 1;
+                                    if (file.strokeUndoExpandToCoverRect(file.lineBrushCoverRect(previous_point, current_point, stroke_size))) |_| {
+                                        file.drawLine(
+                                            previous_point,
+                                            current_point,
+                                            .selected,
+                                            .{
+                                                .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
+                                                .invalidate = true,
+                                                .to_change = false,
+                                                .stroke_size = stroke_size,
+                                            },
+                                        );
+                                        pixi.perf.draw_event_count += 1;
+                                    } else |err| {
+                                        dvui.log.err("strokeUndoExpandToCoverRect failed: {}", .{err});
+                                    }
                                 }
 
                                 self.drag_data_point = current_point;
@@ -2038,18 +2060,16 @@ pub fn processStroke(self: *FileWidget) void {
                                             .temporary,
                                             .{
                                                 .color = .{ .r = temp_color[0], .g = temp_color[1], .b = temp_color[2], .a = temp_color[3] },
-                                                .stroke_size = pixi.editor.tools.stroke_size,
+                                                .stroke_size = stroke_size,
                                             },
                                         );
-                                        const brush_rect = tempBrushRect(current_point, pixi.editor.tools.stroke_size, file.width(), file.height());
+                                        const brush_rect = tempBrushRect(current_point, stroke_size, file.width(), file.height());
                                         file.editor.temp_preview_dirty_rect = brush_rect;
                                         file.editor.temp_layer_has_content = true;
                                         expandTempGpuDirtyRect(&file.editor, brush_rect);
                                     }
                                 }
                             }
-
-                            //e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
                         }
                     } else {
                         if (self.init_options.file.editor.canvas.rect.contains(me.p) and self.sample_data_point == null) {
@@ -2059,11 +2079,11 @@ pub fn processStroke(self: *FileWidget) void {
                                 current_point,
                                 .temporary,
                                 .{
-                                    .stroke_size = pixi.editor.tools.stroke_size,
+                                    .stroke_size = stroke_size,
                                     .color = .{ .r = temp_color[0], .g = temp_color[1], .b = temp_color[2], .a = temp_color[3] },
                                 },
                             );
-                            const brush_rect = tempBrushRect(current_point, pixi.editor.tools.stroke_size, file.width(), file.height());
+                            const brush_rect = tempBrushRect(current_point, stroke_size, file.width(), file.height());
                             file.editor.temp_preview_dirty_rect = brush_rect;
                             file.editor.temp_layer_has_content = true;
                             expandTempGpuDirtyRect(&file.editor, brush_rect);
@@ -5188,15 +5208,14 @@ fn tempBrushRect(point: dvui.Point, stroke_size: usize, img_w: u32, img_h: u32) 
     };
 }
 
-/// Computes the bounding rect of a line draw between two points.
-fn tempLineBrushRect(p1: dvui.Point, p2: dvui.Point, stroke_size: usize, img_w: u32, img_h: u32) dvui.Rect {
-    const r1 = tempBrushRect(p1, stroke_size, img_w, img_h);
-    const r2 = tempBrushRect(p2, stroke_size, img_w, img_h);
-    const x0 = @min(r1.x, r2.x);
-    const y0 = @min(r1.y, r2.y);
-    const x1 = @max(r1.x + r1.w, r2.x + r2.w);
-    const y1 = @max(r1.y + r1.h, r2.y + r2.h);
-    return .{ .x = x0, .y = y0, .w = x1 - x0, .h = y1 - y0 };
+/// Data-space rect of the on-screen canvas, outset by brush size so edge stamps are not clipped.
+fn tempStrokePreviewClipRect(canvas: *CanvasWidget, file: *const pixi.Internal.File, stroke_size: usize) dvui.Rect {
+    const vis = canvas.dataFromScreenRect(canvas.rect);
+    const m: f32 = @floatFromInt(stroke_size);
+    const inflated = vis.outsetAll(m);
+    const iw = @as(f32, @floatFromInt(file.width()));
+    const ih = @as(f32, @floatFromInt(file.height()));
+    return dvui.Rect.intersect(inflated, .{ .x = 0, .y = 0, .w = iw, .h = ih });
 }
 
 fn expandTempGpuDirtyRect(editor: *pixi.Internal.File.EditorData, rect: dvui.Rect) void {
