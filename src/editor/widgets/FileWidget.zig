@@ -2526,6 +2526,7 @@ pub fn drawTransform(self: *FileWidget) void {
             }
             break :blk transform.dragging;
         };
+        const dim_cell_opt: ?usize = if (show_ortho_dims) file.spriteIndex(transform.centroid()) else null;
 
         var path = dvui.Path.Builder.init(dvui.currentWindow().arena());
         for (transform.data_points[0..4]) |*point| {
@@ -2536,8 +2537,9 @@ pub fn drawTransform(self: *FileWidget) void {
         var centroid = transform.centroid();
         centroid = pixi.math.rotate(centroid, transform.point(.pivot).*, transform.rotation);
 
-        // Draw guides if we are centered
-        {
+        // Full-sprite center guides (magenta). When ortho cell dimensions are shown, centering is
+        // indicated on those dimension lines (blue) instead — avoids overlapping magenta guides.
+        if (dim_cell_opt == null) {
             if (file.spriteIndex(centroid)) |sprite_index| {
                 const sprite_rect = file.spriteRect(sprite_index);
                 const sprite_center = sprite_rect.center();
@@ -2688,9 +2690,8 @@ pub fn drawTransform(self: *FileWidget) void {
                     const bbox_min_y = @min(@min(tl_d.y, tr_d.y), @min(bl_d.y, br_d.y));
                     const bbox_max_y = @max(@max(tl_d.y, tr_d.y), @max(bl_d.y, br_d.y));
 
-                    const cell_idx_opt = file.spriteIndex(transform.centroid());
-                    const cell_cap_x: f32 = if (cell_idx_opt) |ci| file.spriteRect(ci).w else bbox_max_x - bbox_min_x;
-                    const cell_cap_y: f32 = if (cell_idx_opt) |ci| file.spriteRect(ci).h else bbox_max_y - bbox_min_y;
+                    const cell_cap_x: f32 = if (dim_cell_opt) |ci| file.spriteRect(ci).w else bbox_max_x - bbox_min_x;
+                    const cell_cap_y: f32 = if (dim_cell_opt) |ci| file.spriteRect(ci).h else bbox_max_y - bbox_min_y;
                     const arm_x_data = @max(0.2, @min(tick_half_px / px_per_data_x, cell_cap_x * 0.11));
                     const arm_y_data = @max(0.2, @min(tick_half_px / px_per_data_y, cell_cap_y * 0.11));
                     const dim_tick_thick: f32 = 0.65;
@@ -2698,30 +2699,34 @@ pub fn drawTransform(self: *FileWidget) void {
                     const x_c = (bbox_min_x + bbox_max_x) * 0.5;
                     const y_c = (bbox_min_y + bbox_max_y) * 0.5;
 
-                    if (cell_idx_opt) |ci| {
+                    if (dim_cell_opt) |ci| {
                         const cell = file.spriteRect(ci);
                         const cell_left = cell.x;
                         const cell_right = cell.x + cell.w;
                         const cell_top = cell.y;
                         const cell_bot = cell.y + cell.h;
                         const arena = dvui.currentWindow().arena();
+                        const sprite_c = cell.center();
+                        const sd = sprite_c.diff(centroid);
+                        const dim_inner_h: dvui.Color = if (@floor(sd.x) == 0) .blue else .magenta;
+                        const dim_inner_v: dvui.Color = if (@floor(sd.y) == 0) .blue else .magenta;
 
                         // Left: edge midpoint (bbox left, vertical center) → cell left; label near line.
                         {
                             const span = bbox_min_x - cell_left;
                             if (@abs(span) > 0.001) {
-                                doubleStrokeDimensionTick(&.{
+                                doubleStrokeDimensionTickColor(&.{
                                     canvas.screenFromDataPoint(.{ .x = cell_left, .y = y_c }),
                                     canvas.screenFromDataPoint(.{ .x = bbox_min_x, .y = y_c }),
-                                }, 1);
-                                doubleStrokeDimensionTick(&.{
+                                }, 1, dim_inner_h);
+                                doubleStrokeDimensionTickColor(&.{
                                     canvas.screenFromDataPoint(.{ .x = cell_left, .y = y_c - arm_y_data }),
                                     canvas.screenFromDataPoint(.{ .x = cell_left, .y = y_c + arm_y_data }),
-                                }, dim_tick_thick);
-                                doubleStrokeDimensionTick(&.{
+                                }, dim_tick_thick, dim_inner_h);
+                                doubleStrokeDimensionTickColor(&.{
                                     canvas.screenFromDataPoint(.{ .x = bbox_min_x, .y = y_c - arm_y_data }),
                                     canvas.screenFromDataPoint(.{ .x = bbox_min_x, .y = y_c + arm_y_data }),
-                                }, dim_tick_thick);
+                                }, dim_tick_thick, dim_inner_h);
                                 const t = std.fmt.allocPrint(arena, "{d}", .{@as(i32, @intFromFloat(@round(span)))}) catch "—";
                                 var lp = canvas.screenFromDataPoint(.{ .x = (cell_left + bbox_min_x) * 0.5, .y = y_c });
                                 lp.x -= label_off_screen;
@@ -2732,18 +2737,18 @@ pub fn drawTransform(self: *FileWidget) void {
                         {
                             const span = cell_right - bbox_max_x;
                             if (@abs(span) > 0.001) {
-                                doubleStrokeDimensionTick(&.{
+                                doubleStrokeDimensionTickColor(&.{
                                     canvas.screenFromDataPoint(.{ .x = bbox_max_x, .y = y_c }),
                                     canvas.screenFromDataPoint(.{ .x = cell_right, .y = y_c }),
-                                }, 1);
-                                doubleStrokeDimensionTick(&.{
+                                }, 1, dim_inner_h);
+                                doubleStrokeDimensionTickColor(&.{
                                     canvas.screenFromDataPoint(.{ .x = bbox_max_x, .y = y_c - arm_y_data }),
                                     canvas.screenFromDataPoint(.{ .x = bbox_max_x, .y = y_c + arm_y_data }),
-                                }, dim_tick_thick);
-                                doubleStrokeDimensionTick(&.{
+                                }, dim_tick_thick, dim_inner_h);
+                                doubleStrokeDimensionTickColor(&.{
                                     canvas.screenFromDataPoint(.{ .x = cell_right, .y = y_c - arm_y_data }),
                                     canvas.screenFromDataPoint(.{ .x = cell_right, .y = y_c + arm_y_data }),
-                                }, dim_tick_thick);
+                                }, dim_tick_thick, dim_inner_h);
                                 const t = std.fmt.allocPrint(arena, "{d}", .{@as(i32, @intFromFloat(@round(span)))}) catch "—";
                                 var lp = canvas.screenFromDataPoint(.{ .x = (bbox_max_x + cell_right) * 0.5, .y = y_c });
                                 lp.x += label_off_screen;
@@ -2754,18 +2759,18 @@ pub fn drawTransform(self: *FileWidget) void {
                         {
                             const span = bbox_min_y - cell_top;
                             if (@abs(span) > 0.001) {
-                                doubleStrokeDimensionTick(&.{
+                                doubleStrokeDimensionTickColor(&.{
                                     canvas.screenFromDataPoint(.{ .x = x_c, .y = cell_top }),
                                     canvas.screenFromDataPoint(.{ .x = x_c, .y = bbox_min_y }),
-                                }, 1);
-                                doubleStrokeDimensionTick(&.{
+                                }, 1, dim_inner_v);
+                                doubleStrokeDimensionTickColor(&.{
                                     canvas.screenFromDataPoint(.{ .x = x_c - arm_x_data, .y = cell_top }),
                                     canvas.screenFromDataPoint(.{ .x = x_c + arm_x_data, .y = cell_top }),
-                                }, dim_tick_thick);
-                                doubleStrokeDimensionTick(&.{
+                                }, dim_tick_thick, dim_inner_v);
+                                doubleStrokeDimensionTickColor(&.{
                                     canvas.screenFromDataPoint(.{ .x = x_c - arm_x_data, .y = bbox_min_y }),
                                     canvas.screenFromDataPoint(.{ .x = x_c + arm_x_data, .y = bbox_min_y }),
-                                }, dim_tick_thick);
+                                }, dim_tick_thick, dim_inner_v);
                                 const t = std.fmt.allocPrint(arena, "{d}", .{@as(i32, @intFromFloat(@round(span)))}) catch "—";
                                 var lp = canvas.screenFromDataPoint(.{ .x = x_c, .y = (cell_top + bbox_min_y) * 0.5 });
                                 lp.y -= label_off_screen;
@@ -2776,18 +2781,18 @@ pub fn drawTransform(self: *FileWidget) void {
                         {
                             const span = cell_bot - bbox_max_y;
                             if (@abs(span) > 0.001) {
-                                doubleStrokeDimensionTick(&.{
+                                doubleStrokeDimensionTickColor(&.{
                                     canvas.screenFromDataPoint(.{ .x = x_c, .y = bbox_max_y }),
                                     canvas.screenFromDataPoint(.{ .x = x_c, .y = cell_bot }),
-                                }, 1);
-                                doubleStrokeDimensionTick(&.{
+                                }, 1, dim_inner_v);
+                                doubleStrokeDimensionTickColor(&.{
                                     canvas.screenFromDataPoint(.{ .x = x_c - arm_x_data, .y = bbox_max_y }),
                                     canvas.screenFromDataPoint(.{ .x = x_c + arm_x_data, .y = bbox_max_y }),
-                                }, dim_tick_thick);
-                                doubleStrokeDimensionTick(&.{
+                                }, dim_tick_thick, dim_inner_v);
+                                doubleStrokeDimensionTickColor(&.{
                                     canvas.screenFromDataPoint(.{ .x = x_c - arm_x_data, .y = cell_bot }),
                                     canvas.screenFromDataPoint(.{ .x = x_c + arm_x_data, .y = cell_bot }),
-                                }, dim_tick_thick);
+                                }, dim_tick_thick, dim_inner_v);
                                 const t = std.fmt.allocPrint(arena, "{d}", .{@as(i32, @intFromFloat(@round(span)))}) catch "—";
                                 var lp = canvas.screenFromDataPoint(.{ .x = x_c, .y = (bbox_max_y + cell_bot) * 0.5 });
                                 lp.y += label_off_screen;
@@ -2802,7 +2807,7 @@ pub fn drawTransform(self: *FileWidget) void {
                             const bottom_right_v = triangles.vertexes[2].pos;
 
                             const offset_v = pixi.math.rotate(
-                                dvui.Point{ .x = -label_off_screen, .y = 0 },
+                                dvui.Point{ .x = label_off_screen, .y = 0 },
                                 .{ .x = 0, .y = 0 },
                                 transform.rotation,
                             );
@@ -2814,7 +2819,7 @@ pub fn drawTransform(self: *FileWidget) void {
                             renderTransformDimLabel(dim_font, simple_v, center_v.plus(off_v));
 
                             const offset_h = pixi.math.rotate(
-                                dvui.Point{ .x = 0, .y = label_off_screen },
+                                dvui.Point{ .x = 0, .y = -label_off_screen },
                                 .{ .x = 0, .y = 0 },
                                 transform.rotation,
                             );
@@ -2831,7 +2836,7 @@ pub fn drawTransform(self: *FileWidget) void {
                         const bottom_right = triangles.vertexes[2].pos;
 
                         const offset_v = pixi.math.rotate(
-                            dvui.Point{ .x = -label_off_screen, .y = 0 },
+                            dvui.Point{ .x = label_off_screen, .y = 0 },
                             .{ .x = 0, .y = 0 },
                             transform.rotation,
                         );
@@ -2847,7 +2852,7 @@ pub fn drawTransform(self: *FileWidget) void {
                         renderTransformDimLabel(dim_font, simple_v, center_v.plus(off_v));
 
                         const offset_h = pixi.math.rotate(
-                            dvui.Point{ .x = 0, .y = label_off_screen },
+                            dvui.Point{ .x = 0, .y = -label_off_screen },
                             .{ .x = 0, .y = 0 },
                             transform.rotation,
                         );
@@ -2995,7 +3000,7 @@ fn renderTransformDimLabel(font: dvui.Font, text: []const u8, center_phys: dvui.
     var outline_rect = text_rect.outsetAll(pad);
     const corner = @min(4 * ns, @min(outline_rect.w, outline_rect.h) * 0.48);
     outline_rect.fill(dvui.Rect.Physical.all(corner), .{
-        .color = dvui.themeGet().color(.control, .fill).opacity(0.5),
+        .color = dvui.themeGet().color(.control, .fill).opacity(0.85),
     });
     dvui.renderText(.{
         .text = text,
@@ -3022,8 +3027,8 @@ fn doubleStroke(points: []const dvui.Point.Physical, color: dvui.Color, thicknes
     });
 }
 
-/// Double stroke for dimension lines: outer control fill, inner magenta (`doubleStroke` colors).
-fn doubleStrokeDimensionLike(points: []const dvui.Point.Physical, thickness: f32, inner_thickness: f32) void {
+/// Double stroke for dimension lines: outer control fill, inner accent color.
+fn doubleStrokeDimensionLike(points: []const dvui.Point.Physical, thickness: f32, inner_thickness: f32, inner_color: dvui.Color) void {
     const ns = dvui.currentWindow().natural_scale;
     dvui.Path.stroke(.{
         .points = points,
@@ -3035,17 +3040,21 @@ fn doubleStrokeDimensionLike(points: []const dvui.Point.Physical, thickness: f32
         .points = points,
     }, .{
         .thickness = inner_thickness,
-        .color = .magenta,
+        .color = inner_color,
     });
 }
 
 fn doubleStrokeDimension(points: []const dvui.Point.Physical, thickness: f32) void {
-    doubleStrokeDimensionLike(points, thickness, thickness);
+    doubleStrokeDimensionLike(points, thickness, thickness, .magenta);
 }
 
-/// Tick marks: inner (magenta) stroke is one physical pixel thicker for visibility.
+/// Tick marks: inner stroke is one physical pixel thicker for visibility.
 fn doubleStrokeDimensionTick(points: []const dvui.Point.Physical, thickness: f32) void {
-    doubleStrokeDimensionLike(points, thickness, thickness + 1.0);
+    doubleStrokeDimensionLike(points, thickness, thickness + 1.0, .magenta);
+}
+
+fn doubleStrokeDimensionTickColor(points: []const dvui.Point.Physical, thickness: f32, inner_color: dvui.Color) void {
+    doubleStrokeDimensionLike(points, thickness, thickness + 1.0, inner_color);
 }
 
 /// Batches all grid lines into a single draw call. Each line becomes a thin
