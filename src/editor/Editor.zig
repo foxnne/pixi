@@ -156,22 +156,27 @@ pub fn init(
     var pixi_light = pixi_dark;
     pixi_light.dark = false;
     pixi_light.name = "Pixi Light";
-    pixi_light.window = dvui.Theme.builtin.adwaita_light.window;
-    pixi_light.window.text = .{ .r = 40, .g = 40, .b = 50, .a = 255 };
-    //pixi_light.window.text = .{ .r = 170, .g = 130, .b = 140, .a = 255 };
+
+    pixi_light.window = .{
+        .fill = .{ .r = 240, .g = 240, .b = 245, .a = 255 },
+        .border = dvui.Theme.builtin.adwaita_light.window.border,
+        .text = .{ .r = 120, .g = 70, .b = 65, .a = 255 },
+    };
+
     pixi_light.control = dvui.Theme.builtin.adwaita_light.control;
-    pixi_light.control.text = .{ .r = 90, .g = 80, .b = 80, .a = 255 };
+
     pixi_light.highlight = .{
         .fill = .{ .r = 170, .g = 130, .b = 140, .a = 255 },
-        .text = .white,
+        .text = pixi_light.window.fill,
     };
 
     pixi_light.err = .{
         .fill = .{ .r = 109, .g = 35, .b = 54, .a = 255 },
     };
 
-    pixi_light.fill = dvui.Theme.builtin.adwaita_light.control.fill.?;
-    pixi_light.text = .{ .r = 40, .g = 40, .b = 50, .a = 255 };
+    // theme.content
+    pixi_light.fill = .{ .r = 200, .g = 200, .b = 205, .a = 255 };
+    pixi_light.text = .{ .r = 40, .g = 40, .b = 45, .a = 255 };
     pixi_light.focus = pixi_light.highlight.fill.?;
 
     var editor: Editor = .{
