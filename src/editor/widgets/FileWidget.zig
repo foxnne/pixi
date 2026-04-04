@@ -5156,14 +5156,17 @@ pub fn processEvents(self: *FileWidget) void {
         self.processTransform();
     }
 
-    if (self.active()) {
-        self.processCellReorder();
-    }
-
     self.drawLayers();
 
     if ((self.active() or self.hovered()) and !transform and !reorder) {
         self.drawSpriteBubbles();
+    }
+
+    if (self.active()) {
+        self.processCellReorder();
+    }
+
+    if ((self.active() or self.hovered()) and !transform and !reorder) {
         self.processResize();
 
         self.processAnimationSelection();
