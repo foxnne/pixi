@@ -834,78 +834,87 @@ pub fn drawSpriteBubbles(self: *FileWidget) void {
     var accs = BubbleAccs.init(dvui.currentWindow().arena());
 
     // Row-based iteration with batched geometry rendering.
-    // Each row runs three phases: shadow geometry, bubble geometry, then UI.
     // Geometry is accumulated into TriAccs and rendered in bulk to minimize draw calls.
+    //
+    // `hovered_bubble_sprite_index` is set from geometry hit tests; it must reflect the
+    // bubble button under the mouse across *all* visible rows before any row's UI runs.
+    // Otherwise a vertical selection shows stale plus/minus hints on rows drawn earlier.
+    self.hovered_bubble_sprite_index = null;
+
     const vx0 = visible_data.x;
     const vx1 = visible_data.x + visible_data.w;
 
-    var row: usize = first_vis_row;
-    while (row < last_vis_row) : (row += 1) {
-        const row_start = row * cols;
-        const row_end = @min(row_start + cols, file.spriteCount());
-        if (row_end <= row_start) continue;
+    for (0..2) |pass_i| {
+        var row: usize = first_vis_row;
+        while (row < last_vis_row) : (row += 1) {
+            const row_start = row * cols;
+            const row_end = @min(row_start + cols, file.spriteCount());
+            if (row_end <= row_start) continue;
 
-        const row_span = row_end - row_start;
-        const base_y = @as(f32, @floatFromInt(row)) * row_h;
+            const row_span = row_end - row_start;
+            const base_y = @as(f32, @floatFromInt(row)) * row_h;
 
-        // Horizontal clip: only columns whose cells can intersect the visible rect in x.
-        // Avoids spriteRect + cull for off-screen tiles (major win when zoomed / panned).
-        var col_lo: usize = 0;
-        if (vx0 > 0) col_lo = @intFromFloat(@floor(vx0 / col_w));
-        if (vx1 <= 0) continue;
-        var col_hi_excl: usize = @intFromFloat(@ceil(vx1 / col_w));
-        col_lo = @min(col_lo, row_span);
-        col_hi_excl = @min(col_hi_excl, row_span);
-        if (col_lo >= col_hi_excl) continue;
+            // Horizontal clip: only columns whose cells can intersect the visible rect in x.
+            // Avoids spriteRect + cull for off-screen tiles (major win when zoomed / panned).
+            var col_lo: usize = 0;
+            if (vx0 > 0) col_lo = @intFromFloat(@floor(vx0 / col_w));
+            if (vx1 <= 0) continue;
+            var col_hi_excl: usize = @intFromFloat(@ceil(vx1 / col_w));
+            col_lo = @min(col_lo, row_span);
+            col_hi_excl = @min(col_hi_excl, row_span);
+            if (col_lo >= col_hi_excl) continue;
 
-        const si_start = row_start + col_lo;
-        const si_end_excl = row_start + col_hi_excl;
+            const si_start = row_start + col_lo;
+            const si_end_excl = row_start + col_hi_excl;
 
-        const first_sprite = dvui.Rect{
-            .x = 0,
-            .y = base_y,
-            .w = col_w,
-            .h = row_h,
-        };
-        const row_clip_screen = file.editor.canvas.screenFromDataRect(.{
-            .x = first_sprite.x,
-            .y = first_sprite.y - bubble_headroom,
-            .w = col_w * @as(f32, @floatFromInt(cols)),
-            .h = bubble_headroom,
-        });
+            const first_sprite = dvui.Rect{
+                .x = 0,
+                .y = base_y,
+                .w = col_w,
+                .h = row_h,
+            };
+            const row_clip_screen = file.editor.canvas.screenFromDataRect(.{
+                .x = first_sprite.x,
+                .y = first_sprite.y - bubble_headroom,
+                .w = col_w * @as(f32, @floatFromInt(cols)),
+                .h = bubble_headroom,
+            });
 
-        // Geometry phase: accumulate shadow + fill + tex + outline in one pass.
-        {
-            var si: usize = si_end_excl;
-            while (si > si_start) {
-                si -= 1;
-                const col_in_row = si - row_start;
-                const sprite_rect = bubbleSpriteDataRect(col_in_row, base_y, col_w, row_h);
-                if (!spriteCullVisible(sprite_rect, bubble_headroom, visible_data)) continue;
-                drawSpriteBubbleForRow(self, file, si, sprite_rect, &accs, pan_shared);
-            }
-        }
+            if (pass_i == 0) {
+                // Pass 0 — geometry: accumulate shadow + fill + tex + outline in one pass.
+                {
+                    var si: usize = si_end_excl;
+                    while (si > si_start) {
+                        si -= 1;
+                        const col_in_row = si - row_start;
+                        const sprite_rect = bubbleSpriteDataRect(col_in_row, base_y, col_w, row_h);
+                        if (!spriteCullVisible(sprite_rect, bubble_headroom, visible_data)) continue;
+                        drawSpriteBubbleForRow(self, file, si, sprite_rect, &accs, pan_shared);
+                    }
+                }
 
-        // Render all accumulated geometry under the row clip
-        {
-            const prev_clip = dvui.clip(row_clip_screen);
-            defer dvui.clipSet(prev_clip);
-            accs.shadow.render(null);
-            accs.fill.render(null);
-            accs.tex.render(checkerboard_tex);
-            accs.outline.render(null);
-        }
-        accs.clearAll();
-
-        // UI phase: buttons, text, icons rendered per-sprite.
-        {
-            var si: usize = si_end_excl;
-            while (si > si_start) {
-                si -= 1;
-                const col_in_row = si - row_start;
-                const sprite_rect = bubbleSpriteDataRect(col_in_row, base_y, col_w, row_h);
-                if (!spriteCullVisible(sprite_rect, bubble_headroom, visible_data)) continue;
-                drawSpriteBubbleForRow(self, file, si, sprite_rect, null, pan_shared);
+                // Render all accumulated geometry under the row clip
+                {
+                    const prev_clip = dvui.clip(row_clip_screen);
+                    defer dvui.clipSet(prev_clip);
+                    accs.shadow.render(null);
+                    accs.fill.render(null);
+                    accs.tex.render(checkerboard_tex);
+                    accs.outline.render(null);
+                }
+                accs.clearAll();
+            } else {
+                // Pass 1 — UI: buttons, text, icons rendered per-sprite.
+                {
+                    var si: usize = si_end_excl;
+                    while (si > si_start) {
+                        si -= 1;
+                        const col_in_row = si - row_start;
+                        const sprite_rect = bubbleSpriteDataRect(col_in_row, base_y, col_w, row_h);
+                        if (!spriteCullVisible(sprite_rect, bubble_headroom, visible_data)) continue;
+                        drawSpriteBubbleForRow(self, file, si, sprite_rect, null, pan_shared);
+                    }
+                }
             }
         }
     }
@@ -1344,14 +1353,14 @@ pub fn drawSpriteBubble(
             .margin = .all(0),
             .padding = .all(0),
             .id_extra = sprite_index,
-            .color_fill = dvui.themeGet().color(.window, .fill).lighten(6.0),
+            .color_fill = dvui.themeGet().color(.control, .fill).lighten(if (dvui.themeGet().dark) 10.0 else -10.0),
             //.color_border = dvui.themeGet().color(.control, .fill),
             //.border = dvui.Rect.all(1).scale(1.0 / self.init_options.file.editor.canvas.scale, dvui.Rect),
             .box_shadow = .{
                 .color = .black,
                 .offset = .{ .x = -0.05 * button_height, .y = 0.08 * button_height },
                 .fade = (button_height / 10) * t,
-                .alpha = 0.35 * t,
+                .alpha = 0.5 * t,
             },
             .corner_radius = dvui.Rect.all(1000000),
             .gravity_x = 0.5,
