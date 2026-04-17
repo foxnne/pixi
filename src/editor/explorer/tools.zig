@@ -29,6 +29,9 @@ var layer_rename_hit_te_id: ?dvui.Id = null;
 var layer_rename_hit_rect: ?dvui.Rect.Physical = null;
 
 layers_rect: ?dvui.Rect.Physical = null,
+/// Visible clip of the layer list (scroll container content rect). Rows can have screen rects that
+/// extend below this when scrolled; without gating, those rects overlap the palettes pane and steal hover/input.
+layers_scroll_viewport_rect: ?dvui.Rect.Physical = null,
 
 pub fn init() Tools {
     return .{};
@@ -61,6 +64,9 @@ pub fn draw(self: *Tools) !void {
             dvui.log.err("Failed to draw layers", .{});
             return;
         };
+    } else {
+        self.layers_rect = null;
+        self.layers_scroll_viewport_rect = null;
     }
 
     const autofit = !paned.dragging and !paned.collapsed_state and !paned.animating;
@@ -101,10 +107,13 @@ pub fn draw(self: *Tools) !void {
 }
 
 pub fn layersHovered(self: *Tools) bool {
-    if (self.layers_rect) |rect| {
-        return rect.contains(dvui.currentWindow().mouse_pt);
+    const mp = dvui.currentWindow().mouse_pt;
+    if (self.layers_scroll_viewport_rect) |vr| {
+        if (!vr.contains(mp)) return false;
     }
-
+    if (self.layers_rect) |rect| {
+        return rect.contains(mp);
+    }
     return false;
 }
 
@@ -141,7 +150,7 @@ pub fn drawTools() !void {
             .background = true,
             .corner_radius = dvui.Rect.all(1000),
             .color_fill = if (selected) dvui.themeGet().color(.content, .fill) else .transparent,
-            .color_fill_hover = if (!selected) dvui.themeGet().color(.content, .fill_hover) else null,
+            .color_fill_hover = dvui.themeGet().color(.content, .fill).lighten(if (dvui.themeGet().dark) 10.0 else -10.0),
             .box_shadow = if (selected) .{
                 .color = .black,
                 .offset = .{ .x = -2.5, .y = 2.5 },
@@ -293,6 +302,8 @@ pub fn drawLayerControls() !void {
 }
 
 pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
+    tools.layers_scroll_viewport_rect = null;
+
     const vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
         .expand = .both,
         .background = false,
@@ -310,6 +321,12 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
         });
 
         defer scroll_area.deinit();
+
+        // Visible clip for the layer list (same rect used for scroll content clipping). Row widgets can
+        // still have screen rects extending below this when scrolled; gate hover/hits to this rect.
+        if (dvui.ScrollContainerWidget.current()) |sc| {
+            tools.layers_scroll_viewport_rect = sc.data().contentRectScale().r;
+        }
 
         const vertical_scroll = file.editor.layers_scroll_info.offset(.vertical);
 
@@ -414,7 +431,8 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
             }
 
             const row_r = branch.data().borderRectScale().r;
-            const row_hovered = row_r.contains(dvui.currentWindow().mouse_pt);
+            const mp = dvui.currentWindow().mouse_pt;
+            const row_hovered = row_r.contains(mp) and layerPointerInScrollViewport(mp, tools.layers_scroll_viewport_rect);
 
             if (row_hovered) {
                 file.peek_layer_index = layer_index;
@@ -592,6 +610,8 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
                     },
                 )) {
                     file.layers.items(.visible)[layer_index] = !file.layers.items(.visible)[layer_index];
+                    file.editor.layer_composite_dirty = true;
+                    file.editor.split_composite_dirty = true;
                 }
 
                 if (layer_hits_len < layer_hits_buf.len) {
@@ -607,7 +627,6 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
                 }
 
                 if (row_hovered) {
-                    const mp = dvui.currentWindow().mouse_pt;
                     if (!button_box.data().borderRectScale().r.contains(mp)) {
                         dvui.cursorSet(.hand);
                     }
@@ -652,11 +671,13 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
                     },
                 )) {
                     file.layers.items(.visible)[layer_index] = !file.layers.items(.visible)[layer_index];
+                    file.editor.layer_composite_dirty = true;
+                    file.editor.split_composite_dirty = true;
                 }
             }
         }
 
-        processLayerTreePointerEvents(tree, file, layer_hits_buf[0..layer_hits_len]);
+        processLayerTreePointerEvents(tree, file, layer_hits_buf[0..layer_hits_len], tools.layers_scroll_viewport_rect);
 
         if (tree.drag_point != null) {
             const tail = tree.branch(@src(), .{
@@ -686,6 +707,10 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
     }
 
     if (pixi.dvui.hovered(vbox.data())) {
+        const mp = dvui.currentWindow().mouse_pt;
+        if (tools.layers_scroll_viewport_rect) |vr| {
+            if (!vr.contains(mp)) return null;
+        }
         return vbox.data().contentRectScale().r;
     }
 
@@ -1088,6 +1113,13 @@ fn layerPointerRenameConsumes(e: *const dvui.Event, me: dvui.Event.Mouse) bool {
     return false;
 }
 
+/// Layer row rects can extend outside the scroll viewport when content is scrolled; only treat the
+/// pointer as interacting with the list when it lies inside the scroll container's visible clip.
+fn layerPointerInScrollViewport(p: dvui.Point.Physical, viewport_r: ?dvui.Rect.Physical) bool {
+    if (viewport_r) |r| return r.contains(p);
+    return true;
+}
+
 fn layerTreePointerInTreeSurface(tree: *pixi.dvui.TreeWidget, p: dvui.Point.Physical, floating_win: dvui.Id) bool {
     if (floating_win != dvui.subwindowCurrentId()) return false;
     const tr = tree.data().borderRectScale().r;
@@ -1117,7 +1149,7 @@ fn layerTreeMotionAllowsLayerReorder(tree: *pixi.dvui.TreeWidget, e: *dvui.Event
 
 /// One pass over `events()` in frame order: press → motion → release.
 /// Runs after layer rows (and rename `textEntry`) are built so geometry and `e.handled` reflect z-order.
-fn processLayerTreePointerEvents(tree: *pixi.dvui.TreeWidget, file: *pixi.Internal.File, hits: []const LayerRowHit) void {
+fn processLayerTreePointerEvents(tree: *pixi.dvui.TreeWidget, file: *pixi.Internal.File, hits: []const LayerRowHit, layers_viewport_r: ?dvui.Rect.Physical) void {
     if (!tree.init_options.enable_reordering) return;
 
     for (dvui.events()) |*e| {
@@ -1125,6 +1157,7 @@ fn processLayerTreePointerEvents(tree: *pixi.dvui.TreeWidget, file: *pixi.Intern
             .mouse => |me| {
                 if (me.action == .press and me.button.pointer()) {
                     if (layerPointerRenameConsumes(e, me)) continue;
+                    if (!layerPointerInScrollViewport(me.p, layers_viewport_r)) continue;
 
                     var row_hit: ?LayerRowHit = null;
                     var ri = hits.len;
@@ -1203,13 +1236,15 @@ fn processLayerTreePointerEvents(tree: *pixi.dvui.TreeWidget, file: *pixi.Intern
                 } else if (me.action == .release and me.button.pointer()) {
                     if (layerPointerRenameConsumes(e, me)) continue;
 
+                    const release_in_vp = layerPointerInScrollViewport(me.p, layers_viewport_r);
+
                     const sel_before = file.selected_layer_index;
                     var release_layer: ?usize = null;
                     var rj = hits.len;
                     while (rj > 0) {
                         rj -= 1;
                         const h = hits[rj];
-                        if (h.row_r.contains(me.p) and !h.buttons_r.contains(me.p)) {
+                        if (release_in_vp and h.row_r.contains(me.p) and !h.buttons_r.contains(me.p)) {
                             release_layer = h.layer_index;
                             break;
                         }
@@ -1220,19 +1255,21 @@ fn processLayerTreePointerEvents(tree: *pixi.dvui.TreeWidget, file: *pixi.Intern
 
                     var selected_on_release = false;
                     if (!did_reorder and !tree.drag_ending) {
-                        if (release_layer) |rh| {
-                            file.selected_layer_index = rh;
-                            selected_on_release = true;
-                        } else if (idx_opt) |idx| {
-                            file.selected_layer_index = idx;
-                            selected_on_release = true;
+                        if (release_in_vp) {
+                            if (release_layer) |rh| {
+                                file.selected_layer_index = rh;
+                                selected_on_release = true;
+                            } else if (idx_opt) |idx| {
+                                file.selected_layer_index = idx;
+                                selected_on_release = true;
+                            }
                         }
                     }
 
                     var opened_layer_rename = false;
                     const moved_while_armed = if (layerGestureMatches(file)) layer_row_gesture.?.moved else false;
 
-                    if (!did_reorder and !tree.drag_ending and !moved_while_armed) {
+                    if (!did_reorder and !tree.drag_ending and !moved_while_armed and release_in_vp) {
                         if (idx_opt) |pi| {
                             if (release_layer) |rl| {
                                 if (pi == rl and sel_before == pi) {
@@ -1241,7 +1278,7 @@ fn processLayerTreePointerEvents(tree: *pixi.dvui.TreeWidget, file: *pixi.Intern
                                         for (hits) |h| {
                                             if (h.layer_index != pi) continue;
                                             if (h.label_r) |lr| {
-                                                if (lr.contains(pp) and lr.contains(me.p)) {
+                                                if (layerPointerInScrollViewport(pp, layers_viewport_r) and lr.contains(pp) and lr.contains(me.p)) {
                                                     edit_layer_id = file.layers.items(.id)[pi];
                                                     opened_layer_rename = true;
                                                 }

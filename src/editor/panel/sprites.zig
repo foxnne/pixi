@@ -147,6 +147,9 @@ pub fn draw(self: *Sprites) !void {
             return;
         }
 
+        const perf_sp = pixi.perf.spritePreviewBegin();
+        defer pixi.perf.spritePreviewEnd(perf_sp);
+
         _ = pixi.dvui.sprite(@src(), .{
             .source = file.layers.items(.source)[file.selected_layer_index],
             .file = file,

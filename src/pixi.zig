@@ -18,6 +18,7 @@ pub const fa = @import("tools/font_awesome.zig");
 pub const fs = @import("tools/fs.zig");
 pub const image = @import("gfx/image.zig");
 pub const render = @import("gfx/render.zig");
+pub const perf = @import("gfx/perf.zig");
 pub const math = @import("math/math.zig");
 
 pub const App = @import("App.zig");

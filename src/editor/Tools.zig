@@ -102,6 +102,9 @@ pub fn set(self: *Tools, tool: Tool) void {
             else => {},
         }
         self.current = tool;
+        if (tool == .pencil or tool == .eraser) {
+            pixi.editor.requestCompositeWarmup();
+        }
     }
 }
 

@@ -24,6 +24,10 @@ pub const Stroke = struct {
 
     pub fn append(stroke: *Stroke, index: usize, value: [4]u8) !void {
         const ptr = try stroke.pixels.getOrPut(index);
+        if (pixi.perf.record) {
+            pixi.perf.stroke_append_calls += 1;
+            if (!ptr.found_existing) pixi.perf.stroke_append_new_keys += 1;
+        }
         if (!ptr.found_existing)
             ptr.value_ptr.* = value;
 
@@ -31,6 +35,25 @@ pub const Stroke = struct {
 
         // try stroke.values.append(value);
         //stroke.canvas = canvas;
+    }
+
+    /// Clears the stroke map and reserves hash buckets for up to `max_keys` entries (no rehash churn
+    /// while filling). Call before a known full-layer pass such as transform accept.
+    pub fn clearAndReserveCapacity(stroke: *Stroke, max_keys: usize) !void {
+        stroke.clearAndFree();
+        const cap: u32 = @intCast(@min(max_keys, std.math.maxInt(u32)));
+        try stroke.pixels.ensureTotalCapacity(cap);
+    }
+
+    /// Like `append` but the map must already have capacity for new keys (see `clearAndReserveCapacity`).
+    pub fn appendAssumeCapacity(stroke: *Stroke, index: usize, value: [4]u8) void {
+        const gop = stroke.pixels.getOrPutAssumeCapacity(index);
+        if (pixi.perf.record) {
+            pixi.perf.stroke_append_calls += 1;
+            if (!gop.found_existing) pixi.perf.stroke_append_new_keys += 1;
+        }
+        if (!gop.found_existing)
+            gop.value_ptr.* = value;
     }
 
     pub fn appendSlice(stroke: *Stroke, indices: []usize, values: [][4]u8) !void {
@@ -44,8 +67,14 @@ pub const Stroke = struct {
     }
 
     pub fn toChange(stroke: *Stroke, layer_id: u64) !History.Change {
-        var indices = pixi.app.allocator.alloc(usize, stroke.pixels.count()) catch return error.MemoryAllocationFailed;
-        var values = pixi.app.allocator.alloc([4]u8, stroke.pixels.count()) catch return error.MemoryAllocationFailed;
+        const t0: i128 = if (pixi.perf.record) std.time.nanoTimestamp() else 0;
+        const n = stroke.pixels.count();
+
+        // Exact-size allocations; transform accept pre-reserves the hash map to avoid rehash during fills.
+        var indices = pixi.app.allocator.alloc(usize, n) catch return error.MemoryAllocationFailed;
+        errdefer pixi.app.allocator.free(indices);
+        var values = pixi.app.allocator.alloc([4]u8, n) catch return error.MemoryAllocationFailed;
+        errdefer pixi.app.allocator.free(values);
 
         var it = stroke.pixels.iterator();
 
@@ -57,6 +86,12 @@ pub const Stroke = struct {
         }
 
         stroke.pixels.clearAndFree();
+
+        if (pixi.perf.record) {
+            pixi.perf.stroke_to_change_ns +%= @intCast(std.time.nanoTimestamp() - t0);
+            pixi.perf.stroke_to_change_calls += 1;
+            pixi.perf.stroke_to_change_pixels_out +%= n;
+        }
 
         return .{ .pixels = .{
             .layer_id = layer_id,

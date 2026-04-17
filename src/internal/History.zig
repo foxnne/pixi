@@ -202,6 +202,13 @@ pub fn init(allocator: std.mem.Allocator) History {
 }
 
 pub fn append(self: *History, change: Change) !void {
+    const track_pixels = pixi.perf.record and std.meta.activeTag(change) == .pixels;
+    const pixel_slots: usize = if (track_pixels) switch (change) {
+        .pixels => |p| p.indices.len,
+        else => 0,
+    } else 0;
+    const t_hist: i128 = if (track_pixels) std.time.nanoTimestamp() else 0;
+
     if (self.redo_stack.items.len > 0) {
         for (self.redo_stack.items) |*c| {
             c.deinit();
@@ -296,6 +303,12 @@ pub fn append(self: *History, change: Change) !void {
     } else {
         try self.undo_stack.append(change);
         self.bookmark += 1;
+    }
+
+    if (track_pixels and t_hist != 0) {
+        pixi.perf.history_append_pixels_ns +%= @intCast(std.time.nanoTimestamp() - t_hist);
+        pixi.perf.history_append_pixels_calls += 1;
+        pixi.perf.history_append_pixels_slots +%= pixel_slots;
     }
 }
 
@@ -469,6 +482,8 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             pixi.editor.explorer.pane = .sprites;
         },
         .layers_order => |*layers_order| {
+            file.editor.layer_composite_dirty = true;
+            file.editor.split_composite_dirty = true;
             var new_order = try pixi.app.allocator.alloc(usize, layers_order.order.len);
             for (0..file.layers.len) |layer_index| {
                 new_order[layer_index] = file.layers.items(.id)[layer_index];
@@ -502,6 +517,8 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             pixi.app.allocator.free(new_order);
         },
         .layer_restore_delete => |*layer_restore_delete| {
+            file.editor.layer_composite_dirty = true;
+            file.editor.split_composite_dirty = true;
             const a = layer_restore_delete.action;
             switch (a) {
                 .restore => {
@@ -524,12 +541,22 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             pixi.editor.explorer.pane = .tools;
         },
         .layer_settings => |*layer_settings| {
-            const visible = file.layers.items(.visible)[layer_settings.index];
-            const collapse = file.layers.items(.collapse)[layer_settings.index];
-            file.layers.items(.visible)[layer_settings.index] = layer_settings.visible;
-            file.layers.items(.collapse)[layer_settings.index] = layer_settings.collapse;
-            layer_settings.visible = visible;
-            layer_settings.collapse = collapse;
+            const idx = layer_settings.index;
+            const cur_visible = file.layers.items(.visible)[idx];
+            const cur_collapse = file.layers.items(.collapse)[idx];
+            const incoming_visible = layer_settings.visible;
+            const visibility_changed = cur_visible != incoming_visible;
+
+            file.layers.items(.visible)[idx] = incoming_visible;
+            file.layers.items(.collapse)[idx] = layer_settings.collapse;
+            layer_settings.visible = cur_visible;
+            layer_settings.collapse = cur_collapse;
+
+            // Split composites only depend on layer visibility, not row collapse in the layer list.
+            file.editor.layer_composite_dirty = true;
+            if (visibility_changed) {
+                file.editor.split_composite_dirty = true;
+            }
             pixi.editor.explorer.pane = .tools;
         },
         .animation_restore_delete => |*animation_restore_delete| {

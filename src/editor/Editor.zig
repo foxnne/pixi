@@ -77,6 +77,9 @@ window_opacity: f32 = 1.0,
 pending_native_menu_actions: [16]pixi.backend.NativeMenuAction = undefined,
 pending_native_menu_actions_len: u8 = 0,
 
+/// When set, next `tick` runs `warmupDrawingComposites` on the active file (after open or drawing-tool select).
+composite_warmup_pending: bool = false,
+
 pub const SpriteClipboard = struct {
     source: dvui.ImageSource,
     offset: dvui.Point,
@@ -153,22 +156,27 @@ pub fn init(
     var pixi_light = pixi_dark;
     pixi_light.dark = false;
     pixi_light.name = "Pixi Light";
-    pixi_light.window = dvui.Theme.builtin.adwaita_light.window;
-    pixi_light.window.text = .{ .r = 40, .g = 40, .b = 50, .a = 255 };
-    //pixi_light.window.text = .{ .r = 170, .g = 130, .b = 140, .a = 255 };
+
+    pixi_light.window = .{
+        .fill = .{ .r = 240, .g = 240, .b = 245, .a = 255 },
+        .border = dvui.Theme.builtin.adwaita_light.window.border,
+        .text = .{ .r = 120, .g = 70, .b = 65, .a = 255 },
+    };
+
     pixi_light.control = dvui.Theme.builtin.adwaita_light.control;
-    pixi_light.control.text = .{ .r = 90, .g = 80, .b = 80, .a = 255 };
+
     pixi_light.highlight = .{
         .fill = .{ .r = 170, .g = 130, .b = 140, .a = 255 },
-        .text = .white,
+        .text = pixi_light.window.fill,
     };
 
     pixi_light.err = .{
         .fill = .{ .r = 109, .g = 35, .b = 54, .a = 255 },
     };
 
-    pixi_light.fill = dvui.Theme.builtin.adwaita_light.control.fill.?;
-    pixi_light.text = .{ .r = 40, .g = 40, .b = 50, .a = 255 };
+    // theme.content
+    pixi_light.fill = .{ .r = 200, .g = 200, .b = 205, .a = 255 };
+    pixi_light.text = .{ .r = 40, .g = 40, .b = 45, .a = 255 };
     pixi_light.focus = pixi_light.highlight.fill.?;
 
     var editor: Editor = .{
@@ -235,6 +243,7 @@ pub fn init(
     editor.settings = Settings.load(app.allocator, try std.fs.path.join(app.allocator, &.{ editor.config_folder, "settings.json" })) catch .{
         .theme = try app.allocator.dupe(u8, "pixi_dark.json"),
     };
+    pixi.perf.console_logging_enabled = editor.settings.perf_logging;
     editor.recents = Recents.load(app.allocator, try std.fs.path.join(app.allocator, &.{ editor.config_folder, "recents.json" })) catch .{
         .folders = .init(app.allocator),
     };
@@ -289,6 +298,41 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     editor.rebuildWorkspaces() catch {
         dvui.log.err("Failed to rebuild workspaces", .{});
     };
+
+    pixi.render.frame_index +%= 1;
+    if (pixi.perf.record) pixi.perf.beginFrame();
+    defer if (pixi.perf.record) pixi.perf.endFrameAndMaybeLog();
+
+    if (editor.composite_warmup_pending) {
+        editor.composite_warmup_pending = false;
+        if (editor.activeFile()) |file| {
+            const w = file.width();
+            const h = file.height();
+            if (w > 0 and h > 0) {
+                const area = @as(u64, w) * @as(u64, h);
+                // Skip tiny canvases; large docs benefit most from moving split-target work off the first stroke.
+                if (area >= 512 * 512) {
+                    pixi.render.warmupDrawingComposites(file) catch |err| {
+                        dvui.log.err("Composite warmup failed: {any}", .{err});
+                    };
+                }
+            }
+        }
+    }
+
+    {
+        var any_drawing = false;
+        pixi.perf.draw_stroke_buf_count = 0; // no active stroke → 0; else first active file's map size
+        for (editor.open_files.values()) |*file| {
+            if (file.editor.active_drawing) {
+                any_drawing = true;
+                pixi.perf.draw_stroke_buf_count = file.buffers.stroke.pixels.count();
+                break;
+            }
+        }
+        pixi.perf.drawFrameBegin(any_drawing);
+    }
+    defer pixi.perf.drawFrameEnd();
 
     // TODO: Does this need to be here for touchscreen zooming? Or does that belong in canvas?
     // var scaler = dvui.scale(
@@ -1045,9 +1089,14 @@ pub fn openFilePath(editor: *Editor, path: []const u8, grouping: u64) !bool {
 
         // If the workspace grouping does exist, go ahead and set the active file
         editor.setActiveFile(editor.open_files.count() - 1);
+        editor.composite_warmup_pending = true;
         return true;
     }
     return error.FailedToOpenFile;
+}
+
+pub fn requestCompositeWarmup(editor: *Editor) void {
+    editor.composite_warmup_pending = true;
 }
 
 pub fn newFile(editor: *Editor, path: []const u8, options: pixi.Internal.File.InitOptions) !*pixi.Internal.File {
@@ -1062,6 +1111,7 @@ pub fn newFile(editor: *Editor, path: []const u8, options: pixi.Internal.File.In
 
     try editor.open_files.put(file.id, file);
     editor.setActiveFile(editor.open_files.count() - 1);
+    editor.composite_warmup_pending = true;
 
     return editor.open_files.getPtr(file.id) orelse return error.FailedToCreateFile;
 }

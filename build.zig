@@ -14,9 +14,9 @@ const GitDependency = update.GitDependency;
 fn update_step(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
     const deps = &.{
         GitDependency{
-            // mach_objc
-            .url = "https://github.com/foxnne/mach-objc",
-            .branch = "set_shadow",
+            // zig_objc
+            .url = "https://github.com/foxnne/zig-objc",
+            .branch = "main",
         },
         GitDependency{
             // zigwin32
@@ -31,7 +31,7 @@ fn update_step(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
         GitDependency{
             // dvui
             .url = "https://github.com/foxnne/dvui-dev",
-            .branch = "defer_render",
+            .branch = "main",
         },
         GitDependency{
             // assetpack
@@ -89,6 +89,8 @@ pub fn build(b: *std.Build) !void {
             .root_source_file = .{ .cwd_relative = "src/App.zig" },
         }),
     });
+    // Keep DWARF in the binary so Instruments / lldb show symbols (esp. when profiling Release).
+    exe.root_module.strip = false;
 
     const assetpack = @import("assetpack");
     const assets_module = assetpack.pack(b, b.path("assets"), .{});
