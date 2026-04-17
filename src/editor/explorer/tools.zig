@@ -360,6 +360,9 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
                     };
                 }
 
+                file.editor.layer_composite_dirty = true;
+                file.editor.split_composite_dirty = true;
+
                 if (removed == file.selected_layer_index) {
                     if (insert_before < file.layers.len) {
                         file.selected_layer_index = if (removed < insert_before) insert_before - 1 else insert_before;

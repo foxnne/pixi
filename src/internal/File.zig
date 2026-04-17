@@ -1987,6 +1987,8 @@ pub fn getLayer(self: *File, id: u64) ?Layer {
 pub fn deleteLayer(self: *File, index: usize) !void {
     try self.deleted_layers.append(pixi.app.allocator, self.layers.slice().get(index));
     self.layers.orderedRemove(index);
+    self.editor.layer_composite_dirty = true;
+    self.editor.split_composite_dirty = true;
     try self.history.append(.{ .layer_restore_delete = .{
         .action = .restore,
         .index = index,
@@ -2014,6 +2016,8 @@ pub fn duplicateLayer(self: *File, index: usize) !u64 {
     };
 
     self.selected_layer_index = 0;
+    self.editor.layer_composite_dirty = true;
+    self.editor.split_composite_dirty = true;
 
     self.history.append(.{
         .layer_restore_delete = .{
@@ -2033,6 +2037,8 @@ pub fn createLayer(self: *File) !u64 {
             dvui.log.err("Failed to append layer", .{});
         };
         self.selected_layer_index = 0;
+        self.editor.layer_composite_dirty = true;
+        self.editor.split_composite_dirty = true;
 
         self.history.append(.{
             .layer_restore_delete = .{
