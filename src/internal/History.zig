@@ -4,6 +4,7 @@ const zgui = @import("zgui");
 const History = @This();
 const Editor = pixi.Editor;
 const dvui = @import("dvui");
+const Layer = @import("Layer.zig");
 
 pub const Action = enum { undo, redo };
 pub const RestoreDelete = enum { restore, delete };
@@ -22,6 +23,7 @@ pub const ChangeType = enum {
     resize,
     reorder_col_row,
     reorder_cell,
+    layer_merge,
 };
 
 pub const Change = union(ChangeType) {
@@ -71,6 +73,18 @@ pub const Change = union(ChangeType) {
         index: usize,
         action: RestoreDelete,
     };
+
+    pub const LayerMerge = struct {
+        pub const Kind = enum { up, down };
+
+        kind: Kind,
+        /// Index of the merged-away layer before removal.
+        source_index: usize,
+        dest_layer_id: u64,
+        source_layer_id: u64,
+        dest_pixels_before: [][4]u8,
+        dest_mask_before: std.DynamicBitSet,
+    };
     pub const LayerName = struct {
         index: usize,
         name: []u8,
@@ -116,6 +130,7 @@ pub const Change = union(ChangeType) {
     resize: Resize,
     reorder_col_row: ColumnRowReorder,
     reorder_cell: CellReorder,
+    layer_merge: LayerMerge,
 
     pub fn create(allocator: std.mem.Allocator, field: ChangeType, len: usize) !Change {
         return switch (field) {
@@ -154,8 +169,8 @@ pub const Change = union(ChangeType) {
         };
     }
 
-    pub fn deinit(self: Change) void {
-        switch (self) {
+    pub fn deinit(self: *Change) void {
+        switch (self.*) {
             .pixels => |*pixels| {
                 pixi.app.allocator.free(pixels.indices);
                 pixi.app.allocator.free(pixels.values);
@@ -166,6 +181,10 @@ pub const Change = union(ChangeType) {
             },
             .layers_order => |*layers_order| {
                 pixi.app.allocator.free(layers_order.order);
+            },
+            .layer_merge => |*layer_merge| {
+                pixi.app.allocator.free(layer_merge.dest_pixels_before);
+                layer_merge.dest_mask_before.deinit();
             },
             else => {},
         }
@@ -211,7 +230,7 @@ pub fn append(self: *History, change: Change) !void {
 
     if (self.redo_stack.items.len > 0) {
         for (self.redo_stack.items) |*c| {
-            c.deinit();
+            Change.deinit(c);
         }
         self.redo_stack.clearRetainingCapacity();
     }
@@ -294,12 +313,16 @@ pub fn append(self: *History, change: Change) !void {
                 .reorder_cell => {
                     equal = false;
                 },
+                .layer_merge => {
+                    equal = false;
+                },
             }
         } else equal = false;
     }
 
     if (equal) {
-        change.deinit();
+        var discard = change;
+        Change.deinit(&discard);
     } else {
         try self.undo_stack.append(change);
         self.bookmark += 1;
@@ -310,6 +333,68 @@ pub fn append(self: *History, change: Change) !void {
         pixi.perf.history_append_pixels_calls += 1;
         pixi.perf.history_append_pixels_slots +%= pixel_slots;
     }
+}
+
+fn layerMergeUndo(file: *pixi.Internal.File, lm: *Change.LayerMerge) !void {
+    const dest_i = for (file.layers.items(.id), 0..) |id, i| {
+        if (id == lm.dest_layer_id) break i;
+    } else return error.InvalidLayerMerge;
+
+    var dest = file.layers.get(dest_i);
+    @memcpy(dest.pixels(), lm.dest_pixels_before);
+    dest.mask.deinit();
+    dest.mask = try lm.dest_mask_before.clone(pixi.app.allocator);
+    dest.invalidate();
+    file.layers.set(dest_i, dest);
+
+    const restored = file.deleted_layers.pop() orelse return error.InvalidLayerMerge;
+    try file.layers.insert(pixi.app.allocator, lm.source_index, restored);
+
+    file.editor.layer_composite_dirty = true;
+    file.editor.split_composite_dirty = true;
+    file.selected_layer_index = lm.source_index;
+    pixi.editor.explorer.pane = .tools;
+}
+
+fn layerMergeRedo(file: *pixi.Internal.File, lm: *Change.LayerMerge) !void {
+    const src_i = for (file.layers.items(.id), 0..) |id, i| {
+        if (id == lm.source_layer_id) break i;
+    } else return error.InvalidLayerMerge;
+    const dest_i = for (file.layers.items(.id), 0..) |id, i| {
+        if (id == lm.dest_layer_id) break i;
+    } else return error.InvalidLayerMerge;
+
+    switch (lm.kind) {
+        .up => if (dest_i + 1 != src_i) return error.InvalidLayerMerge,
+        .down => if (src_i + 1 != dest_i) return error.InvalidLayerMerge,
+    }
+
+    var dest = file.layers.get(dest_i);
+    const src = file.layers.get(src_i);
+
+    for (0..dest.pixels().len) |i| {
+        const dpx = dest.pixels()[i];
+        const spx = src.pixels()[i];
+        dest.pixels()[i] = switch (lm.kind) {
+            .up => Layer.blendPmaSrcOver(dpx, spx),
+            .down => Layer.blendPmaSrcOver(spx, dpx),
+        };
+    }
+    dest.mask.setUnion(src.mask);
+    dest.invalidate();
+    file.layers.set(dest_i, dest);
+
+    try file.deleted_layers.append(pixi.app.allocator, file.layers.slice().get(src_i));
+    file.layers.orderedRemove(src_i);
+
+    file.editor.layer_composite_dirty = true;
+    file.editor.split_composite_dirty = true;
+
+    file.selected_layer_index = switch (lm.kind) {
+        .up => dest_i,
+        .down => dest_i - 1,
+    };
+    pixi.editor.explorer.pane = .tools;
 }
 
 // Handling cases in this function details how an undo/redo action works, and must be symmetrical.
@@ -446,6 +531,9 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             },
             .reorder_cell => |_| {
                 message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Cells reordered", .{action_text}) catch "Invalid change";
+            },
+            .layer_merge => |_| {
+                message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Layer merge", .{action_text}) catch "Invalid change";
             },
         }
 
@@ -732,11 +820,20 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             const reverse = (action == .undo);
             file.reorderCells(reorder.removed_sprite_indices, reorder.insert_before_sprite_indices, .replace, reverse) catch return error.ReorderError;
         },
+        .layer_merge => |*layer_merge| {
+            switch (action) {
+                .undo => try layerMergeUndo(file, layer_merge),
+                .redo => try layerMergeRedo(file, layer_merge),
+            }
+        },
     }
 
     if (!temporary) {
         try other_stack.append(change);
-    } else change.deinit();
+    } else {
+        var discard = change;
+        Change.deinit(&discard);
+    }
 
     self.bookmark += switch (action) {
         .undo => -1,
@@ -746,10 +843,10 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
 
 pub fn clearAndFree(self: *History) void {
     for (self.undo_stack.items) |*u| {
-        u.deinit();
+        Change.deinit(u);
     }
     for (self.redo_stack.items) |*r| {
-        r.deinit();
+        Change.deinit(r);
     }
     self.undo_stack.clearAndFree();
     self.redo_stack.clearAndFree();
@@ -757,10 +854,10 @@ pub fn clearAndFree(self: *History) void {
 
 pub fn clearRetainingCapacity(self: *History) void {
     for (self.undo_stack.items) |*u| {
-        u.deinit();
+        Change.deinit(u);
     }
     for (self.redo_stack.items) |*r| {
-        r.deinit();
+        Change.deinit(r);
     }
     self.undo_stack.clearRetainingCapacity();
     self.redo_stack.clearRetainingCapacity();

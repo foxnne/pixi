@@ -220,6 +220,57 @@ pub fn drawLayerControls() !void {
         });
         defer hbox.deinit();
 
+        const merge_up_enabled = file.selected_layer_index > 0;
+        const merge_down_enabled = file.selected_layer_index + 1 < file.layers.len;
+
+        {
+            const a = dvui.alpha(if (merge_up_enabled) 1.0 else 0.35);
+            defer dvui.alphaSet(a);
+            if (dvui.buttonIcon(@src(), "MergeLayerUp", icons.tvg.lucide.@"arrow-up-to-line", .{}, .{}, .{
+                .expand = .none,
+                .gravity_y = 0.5,
+                .corner_radius = dvui.Rect.all(1000),
+                .box_shadow = .{
+                    .color = .black,
+                    .offset = .{ .x = -2.0, .y = 2.0 },
+                    .fade = 6.0,
+                    .alpha = 0.15,
+                    .corner_radius = dvui.Rect.all(1000),
+                },
+                .color_fill = dvui.themeGet().color(.control, .fill),
+            })) {
+                if (merge_up_enabled) {
+                    file.mergeSelectedLayerUp() catch {
+                        dvui.log.err("Failed to merge layer up", .{});
+                    };
+                }
+            }
+        }
+
+        {
+            const a = dvui.alpha(if (merge_down_enabled) 1.0 else 0.35);
+            defer dvui.alphaSet(a);
+            if (dvui.buttonIcon(@src(), "MergeLayerDown", icons.tvg.lucide.@"arrow-down-to-line", .{}, .{}, .{
+                .expand = .none,
+                .gravity_y = 0.5,
+                .corner_radius = dvui.Rect.all(1000),
+                .box_shadow = .{
+                    .color = .black,
+                    .offset = .{ .x = -2.0, .y = 2.0 },
+                    .fade = 6.0,
+                    .alpha = 0.15,
+                    .corner_radius = dvui.Rect.all(1000),
+                },
+                .color_fill = dvui.themeGet().color(.control, .fill),
+            })) {
+                if (merge_down_enabled) {
+                    file.mergeSelectedLayerDown() catch {
+                        dvui.log.err("Failed to merge layer down", .{});
+                    };
+                }
+            }
+        }
+
         if (dvui.buttonIcon(
             @src(),
             "TogglePeek",
