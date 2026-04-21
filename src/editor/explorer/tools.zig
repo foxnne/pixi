@@ -135,12 +135,18 @@ pub fn drawTools() !void {
             color = palette.getDVUIColor(i);
         }
 
+        const selection_sprite = switch (pixi.editor.tools.selection_mode) {
+            .pixel => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pixel_selection_default],
+            .box => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.box_selection_default],
+            .color => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.color_selection_default],
+        };
+
         const sprite = switch (tool) {
             .pointer => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.cursor_default],
             .pencil => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pencil_default],
             .eraser => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.eraser_default],
             .bucket => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.bucket_default],
-            .selection => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.selection_default],
+            .selection => selection_sprite,
         };
         var button: dvui.ButtonWidget = undefined;
         button.init(@src(), .{}, .{

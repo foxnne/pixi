@@ -1837,7 +1837,6 @@ fn applySelectionBoxPreview(
             }
         }
     }
-
 }
 
 /// Responsible for processing events to create/modify the current fine-grained selection.
@@ -3932,11 +3931,17 @@ pub fn drawCursor(self: *FileWidget) void {
     if (!self.init_options.file.editor.canvas.rect.contains(mouse_point)) return;
     if (self.sample_data_point != null) return;
 
+    const selection_sprite = switch (pixi.editor.tools.selection_mode) {
+        .box => if (subtract) pixi.editor.atlas.data.sprites[pixi.atlas.sprites.box_selection_rem_default] else if (add) pixi.editor.atlas.data.sprites[pixi.atlas.sprites.box_selection_add_default] else pixi.editor.atlas.data.sprites[pixi.atlas.sprites.box_selection_default],
+        .pixel => if (subtract) pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pixel_selection_rem_default] else if (add) pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pixel_selection_add_default] else pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pixel_selection_default],
+        .color => if (subtract) pixi.editor.atlas.data.sprites[pixi.atlas.sprites.color_selection_rem_default] else if (add) pixi.editor.atlas.data.sprites[pixi.atlas.sprites.color_selection_add_default] else pixi.editor.atlas.data.sprites[pixi.atlas.sprites.color_selection_default],
+    };
+
     if (switch (pixi.editor.tools.current) {
         .pencil => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pencil_default],
         .eraser => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.eraser_default],
         .bucket => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.bucket_default],
-        .selection => if (subtract) pixi.editor.atlas.data.sprites[pixi.atlas.sprites.selection_rem_default] else if (add) pixi.editor.atlas.data.sprites[pixi.atlas.sprites.selection_add_default] else pixi.editor.atlas.data.sprites[pixi.atlas.sprites.selection_default],
+        .selection => selection_sprite,
         else => null,
     }) |sprite| {
         const atlas_size = dvui.imageSize(pixi.editor.atlas.source) catch {
