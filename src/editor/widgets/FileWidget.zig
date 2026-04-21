@@ -1664,6 +1664,7 @@ pub fn processSelection(self: *FileWidget) void {
     if (self.sample_key_down or self.right_mouse_down) return;
 
     const file = self.init_options.file;
+    const widget_active = self.active();
     const active_layer = &file.layers.get(file.selected_layer_index);
 
     const selection_alpha: u8 = 185;
@@ -1802,6 +1803,7 @@ pub fn processSelection(self: *FileWidget) void {
                 }
 
                 if (me.action == .press and me.button.pointer()) {
+                    if (!widget_active) continue;
                     e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
                     dvui.captureMouse(self.init_options.file.editor.canvas.scroll_container.data(), e.num);
                     dvui.dragPreStart(me.p, .{ .name = "stroke_drag" });
@@ -1820,6 +1822,7 @@ pub fn processSelection(self: *FileWidget) void {
 
                     self.drag_data_point = current_point;
                 } else if (me.action == .release and me.button.pointer()) {
+                    if (!widget_active) continue;
                     if (dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id)) {
                         e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
                         dvui.captureMouse(null, e.num);
@@ -1837,6 +1840,7 @@ pub fn processSelection(self: *FileWidget) void {
                     }
                 } else if (me.action == .position or me.action == .wheel_x or me.action == .wheel_y) {
                     if (dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id)) {
+                        if (!widget_active) continue;
                         if (dvui.dragging(me.p, "stroke_drag")) |_| {
                             if (self.drag_data_point) |previous_point| {
                                 // Construct a rect spanning between current_point and previous_point
@@ -1885,6 +1889,7 @@ pub fn processSelection(self: *FileWidget) void {
 pub fn processStroke(self: *FileWidget) void {
     const file = self.init_options.file;
     const stroke_size = pixi.editor.tools.stroke_size;
+    const widget_active = self.active();
 
     if (self.cell_reorder_point != null) return;
 
@@ -1913,6 +1918,7 @@ pub fn processStroke(self: *FileWidget) void {
                 const current_point = self.init_options.file.editor.canvas.dataFromScreenPoint(me.p);
 
                 if (me.action == .press and me.button.pointer()) {
+                    if (!widget_active) continue;
                     e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
                     dvui.captureMouse(self.init_options.file.editor.canvas.scroll_container.data(), e.num);
                     dvui.dragPreStart(me.p, .{ .name = "stroke_drag" });
@@ -1938,6 +1944,7 @@ pub fn processStroke(self: *FileWidget) void {
 
                     self.drag_data_point = current_point;
                 } else if (me.action == .release and me.button.pointer()) {
+                    if (!widget_active) continue;
                     if (dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id)) {
                         e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
                         dvui.captureMouse(null, e.num);
@@ -1995,6 +2002,7 @@ pub fn processStroke(self: *FileWidget) void {
                     }
                 } else if (me.action == .position or me.action == .wheel_x or me.action == .wheel_y) {
                     if (dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id)) {
+                        if (!widget_active) continue;
                         if (dvui.dragging(me.p, "stroke_drag")) |_| {
                             if (self.drag_data_point) |previous_point| {
                                 // Construct a rect spanning between current_point and previous_point
@@ -2113,6 +2121,7 @@ pub fn processFill(self: *FileWidget) void {
     if (self.sample_key_down) return;
     const file = self.init_options.file;
     const color = pixi.editor.colors.primary;
+    const widget_active = self.active();
 
     if (self.init_options.file.editor.canvas.rect.contains(dvui.currentWindow().mouse_pt) and self.sample_data_point == null) {
         clearTempPreview(&file.editor);
@@ -2142,6 +2151,7 @@ pub fn processFill(self: *FileWidget) void {
                 const current_point = self.init_options.file.editor.canvas.dataFromScreenPoint(me.p);
 
                 if (me.action == .press and me.button.pointer()) {
+                    if (!widget_active) continue;
                     file.fillPoint(current_point, .selected, .{
                         .color = .{ .r = color[0], .g = color[1], .b = color[2], .a = color[3] },
                         .invalidate = true,
@@ -5112,7 +5122,9 @@ pub fn processEvents(self: *FileWidget) void {
         dvui.dataRemove(null, self.init_options.file.editor.canvas.id, "hide_distance_bubble");
     };
 
-    if (self.hovered() and self.active()) {
+    // Hover alone is enough for brush/bucket/selection previews (e.g. sampling a color on one
+    // document while hovering another). Pixel edits are still gated inside each tool via `active()`.
+    if (self.hovered()) {
         const pe_t0 = pixi.perf.processEventsBegin();
         defer pixi.perf.processEventsEnd(pe_t0);
 
