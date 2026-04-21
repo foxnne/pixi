@@ -1999,6 +1999,68 @@ pub fn deleteLayer(self: *File, index: usize) !void {
     }
 }
 
+pub fn mergeSelectedLayerUp(self: *File) !void {
+    const s = self.selected_layer_index;
+    if (s == 0) return;
+    try self.mergeLayerInternal(.up, s, s - 1);
+}
+
+pub fn mergeSelectedLayerDown(self: *File) !void {
+    const s = self.selected_layer_index;
+    if (s + 1 >= self.layers.len) return;
+    try self.mergeLayerInternal(.down, s, s + 1);
+}
+
+fn mergeLayerInternal(self: *File, kind: History.Change.LayerMerge.Kind, src_i: usize, dest_i: usize) !void {
+    var dest = self.layers.get(dest_i);
+    const src = self.layers.get(src_i);
+
+    const pix_n = dest.pixels().len;
+    if (src.pixels().len != pix_n) return error.InvalidLayerMerge;
+
+    const dest_id = self.layers.items(.id)[dest_i];
+    const src_id = self.layers.items(.id)[src_i];
+
+    const dest_pixels_before = try pixi.app.allocator.dupe([4]u8, dest.pixels());
+    errdefer pixi.app.allocator.free(dest_pixels_before);
+
+    var dest_mask_before = try dest.mask.clone(pixi.app.allocator);
+    errdefer dest_mask_before.deinit();
+
+    for (0..pix_n) |i| {
+        const dpx = dest.pixels()[i];
+        const spx = src.pixels()[i];
+        dest.pixels()[i] = switch (kind) {
+            .up => Layer.blendPmaSrcOver(dpx, spx),
+            .down => Layer.blendPmaSrcOver(spx, dpx),
+        };
+    }
+    dest.mask.setUnion(src.mask);
+    dest.invalidate();
+    self.layers.set(dest_i, dest);
+
+    try self.deleted_layers.append(pixi.app.allocator, self.layers.slice().get(src_i));
+    self.layers.orderedRemove(src_i);
+
+    self.editor.layer_composite_dirty = true;
+    self.editor.split_composite_dirty = true;
+
+    self.selected_layer_index = switch (kind) {
+        .up => dest_i,
+        .down => dest_i - 1,
+    };
+
+    try self.history.append(.{ .layer_merge = .{
+        .kind = kind,
+        .source_index = src_i,
+        .dest_layer_id = dest_id,
+        .source_layer_id = src_id,
+        .dest_pixels_before = dest_pixels_before,
+        .dest_mask_before = dest_mask_before,
+    } });
+    pixi.editor.explorer.pane = .tools;
+}
+
 pub fn duplicateLayer(self: *File, index: usize) !u64 {
     const layer = self.layers.slice().get(index);
 
