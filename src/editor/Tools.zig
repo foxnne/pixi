@@ -27,9 +27,18 @@ pub const RadialMenu = struct {
     visible: bool = false,
 };
 
+pub const default_pencil_stroke_size: u8 = 1;
+pub const default_selection_stroke_size: u8 = 6;
+
 current: Tool = .pointer,
 previous: Tool = .pointer,
-stroke_size: u8 = 1,
+/// The stroke size for the currently active tool. Mirrors either
+/// `pencil_stroke_size` or `selection_stroke_size` depending on `current`.
+stroke_size: u8 = default_pencil_stroke_size,
+/// Independent stroke size used by pencil/eraser/bucket.
+pencil_stroke_size: u8 = default_pencil_stroke_size,
+/// Independent stroke size used by the selection tool.
+selection_stroke_size: u8 = default_selection_stroke_size,
 stroke_shape: Shape = .circle,
 previous_drawing_tool: Tool = .pencil,
 radial_menu: RadialMenu = .{},
@@ -49,14 +58,28 @@ pub fn init(allocator: std.mem.Allocator) !Tools {
         tools.offset_table[index] = .{ @floor(x - center.x), @floor(y - center.y) };
     }
 
-    tools.setStrokeSize(1);
+    tools.setStrokeSize(tools.strokeSizeFor(tools.current));
 
     return tools;
 }
 
-// Recreates the stroke bitset
+/// Returns the stored stroke size for the given tool.
+fn strokeSizeFor(self: *const Tools, tool: Tool) u8 {
+    return switch (tool) {
+        .selection => self.selection_stroke_size,
+        else => self.pencil_stroke_size,
+    };
+}
+
+/// Recreates the stroke bitset and writes-through the size to the
+/// per-tool storage for the currently active tool.
 pub fn setStrokeSize(self: *Tools, size: u8) void {
     self.stroke_size = size;
+    switch (self.current) {
+        .selection => self.selection_stroke_size = size,
+        .pencil, .eraser, .bucket => self.pencil_stroke_size = size,
+        .pointer => {},
+    }
 
     const stroke_size: usize = @intCast(size);
 
@@ -102,6 +125,7 @@ pub fn set(self: *Tools, tool: Tool) void {
             else => {},
         }
         self.current = tool;
+        self.setStrokeSize(self.strokeSizeFor(tool));
         if (tool == .pencil or tool == .eraser) {
             pixi.editor.requestCompositeWarmup();
         }

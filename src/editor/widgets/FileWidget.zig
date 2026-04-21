@@ -1706,6 +1706,7 @@ pub fn processSelection(self: *FileWidget) void {
                         pixi.editor.tools.stroke_size += 1;
 
                     pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
+                    e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
                     update = true;
                 }
 
@@ -1714,6 +1715,7 @@ pub fn processSelection(self: *FileWidget) void {
                         pixi.editor.tools.stroke_size -= 1;
 
                     pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
+                    e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
                     update = true;
                 }
 
