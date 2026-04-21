@@ -1398,6 +1398,12 @@ pub fn paste(editor: *Editor) !void {
     }
 }
 
+pub fn deleteSelectedContents(editor: *Editor) void {
+    if (editor.activeFile()) |file| {
+        file.deleteSelectedContents();
+    }
+}
+
 /// Begins a transform operation on the currently active file.
 pub fn transform(editor: *Editor) !void {
     if (editor.activeFile()) |file| {
