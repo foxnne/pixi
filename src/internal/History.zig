@@ -354,6 +354,7 @@ fn layerMergeUndo(file: *pixi.Internal.File, lm: *Change.LayerMerge) !void {
     file.editor.split_composite_dirty = true;
     file.selected_layer_index = lm.source_index;
     pixi.editor.explorer.pane = .tools;
+    file.invalidateActiveLayerTransparencyMaskCache();
 }
 
 fn layerMergeRedo(file: *pixi.Internal.File, lm: *Change.LayerMerge) !void {
@@ -395,6 +396,7 @@ fn layerMergeRedo(file: *pixi.Internal.File, lm: *Change.LayerMerge) !void {
         .down => dest_i - 1,
     };
     pixi.editor.explorer.pane = .tools;
+    file.invalidateActiveLayerTransparencyMaskCache();
 }
 
 // Handling cases in this function details how an undo/redo action works, and must be symmetrical.
@@ -557,6 +559,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
 
             layer.invalidate();
             file.selected_layer_index = layer_index;
+            file.invalidateActiveLayerTransparencyMaskCache();
         },
         .origins => |*origins| {
             //file.editor.selected_sprites.clearAndFree();
@@ -603,6 +606,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
 
             @memcpy(layers_order.order, new_order);
             pixi.app.allocator.free(new_order);
+            file.invalidateActiveLayerTransparencyMaskCache();
         },
         .layer_restore_delete => |*layer_restore_delete| {
             file.editor.layer_composite_dirty = true;
@@ -620,6 +624,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                 },
             }
             pixi.editor.explorer.pane = .tools;
+            file.invalidateActiveLayerTransparencyMaskCache();
         },
         .layer_name => |*layer_name| {
             const name = try pixi.app.allocator.dupe(u8, file.layers.items(.name)[layer_name.index]);
@@ -798,6 +803,8 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             if (sprite_data) |sd| {
                 pixi.app.allocator.free(sd);
             }
+
+            file.invalidateActiveLayerTransparencyMaskCache();
         },
         .reorder_col_row => |*reorder| {
             switch (reorder.mode) {
@@ -816,11 +823,14 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                 reorder.removed_index = prev_insert_before_index;
                 reorder.insert_before_index = prev_removed_index + 1;
             }
+
+            file.invalidateActiveLayerTransparencyMaskCache();
         },
 
         .reorder_cell => |*reorder| {
             const reverse = (action == .undo);
             file.reorderCells(reorder.removed_sprite_indices, reorder.insert_before_sprite_indices, .replace, reverse) catch return error.ReorderError;
+            file.invalidateActiveLayerTransparencyMaskCache();
         },
         .layer_merge => |*layer_merge| {
             switch (action) {
