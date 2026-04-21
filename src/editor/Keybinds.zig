@@ -21,6 +21,7 @@ pub fn register() !void {
         try window.keybinds.putNoClobber(window.gpa, "explorer", .{ .command = true, .key = .e });
         try window.keybinds.putNoClobber(window.gpa, "workspace", .{ .command = true, .key = .w });
         try window.keybinds.putNoClobber(window.gpa, "export", .{ .command = true, .key = .p });
+        try window.keybinds.putNoClobber(window.gpa, "delete_selection_contents", .{ .key = .backspace });
     } else {
         try window.keybinds.putNoClobber(window.gpa, "open_folder", .{ .key = .f, .control = true });
         try window.keybinds.putNoClobber(window.gpa, "open_files", .{ .key = .o, .control = true });
@@ -33,11 +34,13 @@ pub fn register() !void {
         try window.keybinds.putNoClobber(window.gpa, "explorer", .{ .control = true, .key = .e });
         try window.keybinds.putNoClobber(window.gpa, "workspace", .{ .control = true, .key = .w });
         try window.keybinds.putNoClobber(window.gpa, "export", .{ .control = true, .key = .p });
+        try window.keybinds.putNoClobber(window.gpa, "delete_selection_contents", .{ .key = .delete });
     }
 
     try window.keybinds.putNoClobber(window.gpa, "shift", .{ .shift = true });
     try window.keybinds.putNoClobber(window.gpa, "increase_stroke_size", .{ .key = .right_bracket });
     try window.keybinds.putNoClobber(window.gpa, "decrease_stroke_size", .{ .key = .left_bracket });
+
     try window.keybinds.putNoClobber(window.gpa, "quick_tools", .{ .key = .space });
 
     try window.keybinds.putNoClobber(window.gpa, "pencil", .{ .key = .d, .command = false, .control = false, .alt = false, .shift = false });
@@ -124,6 +127,12 @@ pub fn tick() !void {
                         pixi.editor.tools.stroke_size -= 1;
 
                     pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
+                }
+
+                if (ke.matchBind("delete_selection_contents")) {
+                    if (ke.action == .down) {
+                        pixi.editor.deleteSelectedContents();
+                    }
                 }
 
                 if (builtin.os.tag != .macos) {

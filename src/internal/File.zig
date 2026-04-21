@@ -1697,6 +1697,174 @@ pub fn strokeUndoCommit(file: *File) void {
     }
 }
 
+fn selectionMaskHasPixels(file: *const File) bool {
+    var it = file.editor.selection_layer.mask.iterator(.{ .kind = .set, .direction = .forward });
+    return it.next() != null;
+}
+
+fn pixelInAnySelectedSprite(file: *File, px: usize, py: usize) bool {
+    const fx: f32 = @floatFromInt(px);
+    const fy: f32 = @floatFromInt(py);
+    var it = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+    while (it.next()) |idx| {
+        const r = file.spriteRect(idx);
+        if (fx >= r.x and fx < r.x + r.w and fy >= r.y and fy < r.y + r.h) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// Clears pixels covered by the fine selection mask, or clears every selected sprite tile on the
+/// active layer. When the selection mask is non-empty, it takes precedence over sprite tile selection.
+pub fn deleteSelectedContents(file: *File) void {
+    if (file.editor.transform != null) return;
+
+    if (selectionMaskHasPixels(file)) {
+        deleteSelectedFinePixels(file);
+        return;
+    }
+
+    if (file.editor.selected_sprites.count() > 0) {
+        deleteSelectedSpriteTiles(file);
+    }
+}
+
+fn deleteSelectedFinePixels(file: *File) void {
+    const iw: u32 = file.width();
+    const stride: usize = @intCast(iw);
+
+    var min_x: u32 = iw;
+    var min_y: u32 = file.height();
+    var max_x: u32 = 0;
+    var max_y: u32 = 0;
+    var any = false;
+
+    {
+        var it = file.editor.selection_layer.mask.iterator(.{ .kind = .set, .direction = .forward });
+        while (it.next()) |pixel_index| {
+            const x: u32 = @intCast(pixel_index % stride);
+            const y: u32 = @intCast(pixel_index / stride);
+            min_x = @min(min_x, x);
+            min_y = @min(min_y, y);
+            max_x = @max(max_x, x);
+            max_y = @max(max_y, y);
+            any = true;
+        }
+    }
+    if (!any) return;
+
+    const cover = dvui.Rect{
+        .x = @floatFromInt(min_x),
+        .y = @floatFromInt(min_y),
+        .w = @floatFromInt(max_x - min_x + 1),
+        .h = @floatFromInt(max_y - min_y + 1),
+    };
+
+    file.strokeUndoBegin(cover) catch {
+        dvui.log.err("deleteSelectedFinePixels: strokeUndoBegin failed", .{});
+        return;
+    };
+
+    var layer = file.layers.get(file.selected_layer_index);
+
+    if (file.editor.stroke_undo_deferred) {
+        var it2 = file.editor.selection_layer.mask.iterator(.{ .kind = .set, .direction = .forward });
+        while (it2.next()) |pixel_index| {
+            layer.pixels()[pixel_index] = .{ 0, 0, 0, 0 };
+        }
+        layer.invalidate();
+        file.strokeUndoCommit();
+    } else {
+        file.buffers.stroke.clearAndFree();
+        var it2 = file.editor.selection_layer.mask.iterator(.{ .kind = .set, .direction = .forward });
+        while (it2.next()) |pixel_index| {
+            file.buffers.stroke.append(pixel_index, layer.pixels()[pixel_index]) catch {
+                dvui.log.err("deleteSelectedFinePixels: stroke buffer append failed", .{});
+                return;
+            };
+            layer.pixels()[pixel_index] = .{ 0, 0, 0, 0 };
+        }
+        layer.invalidate();
+        const change = file.buffers.stroke.toChange(layer.id) catch |err| {
+            dvui.log.err("deleteSelectedFinePixels: toChange failed: {}", .{err});
+            return;
+        };
+        file.history.append(change) catch {
+            dvui.log.err("deleteSelectedFinePixels: history append failed", .{});
+        };
+    }
+
+    file.editor.selection_layer.clearMask();
+    file.invalidateActiveLayerTransparencyMaskCache();
+    file.editor.layer_composite_dirty = true;
+    file.editor.split_composite_dirty = true;
+}
+
+fn deleteSelectedSpriteTiles(file: *File) void {
+    var cover: ?dvui.Rect = null;
+    {
+        var it = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+        while (it.next()) |idx| {
+            const r = file.spriteRect(idx);
+            cover = if (cover) |c| c.unionWith(r) else r;
+        }
+    }
+    const cvr = cover orelse return;
+
+    file.strokeUndoBegin(cvr) catch {
+        dvui.log.err("deleteSelectedSpriteTiles: strokeUndoBegin failed", .{});
+        return;
+    };
+
+    var layer = file.layers.get(file.selected_layer_index);
+
+    if (file.editor.stroke_undo_deferred) {
+        var it = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+        while (it.next()) |idx| {
+            layer.clearRect(file.spriteRect(idx));
+        }
+        file.strokeUndoCommit();
+    } else {
+        file.buffers.stroke.clearAndFree();
+        const b = intRectFromDvuiRect(cvr, file.width(), file.height());
+        if (b.w == 0 or b.h == 0) {
+            file.invalidateActiveLayerTransparencyMaskCache();
+            file.editor.layer_composite_dirty = true;
+            file.editor.split_composite_dirty = true;
+            return;
+        }
+        const iw_sz: usize = @intCast(file.width());
+        var row: u32 = 0;
+        while (row < b.h) : (row += 1) {
+            var col: u32 = 0;
+            while (col < b.w) : (col += 1) {
+                const gx: usize = @as(usize, b.x + col);
+                const gy: usize = @as(usize, b.y + row);
+                if (!pixelInAnySelectedSprite(file, gx, gy)) continue;
+                const pidx = gy * iw_sz + gx;
+                file.buffers.stroke.append(pidx, layer.pixels()[pidx]) catch {
+                    dvui.log.err("deleteSelectedSpriteTiles: stroke buffer append failed", .{});
+                    return;
+                };
+                layer.pixels()[pidx] = .{ 0, 0, 0, 0 };
+            }
+        }
+        layer.invalidate();
+        const change = file.buffers.stroke.toChange(layer.id) catch |err| {
+            dvui.log.err("deleteSelectedSpriteTiles: toChange failed: {}", .{err});
+            return;
+        };
+        file.history.append(change) catch {
+            dvui.log.err("deleteSelectedSpriteTiles: history append failed", .{});
+        };
+    }
+
+    file.invalidateActiveLayerTransparencyMaskCache();
+    file.editor.layer_composite_dirty = true;
+    file.editor.split_composite_dirty = true;
+}
+
 /// Draws a point on the `.selected` (the point will be added to the stroke buffer) or `.temporary` layer.
 /// If `to_change` is true, the point will be added to the stroke buffer and then the history will be appended.
 /// If `invalidate` is true, the layer will be invalidated.
