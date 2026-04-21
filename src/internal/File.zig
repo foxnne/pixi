@@ -210,6 +210,13 @@ pub fn height(file: *const File) u32 {
     return file.rows * file.row_height;
 }
 
+/// Clears the cached per-layer transparency mask used by the selection overlay (`FileWidget.updateActiveLayerMask`).
+/// Call after any in-memory edit to layer pixels while `ImageSource.hash()` is pointer-based and does not
+/// change when bytes change (see also `Transform.accept` / undo-redo).
+pub fn invalidateActiveLayerTransparencyMaskCache(file: *File) void {
+    file.editor.mask_built_for_layer = null;
+}
+
 /// Fills `out[0..len]` with storage indices in list order (position 0 = top row / front of stack)
 /// after moving the layer at `removed` to sit before `insert_before`, matching `explorer/tools.zig` drop handling.
 pub fn layerOrderAfterMove(len: usize, removed: usize, insert_before: usize, out: []usize) void {

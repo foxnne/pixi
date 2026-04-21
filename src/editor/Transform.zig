@@ -66,6 +66,19 @@ pub fn accept(self: *Transform) void {
                 @memcpy(&layer.pixels()[pixel_index], &[_]u8{ temp_pixel.r, temp_pixel.g, temp_pixel.b, temp_pixel.a });
             }
         }
+
+        // Paste / transform accept writes new pixels but does not go through `processSelection`; the
+        // overlay uses `selection_layer.mask ∩ active_layer.mask`. Keep the mask aligned with the
+        // committed transform so copied/pasted (and moved) pixels show the selection outline.
+        if (pixi.editor.tools.current == .selection) {
+            file.editor.selection_layer.clearMask();
+            for (pix, 0..) |temp_pixel, pixel_index| {
+                if (temp_pixel.a != 0) {
+                    file.editor.selection_layer.mask.set(pixel_index);
+                }
+            }
+        }
+
         const t_after_loop: i128 = if (pixi.perf.record) std.time.nanoTimestamp() else 0;
 
         const t_to_change: i128 = if (pixi.perf.record) std.time.nanoTimestamp() else 0;
@@ -91,6 +104,7 @@ pub fn accept(self: *Transform) void {
         }
 
         layer.invalidate();
+        file.invalidateActiveLayerTransparencyMaskCache();
         file.editor.transform_layer.clear();
         file.editor.transform_layer.clearMask();
         file.editor.transform_layer.invalidate();
@@ -109,6 +123,8 @@ pub fn cancel(self: *Transform) void {
             @memcpy(&layer.pixels()[pixel_index], &file.editor.transform_layer.pixels()[pixel_index]);
         }
         layer.invalidate();
+        file.invalidateActiveLayerTransparencyMaskCache();
+
         file.editor.transform_layer.clear();
         file.editor.transform_layer.clearMask();
         file.editor.transform_layer.invalidate();

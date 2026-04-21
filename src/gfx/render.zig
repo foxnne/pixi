@@ -62,6 +62,10 @@ fn flushPendingLayerTextureUploads(init_opts: RenderFileOptions) void {
                     };
                 }
                 file.editor.temp_gpu_dirty_rect = null;
+            } else if (file.editor.temp_layer_has_content) {
+                // CPU redraw (e.g. selection overlay via setColorFromMask) may leave the cache valid
+                // without a dirty rect; sync the full texture so the GPU matches the pixel buffer.
+                _ = temp_source.getTexture() catch null;
             }
         } else if (file.editor.temp_layer_has_content) {
             _ = temp_source.getTexture() catch null;
