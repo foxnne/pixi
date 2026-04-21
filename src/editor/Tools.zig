@@ -239,8 +239,8 @@ pub fn drawTooltip(_: Tools, tool: Tool, rect: dvui.Rect.Physical, id_extra: u64
     var tooltip: dvui.FloatingTooltipWidget = undefined;
     tooltip.init(@src(), .{
         .active_rect = rect,
-        .delay = 250_000,
-        .interactive = true,
+        .delay = 500_000,
+        .interactive = if (tool == .selection) true else false,
     }, .{
         .id_extra = id_extra,
         .color_fill = dvui.themeGet().color(.content, .fill).opacity(0.9),
@@ -350,10 +350,10 @@ pub fn drawTooltip(_: Tools, tool: Tool, rect: dvui.Rect.Physical, id_extra: u64
                     });
                     defer mode_col.deinit();
 
-                    const sprite = switch (mi) {
-                        0, 1 => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.selection_default],
-                        2 => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.bucket_default],
-                        else => unreachable,
+                    const sprite = switch (mode) {
+                        .box => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.box_selection_default],
+                        .pixel => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pixel_selection_default],
+                        .color => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.color_selection_default],
                     };
                     const uv = dvui.Rect{
                         .x = @as(f32, @floatFromInt(sprite.source[0])) / atlas_size.w,

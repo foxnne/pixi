@@ -16,8 +16,62 @@ prev_anim_count: usize = 0,
 prev_anim_id: u64 = 0,
 prev_sprite_count: usize = 0,
 
+/// Number inputs for sprite origin (sprites tab); resync when `origin_fields_sync_key` changes.
+origin_edit_x: f32 = 0,
+origin_edit_y: f32 = 0,
+origin_fields_sync_key: u64 = 0,
+
 pub fn init() Sprites {
     return .{};
+}
+
+fn selectionUiKey(file: *pixi.Internal.File) u64 {
+    const c = file.editor.selected_sprites.count();
+    if (c == 0) return 0;
+    const first = file.editor.selected_sprites.findFirstSet() orelse return 0;
+    const last = file.editor.selected_sprites.findLastSet() orelse return 0;
+    return (c << 48) ^ (first << 24) ^ last;
+}
+
+fn commitSpriteOriginAxis(file: *pixi.Internal.File, axis: enum { x, y }, new_val: f32) !void {
+    const cw = @as(f32, @floatFromInt(file.column_width));
+    const rh = @as(f32, @floatFromInt(file.row_height));
+    const max_v: f32 = switch (axis) {
+        .x => cw,
+        .y => rh,
+    };
+    const clamped = std.math.clamp(new_val, 0, max_v);
+
+    const count = file.editor.selected_sprites.count();
+    if (count == 0) return;
+
+    const indices = try pixi.app.allocator.alloc(usize, count);
+    errdefer pixi.app.allocator.free(indices);
+    const old_vals = try pixi.app.allocator.alloc([2]f32, count);
+    errdefer pixi.app.allocator.free(old_vals);
+
+    var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+    var i: usize = 0;
+    while (iter.next()) |si| : (i += 1) {
+        indices[i] = si;
+        old_vals[i] = file.sprites.items(.origin)[si];
+    }
+
+    for (indices) |si| {
+        switch (axis) {
+            .x => file.sprites.items(.origin)[si][0] = clamped,
+            .y => file.sprites.items(.origin)[si][1] = clamped,
+        }
+    }
+
+    file.history.append(.{ .origins = .{ .indices = indices, .values = old_vals } }) catch |err| {
+        for (indices, 0..) |si, j| {
+            file.sprites.items(.origin)[si] = old_vals[j];
+        }
+        pixi.app.allocator.free(indices);
+        pixi.app.allocator.free(old_vals);
+        return err;
+    };
 }
 
 pub fn draw(self: *Sprites) !void {
@@ -32,7 +86,7 @@ pub fn draw(self: *Sprites) !void {
         defer vbox.deinit();
 
         const hbox = dvui.box(@src(), .{
-            .dir = .horizontal,
+            .dir = .vertical,
             .equal_space = false,
         }, .{
             .expand = .horizontal,
@@ -40,14 +94,25 @@ pub fn draw(self: *Sprites) !void {
         });
         defer hbox.deinit();
 
-        self.drawAnimations() catch {
-            dvui.log.err("Failed to draw layers", .{});
+        self.drawOriginControls() catch {
+            dvui.log.err("Failed to draw origin controls", .{});
         };
 
-        if (file.selected_animation_index != null) {
-            self.drawFrames() catch {
-                dvui.log.err("Failed to draw sprites", .{});
+        {
+            var animations_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .expand = .horizontal,
+            });
+            defer animations_box.deinit();
+
+            self.drawAnimations() catch {
+                dvui.log.err("Failed to draw layers", .{});
             };
+
+            if (file.selected_animation_index != null) {
+                self.drawFrames() catch {
+                    dvui.log.err("Failed to draw sprites", .{});
+                };
+            }
         }
 
         for (dvui.events()) |*e| {
@@ -60,35 +125,108 @@ pub fn draw(self: *Sprites) !void {
     }
 }
 
-pub fn drawOriginControls(_: *Sprites) !void {
-    var preview_origin_x: ?f32 = null;
-    var preview_origin_y: ?f32 = null;
-
+pub fn drawOriginControls(self: *Sprites) !void {
     if (pixi.editor.activeFile()) |file| {
-        if (file.editor.selected_sprites.findFirstSet()) |first_sprite_index| {
-            const first_sprite = file.sprites.get(first_sprite_index);
+        if (file.editor.selected_sprites.count() == 0) return;
 
-            preview_origin_x = first_sprite.origin[0];
-            preview_origin_y = first_sprite.origin[1];
+        const key = selectionUiKey(file);
+        if (key != self.origin_fields_sync_key) {
+            self.origin_fields_sync_key = key;
 
-            var iter = file.editor.selected_sprites.iterator(.{ .direction = .forward, .kind = .set });
-            while (iter.next()) |selected_sprite_index| {
-                const selected_sprite = file.sprites.get(selected_sprite_index);
+            var ox_unified: ?f32 = null;
+            var oy_unified: ?f32 = null;
+            if (file.editor.selected_sprites.findFirstSet()) |first_si| {
+                const first_sp = file.sprites.get(first_si);
+                ox_unified = first_sp.origin[0];
+                oy_unified = first_sp.origin[1];
 
-                if (selected_sprite.origin[0] != preview_origin_x) {
-                    preview_origin_x = null;
-                }
-
-                if (selected_sprite.origin[1] != preview_origin_y) {
-                    preview_origin_y = null;
-                }
-
-                if (preview_origin_x == null and preview_origin_y == null) {
-                    // We already know we have mixed origin sizes, so the origins are not unified
-                    break;
+                var iter = file.editor.selected_sprites.iterator(.{ .direction = .forward, .kind = .set });
+                while (iter.next()) |si| {
+                    const sp = file.sprites.get(si);
+                    if (ox_unified) |u| {
+                        if (sp.origin[0] != u) ox_unified = null;
+                    }
+                    if (oy_unified) |u| {
+                        if (sp.origin[1] != u) oy_unified = null;
+                    }
+                    if (ox_unified == null and oy_unified == null) break;
                 }
             }
+
+            self.origin_edit_x = ox_unified orelse 0;
+            self.origin_edit_y = oy_unified orelse 0;
         }
+
+        const cw = @as(f32, @floatFromInt(file.column_width));
+        const rh = @as(f32, @floatFromInt(file.row_height));
+
+        var mixed_x = false;
+        var mixed_y = false;
+        if (file.editor.selected_sprites.findFirstSet()) |first_si| {
+            const o0 = file.sprites.get(first_si).origin;
+            var iter = file.editor.selected_sprites.iterator(.{ .direction = .forward, .kind = .set });
+            while (iter.next()) |si| {
+                const o = file.sprites.get(si).origin;
+                if (o[0] != o0[0]) mixed_x = true;
+                if (o[1] != o0[1]) mixed_y = true;
+            }
+        }
+
+        var origin_row = dvui.box(@src(), .{ .dir = .vertical }, .{
+            .expand = .horizontal,
+        });
+        defer origin_row.deinit();
+
+        dvui.labelNoFmt(@src(), "ORIGIN", .{}, .{ .font = dvui.Font.theme(.body).larger(-1.0) });
+
+        var fields = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            .expand = .horizontal,
+        });
+        defer fields.deinit();
+
+        dvui.labelNoFmt(@src(), "X", .{}, .{ .font = dvui.Font.theme(.body) });
+        if (mixed_x) {
+            dvui.labelNoFmt(@src(), "(mixed)", .{}, .{ .font = dvui.Font.theme(.body).larger(-2.0), .margin = dvui.Rect.rect(0, 0, 4, 0) });
+        }
+        const res_x = dvui.textEntryNumber(@src(), f32, .{
+            .value = &self.origin_edit_x,
+            .min = 0,
+            .max = cw,
+            .show_min_max = true,
+        }, .{
+            .id_extra = 0xb00001,
+        });
+
+        dvui.labelNoFmt(@src(), "Y", .{}, .{ .font = dvui.Font.theme(.body), .margin = dvui.Rect.rect(12, 0, 6, 0) });
+        if (mixed_y) {
+            dvui.labelNoFmt(@src(), "(mixed)", .{}, .{ .font = dvui.Font.theme(.body).larger(-2.0), .margin = dvui.Rect.rect(0, 0, 4, 0) });
+        }
+        const res_y = dvui.textEntryNumber(@src(), f32, .{
+            .value = &self.origin_edit_y,
+            .min = 0,
+            .max = rh,
+            .show_min_max = true,
+        }, .{
+            .id_extra = 0xb00002,
+        });
+
+        if (res_x.changed) switch (res_x.value) {
+            .Valid => |v| {
+                const cl = std.math.clamp(v, 0, cw);
+                try commitSpriteOriginAxis(file, .x, cl);
+                self.origin_edit_x = cl;
+            },
+            else => {},
+        };
+
+        if (res_y.changed) switch (res_y.value) {
+            .Valid => |v| {
+                const cl = std.math.clamp(v, 0, rh);
+                try commitSpriteOriginAxis(file, .y, cl);
+                self.origin_edit_y = cl;
+            },
+            else => {},
+        };
     }
 }
 

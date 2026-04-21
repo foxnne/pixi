@@ -818,12 +818,18 @@ pub fn drawRadialMenu(editor: *Editor) !void {
             editor.tools.drawTooltip(tool, button.data().rectScale().r, i) catch {};
         }
 
+        const selection_sprite = switch (editor.tools.selection_mode) {
+            .box => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.box_selection_default],
+            .pixel => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pixel_selection_default],
+            .color => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.color_selection_default],
+        };
+
         const sprite = switch (@as(Editor.Tools.Tool, @enumFromInt(i))) {
             .pointer => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.cursor_default],
             .pencil => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.pencil_default],
             .eraser => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.eraser_default],
             .bucket => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.bucket_default],
-            .selection => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.selection_default],
+            .selection => selection_sprite,
         };
         const size: dvui.Size = dvui.imageSize(pixi.editor.atlas.source) catch .{ .w = 0, .h = 0 };
 
