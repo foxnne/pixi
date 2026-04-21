@@ -1651,6 +1651,195 @@ pub fn drawSpriteSelection(self: *FileWidget) void {
     }
 }
 
+/// Arc-length point along a piecewise-linear polyline (`cum` = cumulative segment lengths).
+fn marqueePointAtArcLength(
+    points: []const dvui.Point.Physical,
+    cum: []const f32,
+    s: f32,
+) dvui.Point.Physical {
+    const n = points.len;
+    std.debug.assert(n == cum.len);
+    if (n == 0) return .{ .x = 0, .y = 0 };
+    if (n == 1) return points[0];
+
+    const total = cum[n - 1];
+    const clamped = std.math.clamp(s, cum[0], total);
+
+    var i: usize = 0;
+    while (i + 1 < n and cum[i + 1] < clamped) {
+        i += 1;
+    }
+    const seg_len = cum[i + 1] - cum[i];
+    if (seg_len < 1e-5) {
+        return points[i + 1];
+    }
+    const t = (clamped - cum[i]) / seg_len;
+    return .{
+        .x = points[i].x + (points[i + 1].x - points[i].x) * t,
+        .y = points[i].y + (points[i + 1].y - points[i].y) * t,
+    };
+}
+
+fn marqueeAppendSpan(
+    points: []const dvui.Point.Physical,
+    cum: []const f32,
+    s0: f32,
+    s1: f32,
+    out: *std.array_list.Managed(dvui.Point.Physical),
+) !void {
+    out.clearRetainingCapacity();
+    const eps = 1e-4;
+    if (s1 <= s0 + eps) return;
+
+    try out.append(marqueePointAtArcLength(points, cum, s0));
+
+    const n = points.len;
+    var k: usize = 1;
+    while (k < n) : (k += 1) {
+        const d = cum[k];
+        if (d <= s0 + eps) continue;
+        if (d >= s1 - eps) break;
+        try out.append(points[k]);
+    }
+
+    const end_pt = marqueePointAtArcLength(points, cum, s1);
+    const last = out.items[out.items.len - 1];
+    const dx = end_pt.x - last.x;
+    const dy = end_pt.y - last.y;
+    if (dx * dx + dy * dy > 1e-8) {
+        try out.append(end_pt);
+    }
+}
+
+/// Dashed stroke along a polyline (same approach as graphl `previewStrokePolylineDashed`).
+fn strokePolylineDashedPhysical(
+    points: []const dvui.Point.Physical,
+    dash_len: f32,
+    gap_len: f32,
+    stroke: dvui.Path.StrokeOptions,
+) void {
+    const n = points.len;
+    if (n < 2) return;
+    if (dash_len <= 0.0) return;
+    const gap = @max(0.0, gap_len);
+    const pattern = dash_len + gap;
+    if (pattern < 1e-5) return;
+
+    const arena = dvui.currentWindow().arena();
+    const cum = arena.alloc(f32, n) catch return;
+    cum[0] = 0;
+    var i: usize = 1;
+    while (i < n) : (i += 1) {
+        cum[i] = cum[i - 1] + dvui.Point.Physical.diff(points[i], points[i - 1]).length();
+    }
+
+    const total = cum[n - 1];
+    if (total < 1e-4) return;
+
+    var buf = std.array_list.Managed(dvui.Point.Physical).init(arena);
+    defer buf.deinit();
+
+    const edge_eps = 1e-5;
+    var s: f32 = 0;
+    while (s < total - edge_eps) {
+        const dash_end = @min(s + dash_len, total);
+        if (dash_end <= s + edge_eps) break;
+        marqueeAppendSpan(points, cum, s, dash_end, &buf) catch return;
+        if (buf.items.len != 0) {
+            dvui.Path.stroke(.{ .points = buf.items }, stroke);
+        }
+        s = dash_end + gap;
+    }
+}
+
+fn drawBoxSelectionMarqueeOutline(self: *FileWidget) void {
+    if (pixi.editor.tools.current != .selection) return;
+    if (pixi.editor.tools.selection_mode != .box) return;
+    const start = self.drag_data_point orelse return;
+    if (dvui.dragging(dvui.currentWindow().mouse_pt, "stroke_drag") == null) return;
+
+    const file = self.init_options.file;
+    const canvas = &file.editor.canvas;
+    const current = canvas.dataFromScreenPoint(dvui.currentWindow().mouse_pt);
+
+    const min_x = @min(start.x, current.x);
+    const min_y = @min(start.y, current.y);
+    const max_x = @max(start.x, current.x);
+    const max_y = @max(start.y, current.y);
+    if (@abs(max_x - min_x) < 1e-4 and @abs(max_y - min_y) < 1e-4) return;
+
+    const tl = canvas.screenFromDataPoint(.{ .x = min_x, .y = min_y });
+    const tr = canvas.screenFromDataPoint(.{ .x = max_x, .y = min_y });
+    const br = canvas.screenFromDataPoint(.{ .x = max_x, .y = max_y });
+    const bl = canvas.screenFromDataPoint(.{ .x = min_x, .y = max_y });
+
+    const arena = dvui.currentWindow().arena();
+    const loop_buf = arena.alloc(dvui.Point.Physical, 5) catch return;
+    loop_buf[0] = tl;
+    loop_buf[1] = tr;
+    loop_buf[2] = br;
+    loop_buf[3] = bl;
+    loop_buf[4] = tl;
+
+    const rs = canvas.scroll_container.data().rectScale();
+    const stroke_w = @max(1.0, 1.0 * rs.s);
+
+    const outline_color = dvui.themeGet().color(.window, .text);
+
+    const dash_px: f32 = 14.0;
+    const gap_px: f32 = 8.75;
+
+    strokePolylineDashedPhysical(loop_buf, dash_px, gap_px, .{
+        .thickness = stroke_w,
+        .color = outline_color,
+        .endcap_style = .none,
+        .after = true,
+    });
+}
+
+/// Preview for rectangular selection while dragging (box mode).
+fn applySelectionBoxPreview(
+    file: *pixi.Internal.File,
+    active_layer: *const pixi.Internal.Layer,
+    start: dvui.Point,
+    end: dvui.Point,
+    mod: dvui.enums.Mod,
+) void {
+    const read_layer = file.layers.get(file.selected_layer_index);
+    file.editor.temporary_layer.clearMask();
+    file.editor.temporary_layer.mask.setUnion(file.editor.selection_layer.mask);
+    file.editor.temporary_layer.mask.setIntersection(active_layer.mask);
+
+    const x0: i32 = @intFromFloat(@floor(@min(start.x, end.x)));
+    const y0: i32 = @intFromFloat(@floor(@min(start.y, end.y)));
+    const x1: i32 = @intFromFloat(@floor(@max(start.x, end.x)));
+    const y1: i32 = @intFromFloat(@floor(@max(start.y, end.y)));
+
+    const iw: i32 = @intCast(file.width());
+    const ih: i32 = @intCast(file.height());
+
+    const sub = mod.matchBind("shift");
+
+    var py = y0;
+    while (py <= y1) : (py += 1) {
+        if (py < 0 or py >= ih) continue;
+        var px = x0;
+        while (px <= x1) : (px += 1) {
+            if (px < 0 or px >= iw) continue;
+            const pt: dvui.Point = .{ .x = @floatFromInt(px), .y = @floatFromInt(py) };
+            if (file.editor.temporary_layer.pixelIndex(pt)) |idx| {
+                if (read_layer.pixels()[idx][3] == 0) continue;
+                if (sub) {
+                    file.editor.temporary_layer.mask.setValue(idx, false);
+                } else {
+                    file.editor.temporary_layer.mask.setValue(idx, true);
+                }
+            }
+        }
+    }
+
+}
+
 /// Responsible for processing events to create/modify the current fine-grained selection.
 /// This selection is pixel-based, and includes shift/ctrl/cmd modifiers to support add/remove.
 /// The selection uses the same logic as the stroke tool to brush the selection over existing pixels.
@@ -1675,23 +1864,20 @@ pub fn processSelection(self: *FileWidget) void {
     var selection_color_primary_stroke: dvui.Color = .{ .r = 255, .g = 255, .b = 255, .a = selection_alpha_stroke };
     var selection_color_secondary_stroke: dvui.Color = .{ .r = 200, .g = 200, .b = 200, .a = selection_alpha_stroke };
 
-    { // Always draw the selection to the temporary layer so we dont only show it when the mouse moves/hovers
-
-        // Clear temporary layer pixels and mask
+    // Pixel mode: draw the committed selection before handling events (brush preview layers on top).
+    // Box mode: skip — the mask is updated on mouse release in the same frame as this paint; drawing
+    // here would use stale data until the next frame. Box repaints from the current mask after events.
+    if (pixi.editor.tools.selection_mode == .pixel or pixi.editor.tools.selection_mode == .color) {
         @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
         file.editor.temporary_layer.clearMask();
 
-        // Set the temporary layer mask to the selection layer mask
         file.editor.temporary_layer.mask.setUnion(file.editor.selection_layer.mask);
         file.editor.temporary_layer.mask.setIntersection(active_layer.mask);
 
-        // Now temp mask contains the active selection trimmed by the active layer mask
-        // go ahead and draw out the selection in the normal colors
         file.editor.temporary_layer.setColorFromMask(selection_color_primary);
         file.editor.temporary_layer.mask.setIntersection(file.editor.checkerboard);
         file.editor.temporary_layer.setColorFromMask(selection_color_secondary);
     }
-    file.editor.temp_layer_has_content = true;
 
     for (dvui.events()) |*e| {
         if (!self.init_options.file.editor.canvas.scroll_container.matchEvent(e)) {
@@ -1701,22 +1887,24 @@ pub fn processSelection(self: *FileWidget) void {
         switch (e.evt) {
             .key => |ke| {
                 var update: bool = false;
-                if (ke.matchBind("increase_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
-                    if (pixi.editor.tools.stroke_size < pixi.Editor.Tools.max_brush_size - 1)
-                        pixi.editor.tools.stroke_size += 1;
+                if (pixi.editor.tools.selection_mode == .pixel) {
+                    if (ke.matchBind("increase_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
+                        if (pixi.editor.tools.stroke_size < pixi.Editor.Tools.max_brush_size - 1)
+                            pixi.editor.tools.stroke_size += 1;
 
-                    pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
-                    e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
-                    update = true;
-                }
+                        pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
+                        e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
+                        update = true;
+                    }
 
-                if (ke.matchBind("decrease_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
-                    if (pixi.editor.tools.stroke_size > 1)
-                        pixi.editor.tools.stroke_size -= 1;
+                    if (ke.matchBind("decrease_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
+                        if (pixi.editor.tools.stroke_size > 1)
+                            pixi.editor.tools.stroke_size -= 1;
 
-                    pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
-                    e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
-                    update = true;
+                        pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
+                        e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
+                        update = true;
+                    }
                 }
 
                 if (update) {
@@ -1754,59 +1942,100 @@ pub fn processSelection(self: *FileWidget) void {
                 const current_point = self.init_options.file.editor.canvas.dataFromScreenPoint(me.p);
 
                 if (me.action == .position) {
-                    // Clear the mask, we now need to only draw the point at the stroke size to the mask
-                    file.editor.temporary_layer.clearMask();
+                    const box_mode = pixi.editor.tools.selection_mode == .box;
+                    const color_mode = pixi.editor.tools.selection_mode == .color;
+                    const is_drag = dvui.dragging(me.p, "stroke_drag") != null;
+                    const box_drag = box_mode and is_drag and self.drag_data_point != null;
 
-                    var default: bool = true;
+                    if ((box_mode and !box_drag) or color_mode) {
+                        // Box: committed selection is painted after events. Color: no brush preview.
+                    } else {
+                        // Clear the mask, we now need to only draw the point at the stroke size to the mask
+                        file.editor.temporary_layer.clearMask();
 
-                    if (me.mod.matchBind("shift")) {
-                        default = false;
-                        selection_color_primary_stroke = selection_color_primary_stroke.lerp(dvui.themeGet().color(.err, .fill), 0.7);
-                        selection_color_primary_stroke.a = selection_alpha_stroke;
-                        selection_color_secondary_stroke = selection_color_secondary_stroke.lerp(dvui.themeGet().color(.err, .fill), 0.7);
-                        selection_color_secondary_stroke.a = selection_alpha_stroke;
-                    } else if (me.mod.matchBind("ctrl/cmd")) {
-                        default = false;
-                        selection_color_primary_stroke = selection_color_primary_stroke.lerp(dvui.themeGet().color(.highlight, .fill), 0.7);
-                        selection_color_primary_stroke.a = selection_alpha_stroke;
-                        selection_color_secondary_stroke = selection_color_secondary_stroke.lerp(dvui.themeGet().color(.highlight, .fill), 0.7);
-                        selection_color_secondary_stroke.a = selection_alpha_stroke;
+                        if (box_drag) {
+                            if (self.drag_data_point) |start| {
+                                // Clear pixels so subtract preview can drop overlay where the mask is cleared
+                                // (setColorFromMask only writes where the mask is set).
+                                @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+                                applySelectionBoxPreview(
+                                    file,
+                                    active_layer,
+                                    start,
+                                    current_point,
+                                    me.mod,
+                                );
+                            }
+                            // Same checkerboard two-tone as the committed selection (no err/highlight tint).
+                            file.editor.temporary_layer.mask.setIntersection(active_layer.mask);
+                            file.editor.temporary_layer.setColorFromMask(selection_color_primary);
+                            file.editor.temporary_layer.mask.setIntersection(file.editor.checkerboard);
+                            file.editor.temporary_layer.setColorFromMask(selection_color_secondary);
+                        } else {
+                            var default: bool = true;
+
+                            if (me.mod.matchBind("shift")) {
+                                default = false;
+                                selection_color_primary_stroke = selection_color_primary_stroke.lerp(dvui.themeGet().color(.err, .fill), 0.7);
+                                selection_color_primary_stroke.a = selection_alpha_stroke;
+                                selection_color_secondary_stroke = selection_color_secondary_stroke.lerp(dvui.themeGet().color(.err, .fill), 0.7);
+                                selection_color_secondary_stroke.a = selection_alpha_stroke;
+                            } else if (me.mod.matchBind("ctrl/cmd")) {
+                                default = false;
+                                selection_color_primary_stroke = selection_color_primary_stroke.lerp(dvui.themeGet().color(.highlight, .fill), 0.7);
+                                selection_color_primary_stroke.a = selection_alpha_stroke;
+                                selection_color_secondary_stroke = selection_color_secondary_stroke.lerp(dvui.themeGet().color(.highlight, .fill), 0.7);
+                                selection_color_secondary_stroke.a = selection_alpha_stroke;
+                            }
+
+                            // Draw the point at the stroke size to the temporary layer mask only
+                            file.drawPoint(
+                                current_point,
+                                .temporary,
+                                .{
+                                    .mask_only = true,
+                                    .stroke_size = pixi.editor.tools.stroke_size,
+                                },
+                            );
+
+                            // Only show stroke over relevant pixels to make selection clearer
+                            if (me.mod.matchBind("shift")) {
+                                file.editor.temporary_layer.mask.setIntersection(file.editor.selection_layer.mask);
+                            } else if (me.mod.matchBind("ctrl/cmd")) {
+                                var copy_mask = file.editor.selection_layer.mask.clone(dvui.currentWindow().arena()) catch {
+                                    dvui.log.err("Failed to clone selection layer mask", .{});
+                                    return;
+                                };
+                                copy_mask.toggleAll();
+                                file.editor.temporary_layer.mask.setIntersection(copy_mask);
+                            }
+
+                            // Intersect with the active layer mask so the stroke is confined to only non-transparent pixels
+                            file.editor.temporary_layer.mask.setIntersection(active_layer.mask);
+                            file.editor.temporary_layer.setColorFromMask(selection_color_primary_stroke);
+
+                            // Intersect with the checkerboard mask so we can show the pattern
+                            file.editor.temporary_layer.mask.setIntersection(file.editor.checkerboard);
+                            file.editor.temporary_layer.setColorFromMask(if (default) selection_color_secondary_stroke else selection_color_primary_stroke);
+                        }
                     }
-
-                    // Draw the point at the stroke size to the temporary layer mask only
-                    file.drawPoint(
-                        current_point,
-                        .temporary,
-                        .{
-                            .mask_only = true,
-                            .stroke_size = pixi.editor.tools.stroke_size,
-                        },
-                    );
-
-                    // Only show stroke over relevant pixels to make selection clearer
-                    if (me.mod.matchBind("shift")) {
-                        file.editor.temporary_layer.mask.setIntersection(file.editor.selection_layer.mask);
-                    } else if (me.mod.matchBind("ctrl/cmd")) {
-                        var copy_mask = file.editor.selection_layer.mask.clone(dvui.currentWindow().arena()) catch {
-                            dvui.log.err("Failed to clone selection layer mask", .{});
-                            return;
-                        };
-                        copy_mask.toggleAll();
-                        file.editor.temporary_layer.mask.setIntersection(copy_mask);
-                    }
-
-                    // Intersect with the active layer mask so the stroke is confined to only non-transparent pixels
-                    file.editor.temporary_layer.mask.setIntersection(active_layer.mask);
-                    file.editor.temporary_layer.setColorFromMask(selection_color_primary_stroke);
-
-                    // Intersect with the checkerboard mask so we can show the pattern
-                    file.editor.temporary_layer.mask.setIntersection(file.editor.checkerboard);
-                    file.editor.temporary_layer.setColorFromMask(if (default) selection_color_secondary_stroke else selection_color_primary_stroke);
                 }
 
                 if (me.action == .press and me.button.pointer()) {
                     if (!widget_active) continue;
                     e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
+
+                    if (pixi.editor.tools.selection_mode == .color) {
+                        // Only clear the mask if we don't have ctrl/cmd pressed
+                        if (!me.mod.matchBind("ctrl/cmd") and !me.mod.matchBind("shift"))
+                            file.editor.selection_layer.clearMask();
+
+                        file.selectColorFloodFromPoint(current_point, !me.mod.matchBind("shift")) catch {
+                            dvui.log.err("Color selection flood failed", .{});
+                        };
+                        continue;
+                    }
+
                     dvui.captureMouse(self.init_options.file.editor.canvas.scroll_container.data(), e.num);
                     dvui.dragPreStart(me.p, .{ .name = "stroke_drag" });
 
@@ -1814,22 +2043,9 @@ pub fn processSelection(self: *FileWidget) void {
                     if (!me.mod.matchBind("ctrl/cmd") and !me.mod.matchBind("shift"))
                         file.editor.selection_layer.clearMask();
 
-                    file.selectPoint(
-                        current_point,
-                        .{
-                            .value = !me.mod.matchBind("shift"),
-                            .stroke_size = pixi.editor.tools.stroke_size,
-                        },
-                    );
-
-                    self.drag_data_point = current_point;
-                } else if (me.action == .release and me.button.pointer()) {
-                    if (!widget_active) continue;
-                    if (dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id)) {
-                        e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
-                        dvui.captureMouse(null, e.num);
-                        dvui.dragEnd();
-
+                    if (pixi.editor.tools.selection_mode == .box) {
+                        self.drag_data_point = current_point;
+                    } else {
                         file.selectPoint(
                             current_point,
                             .{
@@ -1837,6 +2053,36 @@ pub fn processSelection(self: *FileWidget) void {
                                 .stroke_size = pixi.editor.tools.stroke_size,
                             },
                         );
+
+                        self.drag_data_point = current_point;
+                    }
+                } else if (me.action == .release and me.button.pointer()) {
+                    if (!widget_active) continue;
+                    if (dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id)) {
+                        e.handle(@src(), self.init_options.file.editor.canvas.scroll_container.data());
+                        dvui.captureMouse(null, e.num);
+                        dvui.dragEnd();
+
+                        if (pixi.editor.tools.selection_mode == .box) {
+                            if (self.drag_data_point) |start| {
+                                file.selectRectBetweenPoints(
+                                    start,
+                                    current_point,
+                                    .{
+                                        .value = !me.mod.matchBind("shift"),
+                                        .stroke_size = pixi.editor.tools.stroke_size,
+                                    },
+                                );
+                            }
+                        } else if (pixi.editor.tools.selection_mode != .color) {
+                            file.selectPoint(
+                                current_point,
+                                .{
+                                    .value = !me.mod.matchBind("shift"),
+                                    .stroke_size = pixi.editor.tools.stroke_size,
+                                },
+                            );
+                        }
 
                         self.drag_data_point = null;
                     }
@@ -1865,18 +2111,20 @@ pub fn processSelection(self: *FileWidget) void {
                                 });
                             }
 
-                            if (self.drag_data_point) |previous_point| {
-                                file.selectLine(
-                                    previous_point,
-                                    current_point,
-                                    .{
-                                        .value = !me.mod.matchBind("shift"),
-                                        .stroke_size = pixi.editor.tools.stroke_size,
-                                    },
-                                );
-                            }
+                            if (pixi.editor.tools.selection_mode == .pixel) {
+                                if (self.drag_data_point) |previous_point| {
+                                    file.selectLine(
+                                        previous_point,
+                                        current_point,
+                                        .{
+                                            .value = !me.mod.matchBind("shift"),
+                                            .stroke_size = pixi.editor.tools.stroke_size,
+                                        },
+                                    );
+                                }
 
-                            self.drag_data_point = current_point;
+                                self.drag_data_point = current_point;
+                            }
                         }
                     }
                 }
@@ -1884,6 +2132,24 @@ pub fn processSelection(self: *FileWidget) void {
             else => {},
         }
     }
+
+    if (pixi.editor.tools.selection_mode == .box) {
+        const mouse_pt = dvui.currentWindow().mouse_pt;
+        const is_drag = dvui.dragging(mouse_pt, "stroke_drag") != null;
+        if (!(is_drag and self.drag_data_point != null)) {
+            @memset(file.editor.temporary_layer.pixels(), .{ 0, 0, 0, 0 });
+            file.editor.temporary_layer.clearMask();
+
+            file.editor.temporary_layer.mask.setUnion(file.editor.selection_layer.mask);
+            file.editor.temporary_layer.mask.setIntersection(active_layer.mask);
+
+            file.editor.temporary_layer.setColorFromMask(selection_color_primary);
+            file.editor.temporary_layer.mask.setIntersection(file.editor.checkerboard);
+            file.editor.temporary_layer.setColorFromMask(selection_color_secondary);
+        }
+    }
+
+    file.editor.temp_layer_has_content = true;
 }
 
 /// Responsible for processing events to modify pixels on the current layer for strokes of various size
@@ -5180,6 +5446,10 @@ pub fn processEvents(self: *FileWidget) void {
     }
 
     self.drawLayers();
+
+    if (self.hovered() or dvui.captured(self.init_options.file.editor.canvas.scroll_container.data().id)) {
+        self.drawBoxSelectionMarqueeOutline();
+    }
 
     if ((self.active() or self.hovered()) and !transform and !reorder) {
         self.drawSpriteBubbles();

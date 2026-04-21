@@ -21,6 +21,14 @@ pub const Shape = enum(u32) {
     square,
 };
 
+/// Pixel selection uses the brush stroke; box selection uses a rectangular marquee;
+/// color selection flood-fills contiguous pixels of the clicked color on the active layer.
+pub const SelectionMode = enum {
+    pixel,
+    box,
+    color,
+};
+
 pub const RadialMenu = struct {
     mouse_position: dvui.Point.Physical = .{ .x = 0.0, .y = 0.0 },
     center: dvui.Point.Physical = .{ .x = 0.0, .y = 0.0 },
@@ -42,6 +50,7 @@ selection_stroke_size: u8 = default_selection_stroke_size,
 stroke_shape: Shape = .circle,
 previous_drawing_tool: Tool = .pencil,
 radial_menu: RadialMenu = .{},
+selection_mode: SelectionMode = .box,
 
 stroke: std.StaticBitSet(max_brush_size * max_brush_size) = .initEmpty(),
 offset_table: [][2]f32 = undefined,
@@ -94,8 +103,8 @@ pub fn setStrokeSize(self: *Tools, size: u8) void {
     }
 }
 
-pub fn deinit(self: *Tools) void {
-    self.stroke_layer.deinit();
+pub fn deinit(self: *Tools, allocator: std.mem.Allocator) void {
+    allocator.free(self.offset_table);
 }
 
 pub fn set(self: *Tools, tool: Tool) void {
@@ -224,13 +233,14 @@ pub fn drawTooltip(_: Tools, tool: Tool, rect: dvui.Rect.Physical, id_extra: u64
             "Right click an empty area to switch to the eraser tool. \n" ++
             "[ & ] keys increase and decrease the erase size.",
         .bucket => "Fill the canvas with a color.\n" ++ "Hold cmd/ctrl to replace all color, non-contiguously.\n",
-        .selection => "Create pixel-level selections.\n" ++ "Hold cmd/ctrl to add to selection, and shift to subtract. \n",
+        .selection => "Pixel mode brushes with stroke size.\nBox mode drags a rectangular marquee.\nColor mode selects contiguous pixels of the clicked color.\n" ++ "Hold cmd/ctrl to add to selection, and shift to subtract.\n",
     };
 
     var tooltip: dvui.FloatingTooltipWidget = undefined;
     tooltip.init(@src(), .{
         .active_rect = rect,
-        .delay = 1_000_000,
+        .delay = 250_000,
+        .interactive = true,
     }, .{
         .id_extra = id_extra,
         .color_fill = dvui.themeGet().color(.content, .fill).opacity(0.9),
@@ -287,5 +297,125 @@ pub fn drawTooltip(_: Tools, tool: Tool, rect: dvui.Rect.Physical, id_extra: u64
             .font = dvui.Font.theme(.body).larger(-1.0),
             .margin = dvui.Rect.all(4),
         });
+
+        if (tool == .selection) {
+            _ = dvui.separator(@src(), .{ .expand = .horizontal });
+
+            var mode_row = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .expand = .none,
+                .gravity_x = 0.5,
+                .margin = dvui.Rect.all(4),
+            });
+            defer mode_row.deinit();
+
+            const atlas_size: dvui.Size = dvui.imageSize(pixi.editor.atlas.source) catch .{ .w = 0, .h = 0 };
+
+            var mode_color = dvui.themeGet().color(.control, .fill_hover);
+            if (pixi.editor.colors.file_tree_palette) |*palette| {
+                mode_color = palette.getDVUIColor(4);
+            }
+
+            {
+                var mode_box = dvui.groupBox(@src(), "SELECTION MODE", .{
+                    .expand = .horizontal,
+                    .margin = dvui.Rect.all(4),
+                    .font = dvui.Font.theme(.title).larger(-5.0),
+                });
+                defer mode_box.deinit();
+
+                var mode_arrange_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                    .expand = .none,
+                });
+                defer mode_arrange_box.deinit();
+
+                for (0..3) |mi| {
+                    const mode: SelectionMode = switch (mi) {
+                        0 => .box,
+                        1 => .pixel,
+                        2 => .color,
+                        else => unreachable,
+                    };
+                    const cap = switch (mi) {
+                        0 => "BOX",
+                        1 => "PIXEL",
+                        2 => "COLOR",
+                        else => unreachable,
+                    };
+                    const selected = pixi.editor.tools.selection_mode == mode;
+
+                    var mode_col = dvui.box(@src(), .{ .dir = .vertical }, .{
+                        .expand = .none,
+                        .margin = dvui.Rect.rect(6, 0, 6, 0),
+                        .id_extra = @intCast(id_extra * 10 + mi),
+                    });
+                    defer mode_col.deinit();
+
+                    const sprite = switch (mi) {
+                        0, 1 => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.selection_default],
+                        2 => pixi.editor.atlas.data.sprites[pixi.atlas.sprites.bucket_default],
+                        else => unreachable,
+                    };
+                    const uv = dvui.Rect{
+                        .x = @as(f32, @floatFromInt(sprite.source[0])) / atlas_size.w,
+                        .y = @as(f32, @floatFromInt(sprite.source[1])) / atlas_size.h,
+                        .w = @as(f32, @floatFromInt(sprite.source[2])) / atlas_size.w,
+                        .h = @as(f32, @floatFromInt(sprite.source[3])) / atlas_size.h,
+                    };
+
+                    dvui.labelNoFmt(@src(), cap, .{}, .{
+                        .font = dvui.Font.theme(.title).larger(-5.0),
+                        .gravity_x = 0.5,
+                        .margin = dvui.Rect.rect(0, 0, 0, 6),
+                        .id_extra = @intCast(id_extra * 10 + mi),
+                    });
+
+                    var mode_button: dvui.ButtonWidget = undefined;
+                    mode_button.init(@src(), .{}, .{
+                        .expand = .none,
+                        .min_size_content = .{ .w = 40, .h = 40 },
+                        .id_extra = @intCast(id_extra * 10 + mi + 1),
+                        .background = true,
+                        .corner_radius = dvui.Rect.all(1000),
+                        .color_fill = if (selected) dvui.themeGet().color(.content, .fill) else .transparent,
+                        .color_fill_hover = dvui.themeGet().color(.content, .fill).lighten(if (dvui.themeGet().dark) 10.0 else -10.0),
+                        .box_shadow = if (selected) .{
+                            .color = .black,
+                            .offset = .{ .x = -2.5, .y = 2.5 },
+                            .fade = 4.0,
+                            .alpha = 0.25,
+                            .corner_radius = dvui.Rect.all(1000),
+                        } else null,
+                        .padding = .all(0),
+                    });
+                    defer mode_button.deinit();
+
+                    if (mode_button.hovered()) {
+                        mode_button.data().options.color_border = mode_color;
+                    }
+
+                    mode_button.processEvents();
+                    mode_button.drawBackground();
+
+                    var rs = mode_button.data().contentRectScale();
+                    const width = @as(f32, @floatFromInt(sprite.source[2])) * rs.s;
+                    const height = @as(f32, @floatFromInt(sprite.source[3])) * rs.s;
+                    rs.r.x = @round(rs.r.x + (rs.r.w - width) / 2.0);
+                    rs.r.y = @round(rs.r.y + (rs.r.h - height) / 2.0);
+                    rs.r.w = width;
+                    rs.r.h = height;
+
+                    dvui.renderImage(pixi.editor.atlas.source, rs, .{
+                        .uv = uv,
+                        .fade = 0.0,
+                    }) catch {
+                        std.log.err("Failed to render selection mode icon", .{});
+                    };
+
+                    if (mode_button.clicked()) {
+                        pixi.editor.tools.selection_mode = mode;
+                    }
+                }
+            }
+        }
     }
 }
