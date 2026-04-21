@@ -663,7 +663,9 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                     animation_restore_delete.action = .restore;
 
                     if (file.selected_animation_index) |selected_animation_index| {
-                        if (selected_animation_index >= file.animations.len) {
+                        if (file.animations.len == 0) {
+                            file.selected_animation_index = null;
+                        } else if (selected_animation_index >= file.animations.len) {
                             file.selected_animation_index = file.animations.len - 1;
                         }
                     }
