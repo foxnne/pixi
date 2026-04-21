@@ -364,6 +364,8 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
     if (pixi.editor.activeFile()) |file| {
         layer_rename_hit_te_id = null;
         layer_rename_hit_rect = null;
+        file.editor.layer_drag_preview_removed = null;
+        file.editor.layer_drag_preview_insert_before = null;
 
         var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.editor.layers_scroll_info }, .{
             .expand = .both,
@@ -488,7 +490,13 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
             const mp = dvui.currentWindow().mouse_pt;
             const row_hovered = row_r.contains(mp) and layerPointerInScrollViewport(mp, tools.layers_scroll_viewport_rect);
 
-            if (row_hovered) {
+            if (tree.reorderDragActive()) {
+                if (tree.id_branch) |idb| {
+                    if (idb == branch.data().id.asUsize()) {
+                        file.peek_layer_index = layer_index;
+                    }
+                }
+            } else if (row_hovered) {
                 file.peek_layer_index = layer_index;
             }
 
@@ -510,10 +518,19 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
             defer dvui.alphaSet(alpha);
 
             const ctrl_hover = dvui.themeGet().color(.control, .fill).opacity(0.5);
+            const row_highlight = blk: {
+                if (tree.reorderDragActive()) {
+                    if (tree.id_branch) |idb| {
+                        break :blk idb == branch.data().id.asUsize();
+                    }
+                    break :blk false;
+                }
+                break :blk row_hovered and tree.drag_point == null;
+            };
             var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .both,
                 .background = true,
-                .color_fill = if (selected or (row_hovered and tree.drag_point == null))
+                .color_fill = if (selected or row_highlight)
                     ctrl_hover
                 else
                     .transparent,
@@ -733,6 +750,7 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
 
         processLayerTreePointerEvents(tree, file, layer_hits_buf[0..layer_hits_len], tools.layers_scroll_viewport_rect);
 
+        var layer_tail_branch_id: ?usize = null;
         if (tree.drag_point != null) {
             const tail = tree.branch(@src(), .{
                 .expanded = false,
@@ -747,8 +765,49 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
                 .color_fill_press = .transparent,
             });
             defer tail.deinit();
+            layer_tail_branch_id = tail.data().id.asUsize();
             if (tail.insertBefore()) {
                 insert_before_index = file.layers.len;
+            }
+        }
+
+        if (tree.reorderDragActive()) {
+            if (tree.id_branch) |idb| {
+                var from: ?usize = null;
+                for (layer_hits_buf[0..layer_hits_len]) |h| {
+                    if (h.branch_usize == idb) {
+                        from = h.layer_index;
+                        break;
+                    }
+                }
+                if (from) |fr| {
+                    var insert_before: ?usize = null;
+                    if (tree.drop_target_branch_id) |dtb| {
+                        if (dtb == idb) {
+                            insert_before = fr;
+                        } else if (layer_tail_branch_id) |tid| {
+                            if (dtb == tid) {
+                                insert_before = file.layers.len;
+                            }
+                        }
+                        if (insert_before == null) {
+                            for (layer_hits_buf[0..layer_hits_len]) |h| {
+                                if (h.branch_usize == dtb) {
+                                    insert_before = h.layer_index;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (insert_before) |ins| {
+                        if (fr != ins) {
+                            file.editor.layer_drag_preview_removed = fr;
+                            file.editor.layer_drag_preview_insert_before = ins;
+                            file.editor.layer_composite_dirty = true;
+                            file.editor.split_composite_dirty = true;
+                        }
+                    }
+                }
             }
         }
 

@@ -122,6 +122,10 @@ pub const EditorData = struct {
     stroke_undo_y: u32 = 0,
     stroke_undo_w: u32 = 0,
     stroke_undo_h: u32 = 0,
+
+    /// Layer list reorder preview while dragging in the tree (`null` = no preview). Matches drop logic in `explorer/tools.zig`.
+    layer_drag_preview_removed: ?usize = null,
+    layer_drag_preview_insert_before: ?usize = null,
 };
 
 pub const History = @import("History.zig");
@@ -204,6 +208,36 @@ pub fn width(file: *const File) u32 {
 
 pub fn height(file: *const File) u32 {
     return file.rows * file.row_height;
+}
+
+/// Fills `out[0..len]` with storage indices in list order (position 0 = top row / front of stack)
+/// after moving the layer at `removed` to sit before `insert_before`, matching `explorer/tools.zig` drop handling.
+pub fn layerOrderAfterMove(len: usize, removed: usize, insert_before: usize, out: []usize) void {
+    std.debug.assert(out.len >= len);
+    std.debug.assert(removed < len);
+    std.debug.assert(insert_before <= len);
+    if (removed == insert_before) {
+        for (0..len) |i| out[i] = i;
+        return;
+    }
+    const insert_pos = if (removed < insert_before) insert_before - 1 else insert_before;
+    var tmp: [1024]usize = undefined;
+    std.debug.assert(len <= tmp.len);
+    var m: usize = 0;
+    for (0..len) |i| {
+        if (i == removed) continue;
+        tmp[m] = i;
+        m += 1;
+    }
+    var ti: usize = 0;
+    for (0..len) |dst| {
+        if (dst == insert_pos) {
+            out[dst] = removed;
+        } else {
+            out[dst] = tmp[ti];
+            ti += 1;
+        }
+    }
 }
 
 /// Attempts to load a file from the given path to create a new file

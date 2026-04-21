@@ -87,6 +87,15 @@ fn layerViewStateForRender(init_opts: RenderFileOptions) struct { min_layer_inde
     return .{ .min_layer_index = min_layer_index, .needs_dimmed = needs_dimmed };
 }
 
+/// Non-null while layer list DnD preview is active (`File.editor.layer_drag_preview_*`); maps list position → storage index.
+fn layerOrderBufForDragPreview(file: *pixi.Internal.File, buf: []usize) ?[]const usize {
+    const r = file.editor.layer_drag_preview_removed orelse return null;
+    const ins = file.editor.layer_drag_preview_insert_before orelse return null;
+    if (file.layers.len == 0 or file.layers.len > buf.len) return null;
+    pixi.Internal.File.layerOrderAfterMove(file.layers.len, r, ins, buf[0..file.layers.len]);
+    return buf[0..file.layers.len];
+}
+
 /// Builds the same cached composites `renderLayers` would use (split when drawing, full when idle),
 /// so callers (e.g. sprite preview reflection) can draw before `renderLayers` runs.
 pub fn ensureLayerCompositesForPreview(init_opts: RenderFileOptions) !void {
@@ -119,10 +128,14 @@ pub fn renderReflectionLayerStack(
     const vs = layerViewStateForRender(init_opts);
     try ensureLayerCompositesForPreview(init_opts);
 
+    var order_buf: [1024]usize = undefined;
+    const order_opt = layerOrderBufForDragPreview(file, order_buf[0..]);
+
     if (file.peek_layer_index != null) {
-        var layer_index: usize = file.layers.len;
-        while (layer_index > vs.min_layer_index) {
-            layer_index -= 1;
+        var list_pos: usize = file.layers.len;
+        while (list_pos > vs.min_layer_index) {
+            list_pos -= 1;
+            const layer_index = if (order_opt) |o| o[list_pos] else list_pos;
             const visible = file.layers.items(.visible)[layer_index];
             var tris = reflection_tris;
             if (vs.needs_dimmed) {
@@ -145,6 +158,31 @@ pub fn renderReflectionLayerStack(
     }
 
     if (splitCompositeEligible(init_opts, vs.min_layer_index, vs.needs_dimmed)) {
+        if (order_opt != null) {
+            var list_pos: usize = file.layers.len;
+            while (list_pos > vs.min_layer_index) {
+                list_pos -= 1;
+                const layer_index = order_opt.?[list_pos];
+                const visible = file.layers.items(.visible)[layer_index];
+                var tris = reflection_tris;
+                if (vs.needs_dimmed) {
+                    if (file.peek_layer_index) |peek_layer_index| {
+                        if (peek_layer_index != layer_index) {
+                            tris = reflection_tris_dimmed;
+                        }
+                    }
+                }
+                if (visible) {
+                    dvui.renderTriangles(tris, file.layers.items(.source)[layer_index].getTexture() catch null) catch {
+                        dvui.log.err("Failed to render reflection layer", .{});
+                    };
+                }
+                if (layer_index == file.selected_layer_index) {
+                    renderTransformIfActive(init_opts, reflection_tris);
+                }
+            }
+            return;
+        }
         if (file.editor.split_composite_below) |ct| {
             if (dvui.Texture.fromTargetTemp(ct) catch null) |tex| {
                 dvui.renderTriangles(reflection_tris, tex) catch {
@@ -182,9 +220,10 @@ pub fn renderReflectionLayerStack(
         }
     }
 
-    var layer_index: usize = file.layers.len;
-    while (layer_index > vs.min_layer_index) {
-        layer_index -= 1;
+    var list_pos2: usize = file.layers.len;
+    while (list_pos2 > vs.min_layer_index) {
+        list_pos2 -= 1;
+        const layer_index = if (order_opt) |o| o[list_pos2] else list_pos2;
         const visible = file.layers.items(.visible)[layer_index];
         var tris = reflection_tris;
         if (vs.needs_dimmed) {
@@ -418,9 +457,13 @@ fn renderLayersIntoTarget(
     defer tris.deinit(pixi.app.allocator);
     tris.uvFromRectuv(image_rect, .{ .x = 0, .y = 0, .w = 1, .h = 1 });
 
-    var i: usize = max_index;
-    while (i > min_index) {
-        i -= 1;
+    var order_buf: [1024]usize = undefined;
+    const order_opt = layerOrderBufForDragPreview(file, order_buf[0..]);
+
+    var list_pos: usize = max_index;
+    while (list_pos > min_index) {
+        list_pos -= 1;
+        const i = if (order_opt) |o| o[list_pos] else list_pos;
         if (skip_index) |skip| {
             if (i == skip) continue;
         }
@@ -582,9 +625,13 @@ pub fn renderLayers(init_opts: RenderFileOptions) !void {
     }
 
     // Fallback: per-layer rendering
-    var layer_index: usize = init_opts.file.layers.len;
-    while (layer_index > min_layer_index) {
-        layer_index -= 1;
+    var order_buf: [1024]usize = undefined;
+    const order_opt = layerOrderBufForDragPreview(init_opts.file, order_buf[0..]);
+
+    var list_pos: usize = init_opts.file.layers.len;
+    while (list_pos > min_layer_index) {
+        list_pos -= 1;
+        const layer_index = if (order_opt) |o| o[list_pos] else list_pos;
 
         const visible = init_opts.file.layers.items(.visible)[layer_index];
 
