@@ -100,10 +100,12 @@ pub fn tick() !void {
                 }
 
                 if (ke.matchBind("increase_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
-                    if (pixi.editor.tools.stroke_size < pixi.Editor.Tools.max_brush_size - 1)
-                        pixi.editor.tools.stroke_size += 1;
+                    if (pixi.editor.tools.current != .selection or pixi.editor.tools.selection_mode == .pixel) {
+                        if (pixi.editor.tools.stroke_size < pixi.Editor.Tools.max_brush_size - 1)
+                            pixi.editor.tools.stroke_size += 1;
 
-                    pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
+                        pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
+                    }
                 }
 
                 if (ke.matchBind("export") and ke.action == .down) {
@@ -123,10 +125,12 @@ pub fn tick() !void {
                 }
 
                 if (ke.matchBind("decrease_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
-                    if (pixi.editor.tools.stroke_size > 1)
-                        pixi.editor.tools.stroke_size -= 1;
+                    if (pixi.editor.tools.current != .selection or pixi.editor.tools.selection_mode == .pixel) {
+                        if (pixi.editor.tools.stroke_size > 1)
+                            pixi.editor.tools.stroke_size -= 1;
 
-                    pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
+                        pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
+                    }
                 }
 
                 if (ke.matchBind("delete_selection_contents")) {

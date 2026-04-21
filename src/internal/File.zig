@@ -1454,6 +1454,85 @@ pub fn selectLine(file: *File, point1: dvui.Point, point2: dvui.Point, select_op
     }
 }
 
+/// Selects every opaque pixel on the active layer inside the axis-aligned rectangle between `p1` and `p2` (inclusive).
+pub fn selectRectBetweenPoints(file: *File, p1: dvui.Point, p2: dvui.Point, select_options: SelectOptions) void {
+    const read_layer: Layer = file.layers.get(file.selected_layer_index);
+    const selection_layer: *Layer = &file.editor.selection_layer;
+
+    const x0: i32 = @intFromFloat(@floor(@min(p1.x, p2.x)));
+    const y0: i32 = @intFromFloat(@floor(@min(p1.y, p2.y)));
+    const x1: i32 = @intFromFloat(@floor(@max(p1.x, p2.x)));
+    const y1: i32 = @intFromFloat(@floor(@max(p1.y, p2.y)));
+
+    const iw: i32 = @intCast(file.width());
+    const ih: i32 = @intCast(file.height());
+
+    var py = y0;
+    while (py <= y1) : (py += 1) {
+        if (py < 0 or py >= ih) continue;
+        var px = x0;
+        while (px <= x1) : (px += 1) {
+            if (px < 0 or px >= iw) continue;
+            const pt: dvui.Point = .{ .x = @floatFromInt(px), .y = @floatFromInt(py) };
+            if (selection_layer.pixelIndex(pt)) |idx| {
+                if (read_layer.pixels()[idx][3] > 0) {
+                    selection_layer.mask.setValue(idx, select_options.value);
+                }
+            }
+        }
+    }
+}
+
+/// Flood-selects or flood-deselects every pixel in the active layer that matches the color at `p`
+/// (4-way contiguous region), same as bucket fill matching. `value` true adds to the selection mask, false removes.
+pub fn selectColorFloodFromPoint(file: *File, p: dvui.Point, value: bool) !void {
+    const read_layer = file.layers.get(file.selected_layer_index);
+    const selection_layer: *Layer = &file.editor.selection_layer;
+
+    const bounds = dvui.Rect.fromSize(.{ .w = @floatFromInt(file.width()), .h = @floatFromInt(file.height()) });
+    if (!bounds.contains(p)) return;
+
+    const start_idx = pixi.image.pixelIndex(read_layer.source, p) orelse return;
+    const original_color = read_layer.pixels()[start_idx];
+
+    const n = read_layer.pixels().len;
+    if (selection_layer.mask.capacity() != n) return;
+
+    var visited = try std.DynamicBitSet.initEmpty(pixi.app.allocator, n);
+    defer visited.deinit();
+
+    var queue = std.array_list.Managed(dvui.Point).init(pixi.app.allocator);
+    defer queue.deinit();
+
+    try queue.append(p);
+    visited.set(start_idx);
+
+    const directions: [4]dvui.Point = .{
+        .{ .x = 0, .y = -1 },
+        .{ .x = 0, .y = 1 },
+        .{ .x = -1, .y = 0 },
+        .{ .x = 1, .y = 0 },
+    };
+
+    while (queue.pop()) |qp| {
+        const idx = pixi.image.pixelIndex(read_layer.source, qp) orelse continue;
+        if (!std.meta.eql(original_color, read_layer.pixels()[idx])) continue;
+
+        selection_layer.mask.setValue(idx, value);
+
+        for (directions) |direction| {
+            const np = qp.plus(direction);
+            if (!bounds.contains(np)) continue;
+            if (pixi.image.pixelIndex(read_layer.source, np)) |ni| {
+                if (visited.isSet(ni)) continue;
+                if (!std.meta.eql(original_color, read_layer.pixels()[ni])) continue;
+                visited.set(ni);
+                try queue.append(np);
+            }
+        }
+    }
+}
+
 pub const DrawLayer = enum {
     temporary,
     selected,
