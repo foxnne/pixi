@@ -747,18 +747,42 @@ pub fn resize(file: *File, options: ResizeOptions) !void {
         }
     }
 
+    const old_sprite_count = current_columns * current_rows;
+    const new_sprite_count = new_columns * new_rows;
+
+    var old_origins_snapshot: ?[][2]f32 = null;
+    defer if (old_origins_snapshot) |s| pixi.app.allocator.free(s);
+
+    if (options.sprite_data == null) {
+        const snapshot = try pixi.app.allocator.alloc([2]f32, old_sprite_count);
+        for (0..old_sprite_count) |i| {
+            snapshot[i] = file.sprites.items(.origin)[i];
+        }
+        old_origins_snapshot = snapshot;
+    }
+
     file.sprites.resize(
         pixi.app.allocator,
-        new_columns * new_rows,
+        new_sprite_count,
     ) catch return error.MemoryAllocationFailed;
 
-    // Read all sprite data into our sprites array
+    // MultiArrayList growth leaves new elements undefined; zero everything then restore from undo data or remaps.
+    for (0..new_sprite_count) |i| {
+        file.sprites.items(.origin)[i] = .{ 0, 0 };
+    }
+
     if (options.sprite_data) |sprite_data| {
-        for (0..file.spriteCount()) |sprite_index| {
-            if (sprite_index >= sprite_data.len) break;
-            const current_data = sprite_data[sprite_index];
-            const new_origin: [2]f32 = .{ current_data[0], current_data[1] };
-            file.sprites.items(.origin)[sprite_index] = new_origin;
+        const n = @min(new_sprite_count, sprite_data.len);
+        for (0..n) |sprite_index| {
+            const d = sprite_data[sprite_index];
+            file.sprites.items(.origin)[sprite_index] = .{ d[0], d[1] };
+        }
+    } else {
+        const old_origins = old_origins_snapshot orelse unreachable;
+        for (0..old_sprite_count) |old_i| {
+            if (getResizedIndex(file, old_i, new_columns, new_rows)) |new_i| {
+                file.sprites.items(.origin)[new_i] = old_origins[old_i];
+            }
         }
     }
 
