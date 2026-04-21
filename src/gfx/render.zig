@@ -98,6 +98,16 @@ pub fn ensureLayerCompositesForPreview(init_opts: RenderFileOptions) !void {
     }
 }
 
+fn renderTransformIfActive(init_opts: RenderFileOptions, triangles: dvui.Triangles) void {
+    if (init_opts.file.editor.transform) |*transform| {
+        if (dvui.textureFromTarget(transform.target_texture) catch null) |tex| {
+            dvui.renderTriangles(triangles, tex) catch {
+                dvui.log.err("Failed to render transform layer", .{});
+            };
+        }
+    }
+}
+
 /// Draws the layer stack for the sprite-panel reflection using the same composite paths as
 /// `renderLayers` (1–3 draws) instead of N per-layer draws when possible.
 pub fn renderReflectionLayerStack(
@@ -113,7 +123,7 @@ pub fn renderReflectionLayerStack(
         var layer_index: usize = file.layers.len;
         while (layer_index > vs.min_layer_index) {
             layer_index -= 1;
-            if (!file.layers.items(.visible)[layer_index]) continue;
+            const visible = file.layers.items(.visible)[layer_index];
             var tris = reflection_tris;
             if (vs.needs_dimmed) {
                 if (file.peek_layer_index) |peek_layer_index| {
@@ -122,9 +132,14 @@ pub fn renderReflectionLayerStack(
                     }
                 }
             }
-            dvui.renderTriangles(tris, file.layers.items(.source)[layer_index].getTexture() catch null) catch {
-                dvui.log.err("Failed to render reflection layer", .{});
-            };
+            if (visible) {
+                dvui.renderTriangles(tris, file.layers.items(.source)[layer_index].getTexture() catch null) catch {
+                    dvui.log.err("Failed to render reflection layer", .{});
+                };
+            }
+            if (layer_index == file.selected_layer_index) {
+                renderTransformIfActive(init_opts, reflection_tris);
+            }
         }
         return;
     }
@@ -145,6 +160,7 @@ pub fn renderReflectionLayerStack(
                 };
             }
         }
+        renderTransformIfActive(init_opts, reflection_tris);
         if (file.editor.split_composite_above) |ct| {
             if (dvui.Texture.fromTargetTemp(ct) catch null) |tex| {
                 dvui.renderTriangles(reflection_tris, tex) catch {
@@ -169,7 +185,7 @@ pub fn renderReflectionLayerStack(
     var layer_index: usize = file.layers.len;
     while (layer_index > vs.min_layer_index) {
         layer_index -= 1;
-        if (!file.layers.items(.visible)[layer_index]) continue;
+        const visible = file.layers.items(.visible)[layer_index];
         var tris = reflection_tris;
         if (vs.needs_dimmed) {
             if (file.peek_layer_index) |peek_layer_index| {
@@ -178,9 +194,14 @@ pub fn renderReflectionLayerStack(
                 }
             }
         }
-        dvui.renderTriangles(tris, file.layers.items(.source)[layer_index].getTexture() catch null) catch {
-            dvui.log.err("Failed to render reflection layer stack fallback", .{});
-        };
+        if (visible) {
+            dvui.renderTriangles(tris, file.layers.items(.source)[layer_index].getTexture() catch null) catch {
+                dvui.log.err("Failed to render reflection layer stack fallback", .{});
+            };
+        }
+        if (layer_index == file.selected_layer_index) {
+            renderTransformIfActive(init_opts, reflection_tris);
+        }
     }
 }
 
@@ -193,6 +214,7 @@ fn fullCompositeEligible(
     if (min_layer_index != 0) return false;
     if (init_opts.fade != 0) return false;
     if (!std.meta.eql(init_opts.color_mod, dvui.Color.white)) return false;
+    if (init_opts.file.editor.transform != null) return false;
     if (init_opts.file.editor.active_drawing) return false;
     const w = init_opts.file.width();
     const h = init_opts.file.height();
@@ -205,7 +227,7 @@ fn splitCompositeEligible(
     min_layer_index: usize,
     needs_dimmed: bool,
 ) bool {
-    if (!init_opts.file.editor.active_drawing) return false;
+    if (!init_opts.file.editor.active_drawing and init_opts.file.editor.transform == null) return false;
     if (needs_dimmed) return false;
     if (min_layer_index != 0) return false;
     if (init_opts.fade != 0) return false;
@@ -499,16 +521,9 @@ pub fn renderLayers(init_opts: RenderFileOptions) !void {
             }
         }
 
-        if (init_opts.file.editor.transform) |*transform| {
-            if (dvui.textureFromTarget(transform.target_texture) catch null) |tex| {
-                dvui.renderTriangles(triangles, tex) catch {
-                    dvui.log.err("Failed to render transform layer", .{});
-                };
-            }
-        }
     }
 
-    // During active drawing: use split composites (below + active + above = 3 draws)
+    // Active stroke or transform: split composites (below + active + [transform] + above).
     if (splitCompositeEligible(init_opts, min_layer_index, needs_dimmed)) {
         syncSplitComposite(init_opts.file) catch |err| {
             dvui.log.err("Split composite sync failed: {any}", .{err});
@@ -536,6 +551,8 @@ pub fn renderLayers(init_opts: RenderFileOptions) !void {
                     };
                 }
             }
+
+            renderTransformIfActive(init_opts, triangles);
 
             if (has_above) {
                 if (dvui.Texture.fromTargetTemp(init_opts.file.editor.split_composite_above.?) catch null) |tex| {
@@ -570,7 +587,6 @@ pub fn renderLayers(init_opts: RenderFileOptions) !void {
         layer_index -= 1;
 
         const visible = init_opts.file.layers.items(.visible)[layer_index];
-        if (!visible) continue;
 
         var tris = triangles;
 
@@ -582,12 +598,17 @@ pub fn renderLayers(init_opts: RenderFileOptions) !void {
             }
         }
 
-        const source = init_opts.file.layers.items(.source)[layer_index];
+        if (visible) {
+            const source = init_opts.file.layers.items(.source)[layer_index];
+            if (source.getTexture() catch null) |tex| {
+                dvui.renderTriangles(tris, tex) catch {
+                    dvui.log.err("Failed to render triangles", .{});
+                };
+            }
+        }
 
-        if (source.getTexture() catch null) |tex| {
-            dvui.renderTriangles(tris, tex) catch {
-                dvui.log.err("Failed to render triangles", .{});
-            };
+        if (layer_index == init_opts.file.selected_layer_index) {
+            renderTransformIfActive(init_opts, triangles);
         }
     }
 }
