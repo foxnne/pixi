@@ -79,7 +79,7 @@ content_opacity: f32 = 0.7,
 /// Checkerboard / transparency tint behind sprites (grid cells).
 transparency_effect: TransparencyEffect = .none,
 
-titlebar_height: f32 = 20.0, // This is the height of the titlebar in pixels
+titlebar_height: f32 = 26.0, // This is the height of the titlebar in pixels
 
 /// Loads settings or if fails, returns default settings
 pub fn load(allocator: std.mem.Allocator, path: []const u8) !Settings {

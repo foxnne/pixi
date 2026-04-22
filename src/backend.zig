@@ -145,22 +145,31 @@ fn wrapContentViewWithVibrancy(window: objc.Object) void {
 pub const TitleBarButton = enum { minimize, maximize, close };
 
 // Hints the app provides each frame describing which on-screen rectangles in its custom title bar should
-// be treated as caption buttons (snap-layouts + syscommand) or as drag regions (HTCAPTION). Any point
-// not covered is treated as HTCLIENT so DVUI widgets in the title bar remain interactive.
+// be treated as caption buttons (snap-layouts + syscommand), interactive DVUI widgets (HTCLIENT — DVUI
+// gets the event), or drag regions (HTCAPTION). Hit-test priority within the title bar:
+//   1. caption buttons (min/max/close)
+//   2. interactive_rects → HTCLIENT (DVUI menu items, in-titlebar buttons, etc.)
+//   3. drag_rects → HTCAPTION (window drag)
+//   4. anything else → HTCLIENT
+// So you can put a DVUI menu inside a drag rect and clicks on the menu items still reach DVUI.
 //
 // Rects are in physical pixel coordinates relative to the window client origin — i.e. dvui.Rect.Physical
 // from a widget's rectScale(). Because we return 0 from WM_NCCALCSIZE, client origin == window origin.
 pub const TitleBarHints = struct {
     drag_rects: []const dvui.Rect.Physical = &.{},
+    interactive_rects: []const dvui.Rect.Physical = &.{},
     minimize_rect: ?dvui.Rect.Physical = null,
     maximize_rect: ?dvui.Rect.Physical = null,
     close_rect: ?dvui.Rect.Physical = null,
 };
 
 const max_drag_rects = 16;
+const max_interactive_rects = 32;
 var titlebar_state: struct {
     drag_rects: [max_drag_rects]dvui.Rect.Physical = undefined,
     drag_count: usize = 0,
+    interactive_rects: [max_interactive_rects]dvui.Rect.Physical = undefined,
+    interactive_count: usize = 0,
     minimize_rect: ?dvui.Rect.Physical = null,
     maximize_rect: ?dvui.Rect.Physical = null,
     close_rect: ?dvui.Rect.Physical = null,
@@ -172,9 +181,12 @@ var titlebar_state: struct {
 /// elsewhere. Rects must be in physical pixels (dvui.Rect.Physical) relative to the window origin.
 pub fn setTitleBarHints(hints: TitleBarHints) void {
     if (builtin.os.tag != .windows) return;
-    const count = @min(hints.drag_rects.len, max_drag_rects);
-    for (hints.drag_rects[0..count], 0..) |r, i| titlebar_state.drag_rects[i] = r;
-    titlebar_state.drag_count = count;
+    const drag_count = @min(hints.drag_rects.len, max_drag_rects);
+    for (hints.drag_rects[0..drag_count], 0..) |r, i| titlebar_state.drag_rects[i] = r;
+    titlebar_state.drag_count = drag_count;
+    const interactive_count = @min(hints.interactive_rects.len, max_interactive_rects);
+    for (hints.interactive_rects[0..interactive_count], 0..) |r, i| titlebar_state.interactive_rects[i] = r;
+    titlebar_state.interactive_count = interactive_count;
     titlebar_state.minimize_rect = hints.minimize_rect;
     titlebar_state.maximize_rect = hints.maximize_rect;
     titlebar_state.close_rect = hints.close_rect;
@@ -396,12 +408,18 @@ fn win32MicaSubclassProc(
             .minimize => @as(win32.foundation.LRESULT, @intCast(HTMINBUTTON)),
         };
 
-        // 3) App-registered drag regions.
+        // 3) App-registered interactive widget rects (DVUI menus / buttons inside the title bar).
+        //    Checked before drag rects so a widget overlapping a drag region still gets the click.
+        for (titlebar_state.interactive_rects[0..titlebar_state.interactive_count]) |r| {
+            if (rectContainsI32(r, client_x, client_y)) return @as(win32.foundation.LRESULT, @intCast(1)); // HTCLIENT
+        }
+
+        // 4) App-registered drag regions.
         for (titlebar_state.drag_rects[0..titlebar_state.drag_count]) |r| {
             if (rectContainsI32(r, client_x, client_y)) return @as(win32.foundation.LRESULT, @intCast(HTCAPTION));
         }
 
-        // 4) Otherwise let DVUI handle it.
+        // 5) Otherwise let DVUI handle it.
         return @as(win32.foundation.LRESULT, @intCast(1)); // HTCLIENT
     }
 
