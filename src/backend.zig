@@ -480,14 +480,12 @@ pub fn setWindowStyle(win: *dvui.Window) void {
 
         // Hide the OS-drawn caption buttons (min/max/close) so they don't show through our custom-drawn ones.
         // Returning 0 from WM_NCCALCSIZE removes the non-client area, but on Win11 DWM still composites the
-        // system caption buttons whenever WS_SYSMENU/WS_MIN/MAXIMIZEBOX are present. Stripping those styles
-        // makes DWM stop drawing them. WS_THICKFRAME (resize) and WS_CAPTION (snap, animations) stay.
+        // system caption buttons whenever WS_SYSMENU is present. Strip just WS_SYSMENU — the min/max box
+        // styles only render buttons when WS_SYSMENU is also set, but they're still required for Aero Snap
+        // (drag-to-top maximize, drag-to-edge half-snap), so we keep them.
         const WS_SYSMENU: isize = 0x00080000;
-        const WS_MINIMIZEBOX: isize = 0x00020000;
-        const WS_MAXIMIZEBOX: isize = 0x00010000;
-        const button_styles_mask: isize = ~(WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX);
         const cur_style = win32.ui.windows_and_messaging.GetWindowLongPtrW(hwnd_h, win32.ui.windows_and_messaging.GWL_STYLE);
-        _ = win32.ui.windows_and_messaging.SetWindowLongPtrW(hwnd_h, win32.ui.windows_and_messaging.GWL_STYLE, cur_style & button_styles_mask);
+        _ = win32.ui.windows_and_messaging.SetWindowLongPtrW(hwnd_h, win32.ui.windows_and_messaging.GWL_STYLE, cur_style & ~WS_SYSMENU);
 
         // Extend the DWM frame (Acrylic) into the entire client area so the backdrop material shows there.
         _ = win32.graphics.dwm.DwmExtendFrameIntoClientArea(hwnd_h, &win32_mica_margins);

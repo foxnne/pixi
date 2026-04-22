@@ -379,6 +379,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                     .expand = .horizontal,
                     .background = false,
                     .min_size_content = .{ .w = 1, .h = pixi.editor.settings.titlebar_height },
+                    .max_size_content = .{ .w = std.math.floatMax(f32), .h = pixi.editor.settings.titlebar_height },
                 },
             );
             defer titlebar_box.deinit();
@@ -402,7 +403,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 const button_h = pixi.editor.settings.titlebar_height;
 
                 const stroke = dvui.themeGet().color(.control, .text);
-                const hover_fill = dvui.themeGet().color(.control, .fill_hover);
+                const hover_fill = dvui.themeGet().color(.control, .fill_hover).lighten(if (dvui.themeGet().dark) 3 else -3);
                 const close_hover_fill = dvui.Color{ .r = 232, .g = 17, .b = 35, .a = 255 };
                 const close_hover_stroke = dvui.Color{ .r = 255, .g = 255, .b = 255, .a = 255 };
 
@@ -411,14 +412,16 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                     const is_hover = hovered == .minimize;
                     var b = dvui.box(@src(), .{ .dir = .horizontal }, .{
                         .min_size_content = .{ .w = button_w, .h = button_h },
+                        .expand = .vertical,
                         .background = is_hover,
                         .color_fill = hover_fill,
                     });
                     defer b.deinit();
                     min_rect = b.data().rectScale().r;
-                    dvui.icon(@src(), "win_min", icons.tvg.lucide.minus, .{ .stroke_color = stroke }, .{
+                    dvui.icon(@src(), "win_min", icons.tvg.feather.minus, .{ .stroke_color = stroke }, .{
                         .expand = .ratio,
-                        .padding = .all(11),
+                        .padding = .all(7),
+                        .margin = .all(0),
                         .gravity_x = 0.5,
                     });
                 }
@@ -427,6 +430,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                     const is_hover = hovered == .maximize;
                     var b = dvui.box(@src(), .{ .dir = .horizontal }, .{
                         .min_size_content = .{ .w = button_w, .h = button_h },
+                        .expand = .vertical,
                         .background = is_hover,
                         .color_fill = hover_fill,
                     });
@@ -434,7 +438,8 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                     max_rect = b.data().rectScale().r;
                     dvui.icon(@src(), "win_max", icons.tvg.lucide.square, .{ .stroke_color = stroke }, .{
                         .expand = .ratio,
-                        .padding = .all(11),
+                        .padding = .all(9),
+                        .margin = .all(0),
                         .gravity_x = 0.5,
                     });
                 }
@@ -443,16 +448,18 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                     const is_hover = hovered == .close;
                     var b = dvui.box(@src(), .{ .dir = .horizontal }, .{
                         .min_size_content = .{ .w = button_w, .h = button_h },
+                        .expand = .vertical,
                         .background = is_hover,
-                        .color_fill = close_hover_fill,
+                        .color_fill = close_hover_fill.opacity(0.5),
                     });
                     defer b.deinit();
                     close_rect = b.data().rectScale().r;
-                    dvui.icon(@src(), "win_close", icons.tvg.lucide.x, .{
+                    dvui.icon(@src(), "win_close", icons.tvg.heroicons.outline.@"x-mark", .{
                         .stroke_color = if (is_hover) close_hover_stroke else stroke,
                     }, .{
                         .expand = .ratio,
-                        .padding = .all(6),
+                        .padding = .all(5),
+                        .margin = .all(0),
                         .gravity_x = 0.5,
                     });
                 }

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(zig build *)",
+      "Bash(where zig.exe)",
+      "Bash(/c/Users/foxnn/dev/zig.exe build *)",
+      "Bash(echo \"EXIT=$?\")"
+    ]
+  }
+}
