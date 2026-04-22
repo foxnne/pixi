@@ -197,17 +197,21 @@ pub fn performWindowButton(win: *dvui.Window, button: TitleBarButton) void {
 }
 
 fn performWindowButtonHwnd(hwnd_h: win32.foundation.HWND, button: TitleBarButton) void {
-    const WM_SYSCOMMAND: u32 = 0x0112;
-    const SC_MINIMIZE: usize = 0xF020;
-    const SC_MAXIMIZE: usize = 0xF030;
-    const SC_RESTORE: usize = 0xF120;
-    const SC_CLOSE: usize = 0xF060;
-    const wparam: win32.foundation.WPARAM = switch (button) {
-        .minimize => SC_MINIMIZE,
-        .maximize => if (win32.ui.windows_and_messaging.IsZoomed(hwnd_h) != 0) SC_RESTORE else SC_MAXIMIZE,
-        .close => SC_CLOSE,
-    };
-    _ = win32.ui.windows_and_messaging.PostMessageW(hwnd_h, WM_SYSCOMMAND, wparam, 0);
+    // We strip WS_SYSMENU from the window style to hide the OS-drawn caption buttons,
+    // so WM_SYSCOMMAND(SC_MINIMIZE/MAXIMIZE/CLOSE) is no longer reliable. Drive the actions
+    // directly via ShowWindow / WM_CLOSE instead.
+    const WM_CLOSE: u32 = 0x0010;
+    switch (button) {
+        .minimize => _ = win32.ui.windows_and_messaging.ShowWindow(hwnd_h, win32.ui.windows_and_messaging.SW_MINIMIZE),
+        .maximize => {
+            const cmd = if (win32.ui.windows_and_messaging.IsZoomed(hwnd_h) != 0)
+                win32.ui.windows_and_messaging.SW_RESTORE
+            else
+                win32.ui.windows_and_messaging.SW_MAXIMIZE;
+            _ = win32.ui.windows_and_messaging.ShowWindow(hwnd_h, cmd);
+        },
+        .close => _ = win32.ui.windows_and_messaging.PostMessageW(hwnd_h, WM_CLOSE, 0, 0),
+    }
 }
 
 fn rectContainsI32(rect: dvui.Rect.Physical, x: i32, y: i32) bool {
@@ -473,6 +477,17 @@ pub fn setWindowStyle(win: *dvui.Window) void {
 
         // Subclass so we can re-apply frame extension in WM_ACTIVATE (required by DWM for backdrop to show).
         _ = win32.ui.shell.SetWindowSubclass(hwnd_h, win32MicaSubclassProc, win32_mica_subclass_id, 0);
+
+        // Hide the OS-drawn caption buttons (min/max/close) so they don't show through our custom-drawn ones.
+        // Returning 0 from WM_NCCALCSIZE removes the non-client area, but on Win11 DWM still composites the
+        // system caption buttons whenever WS_SYSMENU/WS_MIN/MAXIMIZEBOX are present. Stripping those styles
+        // makes DWM stop drawing them. WS_THICKFRAME (resize) and WS_CAPTION (snap, animations) stay.
+        const WS_SYSMENU: isize = 0x00080000;
+        const WS_MINIMIZEBOX: isize = 0x00020000;
+        const WS_MAXIMIZEBOX: isize = 0x00010000;
+        const button_styles_mask: isize = ~(WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX);
+        const cur_style = win32.ui.windows_and_messaging.GetWindowLongPtrW(hwnd_h, win32.ui.windows_and_messaging.GWL_STYLE);
+        _ = win32.ui.windows_and_messaging.SetWindowLongPtrW(hwnd_h, win32.ui.windows_and_messaging.GWL_STYLE, cur_style & button_styles_mask);
 
         // Extend the DWM frame (Acrylic) into the entire client area so the backdrop material shows there.
         _ = win32.graphics.dwm.DwmExtendFrameIntoClientArea(hwnd_h, &win32_mica_margins);
