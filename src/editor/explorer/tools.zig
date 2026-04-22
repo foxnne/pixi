@@ -6,8 +6,12 @@ const assets = @import("assets");
 
 const Tools = @This();
 
-var removed_index: ?usize = null;
 var insert_before_index: ?usize = null;
+/// Sorted (ascending) list of layer indices whose TreeWidget branch reported `removed()` on the
+/// last frame's drag completion. Used by the drop handler to reorder multiple selected layers as
+/// a group. Bounded because layer count is expected to be modest in practice.
+var removed_layer_indices_buf: [64]usize = undefined;
+var removed_layer_indices_len: usize = 0;
 var edit_layer_id: ?u64 = null;
 var prev_layer_count: usize = 0;
 var max_split_ratio: f32 = 0.4;
@@ -21,6 +25,10 @@ const LayerRowGesture = struct {
     drag_branch: ?usize,
     moved: bool,
     reorder_drag: bool,
+    /// True when the press landed on a row that was already part of the current multi-selection
+    /// with no modifier key. We preserve the full selection so the user can drag the whole group;
+    /// on release without drag we narrow the selection to just `press_idx` (Finder-style).
+    narrow_on_release: bool,
 };
 var layer_row_gesture: ?LayerRowGesture = null;
 
@@ -398,23 +406,46 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
         var layer_hits_buf: [256]LayerRowHit = undefined;
         var layer_hits_len: usize = 0;
 
-        // Drag and drop is completing
-        if (insert_before_index) |insert_before| {
-            if (removed_index) |removed| {
+        // Drag and drop is completing — supports single- and multi-row drags.
+        if (insert_before_index) |insert_before_raw| {
+            if (removed_layer_indices_len > 0) {
+                const sources = removed_layer_indices_buf[0..removed_layer_indices_len];
+
                 const prev_order = try pixi.app.allocator.alloc(u64, file.layers.len);
                 for (file.layers.items(.id), 0..) |id, i| {
                     prev_order[i] = id;
                 }
 
-                const layer = file.layers.get(removed);
-                file.layers.orderedRemove(removed);
+                const primary_before = file.selected_layer_index;
+                var primary_was_moved: bool = false;
+                var primary_pos_in_sources: usize = 0;
+                for (sources, 0..) |s, pi| {
+                    if (s == primary_before) {
+                        primary_was_moved = true;
+                        primary_pos_in_sources = pi;
+                        break;
+                    }
+                }
 
-                if (insert_before <= file.layers.len) {
-                    file.layers.insert(pixi.app.allocator, if (removed < insert_before) insert_before - 1 else insert_before, layer) catch {
-                        dvui.log.err("Failed to insert layer", .{});
-                    };
-                } else {
-                    file.layers.insert(pixi.app.allocator, if (removed < insert_before) file.layers.len else 0, layer) catch {
+                // Snapshot moved layers before any removal so indices stay valid.
+                var moved = try pixi.app.allocator.alloc(pixi.Internal.Layer, sources.len);
+                defer pixi.app.allocator.free(moved);
+                for (sources, 0..) |s, i| {
+                    moved[i] = file.layers.get(s);
+                }
+
+                // Remove from highest → lowest so earlier indices aren't shifted.
+                var ri = sources.len;
+                while (ri > 0) {
+                    ri -= 1;
+                    file.layers.orderedRemove(sources[ri]);
+                }
+
+                const target_raw = pixi.dvui.TreeSelection.adjustInsertBeforeForRemovals(sources, insert_before_raw);
+                const target = @min(target_raw, file.layers.len);
+
+                for (moved, 0..) |layer, i| {
+                    file.layers.insert(pixi.app.allocator, target + i, layer) catch {
                         dvui.log.err("Failed to insert layer", .{});
                     };
                 }
@@ -422,13 +453,18 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
                 file.editor.layer_composite_dirty = true;
                 file.editor.split_composite_dirty = true;
 
-                if (removed == file.selected_layer_index) {
-                    if (insert_before < file.layers.len) {
-                        file.selected_layer_index = if (removed < insert_before) insert_before - 1 else insert_before;
-                    } else {
-                        file.selected_layer_index = 0;
-                    }
+                if (primary_was_moved) {
+                    file.selected_layer_index = target + primary_pos_in_sources;
                 }
+
+                // After a group move the moved rows become contiguous; resync multi-selection to reflect that.
+                file.editor.selected_layer_indices.clearRetainingCapacity();
+                for (0..moved.len) |i| {
+                    file.editor.selected_layer_indices.append(pixi.app.allocator, target + i) catch {
+                        dvui.log.err("Failed to update layer selection", .{});
+                    };
+                }
+                file.editor.layer_selection_anchor = file.selected_layer_index;
 
                 if (!std.mem.eql(u64, file.layers.items(.id)[0..file.layers.len], prev_order)) {
                     file.history.append(.{
@@ -444,9 +480,19 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
                 }
 
                 insert_before_index = null;
-                removed_index = null;
+                removed_layer_indices_len = 0;
+            } else {
+                insert_before_index = null;
             }
+        } else if (removed_layer_indices_len > 0) {
+            // Drag ended without a valid drop target; discard the removal intent.
+            removed_layer_indices_len = 0;
         }
+
+        // Sync the multi-selection list with the primary index each frame so it tracks operations
+        // (delete/duplicate/merge) that only update `selected_layer_index`. The set must always
+        // contain the primary — the editor cannot have zero selected layers.
+        ensureLayerSelection(file);
 
         const box = dvui.box(@src(), .{ .dir = .vertical }, .{
             .expand = .horizontal,
@@ -457,8 +503,9 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
         defer box.deinit();
 
         for (file.layers.items(.id), 0..) |layer_id, layer_index| {
-            var row_label_r: ?dvui.Rect.Physical = null;
-            const selected = if (edit_layer_id) |id| id == layer_id else file.selected_layer_index == layer_index;
+            const in_multi = layerIndexInMulti(file, layer_index);
+            const is_primary_row = file.selected_layer_index == layer_index;
+            const selected = if (edit_layer_id) |id| id == layer_id else (is_primary_row or in_multi);
             const visible = file.layers.items(.visible)[layer_index];
             const font = if (visible) dvui.Font.theme(.body) else dvui.Font.theme(.body).withStyle(.italic);
 
@@ -487,7 +534,10 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
             defer branch.deinit();
 
             if (branch.removed()) {
-                removed_index = layer_index;
+                if (removed_layer_indices_len < removed_layer_indices_buf.len) {
+                    removed_layer_indices_buf[removed_layer_indices_len] = layer_index;
+                    removed_layer_indices_len += 1;
+                }
             } else if (branch.insertBefore()) {
                 insert_before_index = layer_index;
             }
@@ -583,17 +633,37 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
                 });
                 defer name_label_box.deinit();
 
-                dvui.labelNoFmt(@src(), file.layers.items(.name)[layer_index], .{}, .{
-                    .expand = .none,
-                    .gravity_y = 0.5,
-                    .margin = dvui.Rect{},
-                    .font = font,
-                    .padding = dvui.Rect.all(0),
-                    .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
-                });
+                const name_text = file.layers.items(.name)[layer_index];
+                const name_color: dvui.Color = if (!selected)
+                    dvui.themeGet().color(.control, .text)
+                else if (is_primary_row)
+                    dvui.themeGet().color(.window, .text)
+                else
+                    dvui.themeGet().color(.control, .text);
 
-                if (file.selected_layer_index == layer_index) {
-                    row_label_r = name_label_box.data().borderRectScale().r;
+                if (selected) {
+                    if (dvui.labelClick(@src(), "{s}", .{name_text}, .{}, .{
+                        .expand = .none,
+                        .gravity_y = 0.5,
+                        .margin = dvui.Rect{},
+                        .font = font,
+                        .padding = dvui.Rect.all(0),
+                        .color_text = name_color,
+                    })) {
+                        const lr = name_label_box.data().borderRectScale().r;
+                        if (pointerReleaseInRectWithoutSelectionModifier(lr)) {
+                            edit_layer_id = layer_id;
+                        }
+                    }
+                } else {
+                    dvui.labelNoFmt(@src(), name_text, .{}, .{
+                        .expand = .none,
+                        .gravity_y = 0.5,
+                        .margin = dvui.Rect{},
+                        .font = font,
+                        .padding = dvui.Rect.all(0),
+                        .color_text = name_color,
+                    });
                 }
             } else {
                 var te = dvui.textEntry(@src(), .{}, .{
@@ -693,7 +763,6 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
 
                 if (layer_hits_len < layer_hits_buf.len) {
                     layer_hits_buf[layer_hits_len] = .{
-                        .label_r = row_label_r,
                         .row_r = branch.data().borderRectScale().r,
                         .buttons_r = button_box.data().borderRectScale().r,
                         .branch_usize = branch.data().id.asUsize(),
@@ -1198,12 +1267,145 @@ const LayerRowHit = struct {
     branch_usize: usize,
     layer_index: usize,
     hbox_tl: dvui.Point.Physical,
-    /// When non-null, selected row's name label rect (press+release here without a drag opens rename).
-    label_r: ?dvui.Rect.Physical,
 };
+
+fn pointerReleaseInRectWithoutSelectionModifier(r: dvui.Rect.Physical) bool {
+    for (dvui.events()) |*e| {
+        switch (e.evt) {
+            .mouse => |me| {
+                if (me.action == .release and me.button.pointer() and r.contains(me.p)) {
+                    return !me.mod.shift() and !me.mod.control() and !me.mod.command();
+                }
+            },
+            else => {},
+        }
+    }
+    return false;
+}
 
 fn layerGestureMatches(file: *const pixi.Internal.File) bool {
     return layer_row_gesture != null and layer_row_gesture.?.file_id == file.id;
+}
+
+/// True if `layer_index` is present in the multi-selection set (the primary index is always implicitly selected).
+fn layerIndexInMulti(file: *const pixi.Internal.File, layer_index: usize) bool {
+    for (file.editor.selected_layer_indices.items) |i| {
+        if (i == layer_index) return true;
+    }
+    return false;
+}
+
+/// Sync the multi-selection list with `file.selected_layer_index` and the current layer count.
+/// The primary must always be present; stale / out-of-range entries from deletions are dropped.
+fn ensureLayerSelection(file: *pixi.Internal.File) void {
+    var sel = &file.editor.selected_layer_indices;
+
+    // Drop out-of-range entries.
+    var write: usize = 0;
+    for (sel.items) |i| {
+        if (i < file.layers.len) {
+            sel.items[write] = i;
+            write += 1;
+        }
+    }
+    sel.items.len = write;
+
+    // Clamp primary to valid range (should already be, but be defensive).
+    if (file.selected_layer_index >= file.layers.len) {
+        file.selected_layer_index = if (file.layers.len == 0) 0 else file.layers.len - 1;
+    }
+
+    // Guarantee the primary index is present.
+    var has_primary = false;
+    for (sel.items) |i| {
+        if (i == file.selected_layer_index) {
+            has_primary = true;
+            break;
+        }
+    }
+    if (!has_primary and file.layers.len > 0) {
+        sel.append(pixi.app.allocator, file.selected_layer_index) catch return;
+        std.sort.pdq(usize, sel.items, {}, std.sort.asc(usize));
+    }
+}
+
+/// Apply a modifier-aware click to the layer multi-selection. Returns the new primary index and
+/// whether the narrow-on-release deferral should be armed (true when a plain click lands on a row
+/// that is already part of a multi-selection: selection stays until the user releases without
+/// dragging, at which point we narrow to just that row).
+const LayerClickApplied = struct {
+    primary: usize,
+    narrow_on_release: bool,
+};
+
+fn applyLayerClick(
+    file: *pixi.Internal.File,
+    clicked: usize,
+    mode: pixi.dvui.TreeSelection.ClickMode,
+) LayerClickApplied {
+    const count_before = file.editor.selected_layer_indices.items.len;
+
+    // Plain click on a row that is already part of the current multi-selection preserves the set
+    // so the user can drag the whole group. We narrow later on release if no drag happened.
+    if (mode == .replace and layerIndexInMulti(file, clicked) and count_before > 1) {
+        return .{ .primary = clicked, .narrow_on_release = true };
+    }
+
+    var tmp: std.ArrayList(usize) = .empty;
+    defer tmp.deinit(pixi.app.allocator);
+
+    const res = pixi.dvui.TreeSelection.applyClickUsize(
+        pixi.app.allocator,
+        file.editor.selected_layer_indices.items,
+        file.selected_layer_index,
+        file.editor.layer_selection_anchor,
+        clicked,
+        mode,
+        true, // require_primary: layers always has ≥ 1 selected
+        &tmp,
+    ) catch return .{ .primary = file.selected_layer_index, .narrow_on_release = false };
+
+    file.editor.selected_layer_indices.clearRetainingCapacity();
+    file.editor.selected_layer_indices.appendSlice(pixi.app.allocator, tmp.items) catch {};
+
+    const new_primary = res.primary orelse clicked;
+    file.selected_layer_index = new_primary;
+    file.editor.layer_selection_anchor = res.anchor;
+
+    return .{ .primary = new_primary, .narrow_on_release = false };
+}
+
+/// Narrow the multi-selection to just `clicked` — used when the user performed a plain press on an
+/// already-multi-selected row and released without dragging. Mirrors Finder-style behavior.
+fn narrowLayerSelectionTo(file: *pixi.Internal.File, clicked: usize) void {
+    file.editor.selected_layer_indices.clearRetainingCapacity();
+    file.editor.selected_layer_indices.append(pixi.app.allocator, clicked) catch {};
+    file.selected_layer_index = clicked;
+    file.editor.layer_selection_anchor = clicked;
+}
+
+/// Build a list of branch widget ids (one per selected layer) to pass into `tree.dragStartMulti`.
+/// Uses the per-row `LayerRowHit` geometry captured during drawing. Only layers currently visible
+/// in the row-hits buffer are included (out-of-viewport selections are allowed because hits are
+/// populated for every drawn row, not just hovered ones).
+fn buildLayerMultiDragIds(
+    file: *const pixi.Internal.File,
+    hits: []const LayerRowHit,
+    out: []usize,
+) usize {
+    var n: usize = 0;
+    for (file.editor.selected_layer_indices.items) |layer_index| {
+        for (hits) |h| {
+            if (h.layer_index == layer_index) {
+                if (n < out.len) {
+                    out[n] = h.branch_usize;
+                    n += 1;
+                }
+                break;
+            }
+        }
+    }
+    return n;
 }
 
 /// Clear in-flight gesture only (no `dragEnd`). Used before arming a new row press.
@@ -1293,6 +1495,10 @@ fn processLayerTreePointerEvents(tree: *pixi.dvui.TreeWidget, file: *pixi.Intern
                         if (cw.dragging.state != .none) dvui.dragEnd();
                         layerTreeClearGestureKeysOnly(file);
                         dvui.dragPreStart(me.p, .{ .offset = h.hbox_tl.diff(me.p) });
+
+                        const mode = pixi.dvui.TreeSelection.clickModeFromMod(me.mod);
+                        const applied = applyLayerClick(file, h.layer_index, mode);
+
                         layer_row_gesture = .{
                             .file_id = file.id,
                             .press_idx = h.layer_index,
@@ -1300,6 +1506,7 @@ fn processLayerTreePointerEvents(tree: *pixi.dvui.TreeWidget, file: *pixi.Intern
                             .drag_branch = h.branch_usize,
                             .moved = false,
                             .reorder_drag = false,
+                            .narrow_on_release = applied.narrow_on_release,
                         };
                     } else {
                         layerTreeResetRowPointerGesture(file);
@@ -1344,11 +1551,20 @@ fn processLayerTreePointerEvents(tree: *pixi.dvui.TreeWidget, file: *pixi.Intern
                                 break;
                             }
                         }
-                        tree.dragStart(branch_usize.?, me.p, row_size);
+
+                        var multi_buf: [128]usize = undefined;
+                        const multi_len = buildLayerMultiDragIds(file, hits, multi_buf[0..]);
+                        if (multi_len > 1) {
+                            tree.dragStartMulti(branch_usize.?, multi_buf[0..multi_len], me.p, row_size);
+                        } else {
+                            tree.dragStart(branch_usize.?, me.p, row_size);
+                        }
+
                         if (layer_row_gesture) |*g| {
                             if (g.file_id == file.id) {
                                 g.reorder_drag = true;
                                 g.drag_branch = null;
+                                g.narrow_on_release = false;
                             }
                         }
                     }
@@ -1357,7 +1573,6 @@ fn processLayerTreePointerEvents(tree: *pixi.dvui.TreeWidget, file: *pixi.Intern
 
                     const release_in_vp = layerPointerInScrollViewport(me.p, layers_viewport_r);
 
-                    const sel_before = file.selected_layer_index;
                     var release_layer: ?usize = null;
                     var rj = hits.len;
                     while (rj > 0) {
@@ -1371,42 +1586,13 @@ fn processLayerTreePointerEvents(tree: *pixi.dvui.TreeWidget, file: *pixi.Intern
 
                     const idx_opt: ?usize = if (layerGestureMatches(file)) layer_row_gesture.?.press_idx else null;
                     const did_reorder = if (layerGestureMatches(file)) layer_row_gesture.?.reorder_drag else false;
+                    const narrow = if (layerGestureMatches(file)) layer_row_gesture.?.narrow_on_release else false;
 
-                    var selected_on_release = false;
-                    if (!did_reorder and !tree.drag_ending) {
-                        if (release_in_vp) {
-                            if (release_layer) |rh| {
-                                file.selected_layer_index = rh;
-                                selected_on_release = true;
-                            } else if (idx_opt) |idx| {
-                                file.selected_layer_index = idx;
-                                selected_on_release = true;
-                            }
-                        }
-                    }
-
-                    var opened_layer_rename = false;
-                    const moved_while_armed = if (layerGestureMatches(file)) layer_row_gesture.?.moved else false;
-
-                    if (!did_reorder and !tree.drag_ending and !moved_while_armed and release_in_vp) {
+                    var selection_changed = false;
+                    if (!did_reorder and !tree.drag_ending and release_in_vp and narrow) {
                         if (idx_opt) |pi| {
-                            if (release_layer) |rl| {
-                                if (pi == rl and sel_before == pi) {
-                                    if (layerGestureMatches(file)) {
-                                        const pp = layer_row_gesture.?.press_p;
-                                        for (hits) |h| {
-                                            if (h.layer_index != pi) continue;
-                                            if (h.label_r) |lr| {
-                                                if (layerPointerInScrollViewport(pp, layers_viewport_r) and lr.contains(pp) and lr.contains(me.p)) {
-                                                    edit_layer_id = file.layers.items(.id)[pi];
-                                                    opened_layer_rename = true;
-                                                }
-                                            }
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
+                            narrowLayerSelectionTo(file, pi);
+                            selection_changed = true;
                         }
                     }
 
@@ -1417,7 +1603,7 @@ fn processLayerTreePointerEvents(tree: *pixi.dvui.TreeWidget, file: *pixi.Intern
                         }
                     }
 
-                    if (selected_on_release or opened_layer_rename) {
+                    if (selection_changed) {
                         dvui.refresh(null, @src(), tree.data().id);
                     }
                 }

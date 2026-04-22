@@ -13,6 +13,16 @@ pub var tree_removed_path: ?[]const u8 = null;
 pub var selected_id: ?usize = null;
 pub var edit_id: ?usize = null;
 
+/// Multi-selection for the file tree. Maps `id_extra` (hash of absolute path) to the heap-owned
+/// absolute path string. The primary `selected_id` is always a key here when set. Paths are
+/// allocated from `pixi.app.allocator` so they outlive the dvui arena used during draw.
+pub var selected_paths: std.AutoArrayHashMapUnmanaged(usize, []u8) = .empty;
+pub var selection_anchor: ?usize = null;
+
+/// Visible file/folder rows in depth-first tree order for the current frame (shift-range selection).
+const FileVisRow = struct { id: usize, path: []const u8 };
+var visible_file_rows_order: std.ArrayListUnmanaged(FileVisRow) = .empty;
+
 // These two are currently set from a dialog callafter function
 // If close_rect is not null, the dialog will animate into that rect then close
 pub var new_file_path: ?[]const u8 = null;
@@ -43,6 +53,10 @@ pub const Extension = enum {
 pub fn draw() !void {
     var tree = pixi.dvui.TreeWidget.tree(@src(), .{ .enable_reordering = true }, .{ .background = false, .expand = .both });
     defer tree.deinit();
+
+    // Multi-drag uses this id list; descendants are omitted when a selected parent folder is dragged too.
+    // Safe as long as `selected_paths` isn't mutated between now and `tree.deinit`.
+    tree.selected_branch_ids = selectionBranchIdsForMultiDrag(dvui.currentWindow().arena()) catch selected_paths.keys();
 
     if (pixi.editor.folder) |path| {
         try drawFiles(path, tree);
@@ -131,7 +145,8 @@ pub fn drawFiles(path: []const u8, tree: *pixi.dvui.TreeWidget) !void {
 
     if (branch.button.clicked()) {
         selected_id = null;
-        //close_rect = branch.button.data().borderRectScale().r;
+        selectionFreeAll();
+        selection_anchor = null;
     }
 
     const color = dvui.themeGet().color(.control, .fill_hover);
@@ -177,6 +192,20 @@ pub fn drawFiles(path: []const u8, tree: *pixi.dvui.TreeWidget) !void {
     }
 }
 
+fn pointerReleaseInRectWithoutSelectionModifier(r: dvui.Rect.Physical) bool {
+    for (dvui.events()) |*e| {
+        switch (e.evt) {
+            .mouse => |me| {
+                if (me.action == .release and me.button.pointer() and r.contains(me.p)) {
+                    return !me.mod.shift() and !me.mod.control() and !me.mod.command();
+                }
+            },
+            else => {},
+        }
+    }
+    return false;
+}
+
 fn lessThan(_: void, lhs: std.fs.Dir.Entry, rhs: std.fs.Dir.Entry) bool {
     if (lhs.kind == .directory and rhs.kind == .file) return true;
     if (lhs.kind == .file and rhs.kind == .directory) return false;
@@ -188,7 +217,7 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
     const padding = dvui.Rect.all(2);
     const font = dvui.Font.theme(.body);
 
-    const selected: bool = if (selected_id) |id| id_extra == id else false;
+    const selected: bool = isFileSelected(id_extra);
     const editing: bool = if (edit_id) |id| id_extra == id else false;
 
     if (editing) {
@@ -283,15 +312,24 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
             }
         }
     } else if (selected) {
+        var name_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+            .expand = .none,
+            .background = false,
+            .gravity_y = 0.5,
+            .padding = padding,
+        });
+        defer name_box.deinit();
         if (dvui.labelClick(@src(), "{s}", .{label}, .{}, .{
             .gravity_y = 0.5,
-            //.margin = dvui.Rect.all(2),
-            .padding = padding,
+            .padding = dvui.Rect.all(0),
             .id_extra = id_extra,
             .color_text = color,
             .font = font,
         })) {
-            edit_id = id_extra;
+            const lr = name_box.data().borderRectScale().r;
+            if (pointerReleaseInRectWithoutSelectionModifier(lr)) {
+                edit_id = id_extra;
+            }
         }
     } else {
         dvui.label(@src(), "{s}", .{label}, .{
@@ -306,6 +344,8 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
 pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidget, unique_id: dvui.Id, outer_filter_text: []const u8) !void {
     var color_i: usize = 0;
     var id_extra: usize = 0;
+
+    visible_file_rows_order.clearRetainingCapacity();
 
     const recursor = struct {
         fn search(directory: []const u8, tree: *pixi.dvui.TreeWidget, inner_unique_id: dvui.Id, inner_id_extra: *usize, color_id: *usize, filter_text: []const u8, parent_branch: ?*pixi.dvui.TreeWidget.Branch) !void {
@@ -346,6 +386,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                 }
 
                 inner_id_extra.* = dvui.Id.update(tree.data().id, abs_path).asUsize();
+                try visible_file_rows_order.append(pixi.app.allocator, .{ .id = inner_id_extra.*, .path = abs_path });
 
                 var color = dvui.themeGet().color(.control, .fill);
                 if (pixi.editor.colors.palette) |*palette| {
@@ -354,7 +395,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
 
                 const padding = dvui.Rect.all(2);
 
-                const selected: bool = if (selected_id) |id| inner_id_extra.* == id else false;
+                const selected: bool = isFileSelected(inner_id_extra.*);
                 const editing: bool = if (edit_id) |id| inner_id_extra.* == id else false;
 
                 const branch_id = tree.data().id.update(abs_path);
@@ -381,6 +422,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                     .animation_easing = dvui.easing.outBack,
                     .process_events = !editing,
                     .can_accept_children = entry.kind == .directory,
+                    .branch_id = inner_id_extra.*,
                 }, .{
                     .id_extra = inner_id_extra.*,
                     .expand = .horizontal,
@@ -443,46 +485,12 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                 }
 
                 if (branch.insertBefore()) {
-                    if (dvui.dataGetSlice(null, inner_unique_id, "removed_path", []u8)) |removed_path| {
-                        const old_sub_path = std.fs.path.basename(removed_path);
-
-                        const new_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{ if (entry.kind == .directory) abs_path else directory, old_sub_path });
-
-                        if (!std.mem.eql(u8, removed_path, new_path)) {
-                            std.fs.renameAbsolute(removed_path, new_path) catch dvui.log.err("Failed to move {s} to {s}", .{ removed_path, new_path });
-
-                            if (pixi.editor.getFileFromPath(removed_path)) |file| {
-                                pixi.app.allocator.free(file.path);
-                                file.path = pixi.app.allocator.dupe(u8, new_path) catch {
-                                    dvui.log.err("Failed to duplicate path: {s}", .{new_path});
-                                    return error.FailedToDuplicatePath;
-                                };
-                            }
-                        }
-
-                        dvui.dataRemove(null, inner_unique_id, "removed_path");
-                    }
+                    const target_dir = if (entry.kind == .directory) abs_path else directory;
+                    try applyFileMove(inner_unique_id, tree, target_dir);
                 }
 
                 if (branch.dropInto() and entry.kind == .directory) {
-                    if (dvui.dataGetSlice(null, inner_unique_id, "removed_path", []u8)) |removed_path| {
-                        const old_sub_path = std.fs.path.basename(removed_path);
-                        const new_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{ abs_path, old_sub_path });
-
-                        if (!std.mem.eql(u8, removed_path, new_path)) {
-                            std.fs.renameAbsolute(removed_path, new_path) catch dvui.log.err("Failed to move {s} to {s}", .{ removed_path, new_path });
-
-                            if (pixi.editor.getFileFromPath(removed_path)) |file| {
-                                pixi.app.allocator.free(file.path);
-                                file.path = pixi.app.allocator.dupe(u8, new_path) catch {
-                                    dvui.log.err("Failed to duplicate path: {s}", .{new_path});
-                                    return error.FailedToDuplicatePath;
-                                };
-                            }
-                        }
-
-                        dvui.dataRemove(null, inner_unique_id, "removed_path");
-                    }
+                    try applyFileMove(inner_unique_id, tree, abs_path);
                     // Expand the folder so the dropped item is visible
                     pixi.editor.explorer.open_branches.put(branch_id, {}) catch {};
                 }
@@ -501,7 +509,14 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                         } });
                         defer fw2.deinit();
 
-                        selected_id = inner_id_extra.*;
+                        // Right-clicking a row that isn't already part of the selection takes over
+                        // as a single-row selection; right-clicking a selected row preserves the
+                        // multi-selection so context-menu actions apply to the group.
+                        if (!isFileSelected(inner_id_extra.*)) {
+                            applyFileClick(inner_id_extra.*, abs_path, .replace);
+                        } else {
+                            selected_id = inner_id_extra.*;
+                        }
 
                         if (entry.kind == .file) {
                             if ((dvui.menuItemLabel(@src(), "Open", .{}, .{
@@ -654,14 +669,17 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                         }
 
                         if (branch.button.clicked()) {
-                            selected_id = inner_id_extra.*;
-                            switch (ext) {
-                                .pixi, .png => {
-                                    _ = pixi.editor.openFilePath(abs_path, pixi.editor.currentGroupingID()) catch |err| {
-                                        dvui.log.err("{any}: {s}", .{ err, abs_path });
-                                    };
-                                },
-                                else => {},
+                            const mode = detectClickMode(branch.button.data().borderRectScale().r);
+                            applyFileClick(inner_id_extra.*, abs_path, mode);
+                            if (mode == .replace) {
+                                switch (ext) {
+                                    .pixi, .png => {
+                                        _ = pixi.editor.openFilePath(abs_path, pixi.editor.currentGroupingID()) catch |err| {
+                                            dvui.log.err("{any}: {s}", .{ err, abs_path });
+                                        };
+                                    },
+                                    else => {},
+                                }
                             }
                         }
                     },
@@ -710,7 +728,8 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                         };
 
                         if (branch.button.clicked()) {
-                            selected_id = inner_id_extra.*;
+                            const mode = detectClickMode(branch.button.data().borderRectScale().r);
+                            applyFileClick(inner_id_extra.*, abs_path, mode);
                         }
 
                         if (branch.expander(@src(), .{ .indent = expanded_indent }, .{
@@ -757,6 +776,240 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
     try recursor(root_directory, outer_tree, unique_id, &id_extra, &color_i, outer_filter_text, null);
 
     return;
+}
+
+pub fn isFileSelected(id: usize) bool {
+    if (selected_id) |p| if (p == id) return true;
+    return selected_paths.contains(id);
+}
+
+fn selectionFreeAll() void {
+    var it = selected_paths.iterator();
+    while (it.next()) |e| pixi.app.allocator.free(e.value_ptr.*);
+    selected_paths.clearRetainingCapacity();
+}
+
+fn selectionPut(id: usize, path: []const u8) void {
+    if (selected_paths.getPtr(id)) |existing| {
+        if (std.mem.eql(u8, existing.*, path)) return;
+        pixi.app.allocator.free(existing.*);
+        existing.* = pixi.app.allocator.dupe(u8, path) catch return;
+        return;
+    }
+    const copy = pixi.app.allocator.dupe(u8, path) catch return;
+    selected_paths.put(pixi.app.allocator, id, copy) catch {
+        pixi.app.allocator.free(copy);
+    };
+}
+
+fn selectionRemove(id: usize) bool {
+    if (selected_paths.fetchSwapRemove(id)) |kv| {
+        pixi.app.allocator.free(kv.value);
+        return true;
+    }
+    return false;
+}
+
+/// Apply a modifier-aware click to the file-tree selection. Indexed by id_extra (path hash).
+fn applyFileClick(id: usize, path: []const u8, mode: pixi.dvui.TreeSelection.ClickMode) void {
+    switch (mode) {
+        .replace => {
+            selectionFreeAll();
+            selectionPut(id, path);
+            selected_id = id;
+            selection_anchor = id;
+        },
+        .toggle => {
+            if (selectionRemove(id)) {
+                if (selected_id == id) {
+                    var it = selected_paths.iterator();
+                    selected_id = if (it.next()) |entry| entry.key_ptr.* else null;
+                }
+            } else {
+                selectionPut(id, path);
+                selected_id = id;
+            }
+            selection_anchor = id;
+        },
+        .extend => {
+            const pivot = selection_anchor orelse selected_id orelse id;
+            applyFileShiftRange(id, path, pivot);
+        },
+    }
+}
+
+fn applyFileShiftRange(clicked_id: usize, clicked_path: []const u8, anchor_id: usize) void {
+    const rows = visible_file_rows_order.items;
+    var a_idx: ?usize = null;
+    var c_idx: ?usize = null;
+    for (rows, 0..) |row, i| {
+        if (row.id == anchor_id) a_idx = i;
+        if (row.id == clicked_id) c_idx = i;
+    }
+    if (a_idx == null or c_idx == null) {
+        selectionPut(clicked_id, clicked_path);
+        selected_id = clicked_id;
+        selection_anchor = anchor_id;
+        return;
+    }
+    const lo = @min(a_idx.?, c_idx.?);
+    const hi = @max(a_idx.?, c_idx.?);
+    selectionFreeAll();
+    for (rows[lo .. hi + 1]) |row| {
+        selectionPut(row.id, row.path);
+    }
+    selected_id = clicked_id;
+    if (selection_anchor == null) selection_anchor = anchor_id;
+}
+
+/// Derive the click mode from the most recent pointer release event that falls within `rect`.
+/// Used after `branch.button.clicked()` so we can honor ctrl/cmd/shift without intercepting the
+/// button's own event handling.
+fn detectClickMode(rect: dvui.Rect.Physical) pixi.dvui.TreeSelection.ClickMode {
+    var mode: pixi.dvui.TreeSelection.ClickMode = .replace;
+    for (dvui.events()) |*e| {
+        if (e.evt != .mouse) continue;
+        const me = e.evt.mouse;
+        if (me.action != .release or !me.button.pointer()) continue;
+        if (!rect.contains(me.p)) continue;
+        mode = pixi.dvui.TreeSelection.clickModeFromMod(me.mod);
+    }
+    return mode;
+}
+
+/// True when `child` lies strictly inside `ancestor` as a filesystem path (e.g. `/a/b` under `/a`).
+fn isStrictPathDescendant(child: []const u8, ancestor: []const u8) bool {
+    if (child.len <= ancestor.len) return false;
+    if (!std.mem.startsWith(u8, child, ancestor)) return false;
+    return std.fs.path.isSep(child[ancestor.len]);
+}
+
+/// Another selected entry is a folder that already contains this path — skip it for multi-drag / move.
+fn selectionPathExcludedByAncestor(path: []const u8) bool {
+    var it = selected_paths.iterator();
+    while (it.next()) |e| {
+        const other = e.value_ptr.*;
+        if (std.mem.eql(u8, path, other)) continue;
+        if (isStrictPathDescendant(path, other)) return true;
+    }
+    return false;
+}
+
+/// Branch ids for `TreeWidget.selected_branch_ids`: same as selection, minus descendants when a parent folder is also selected.
+fn selectionBranchIdsForMultiDrag(arena: std.mem.Allocator) ![]const usize {
+    const IdPath = struct {
+        id: usize,
+        path: []const u8,
+    };
+    var tmp: std.ArrayListUnmanaged(IdPath) = .empty;
+    defer tmp.deinit(arena);
+
+    var it = selected_paths.iterator();
+    while (it.next()) |e| {
+        const path = e.value_ptr.*;
+        if (selectionPathExcludedByAncestor(path)) continue;
+        try tmp.append(arena, .{ .id = e.key_ptr.*, .path = path });
+    }
+    std.mem.sort(IdPath, tmp.items, {}, struct {
+        fn lt(_: void, a: IdPath, b: IdPath) bool {
+            return std.mem.order(u8, a.path, b.path) == .lt;
+        }
+    }.lt);
+
+    const out = try arena.alloc(usize, tmp.items.len);
+    for (tmp.items, 0..) |p, i| out[i] = p.id;
+    return out;
+}
+
+/// Move the drag source (and, for a multi-drag, every other selected path) into `target_dir`.
+/// Renames files/folders on disk and rewrites open-file paths in-place. Clears the drag's
+/// stashed `removed_path` when complete.
+fn applyFileMove(unique_id: dvui.Id, tree: *pixi.dvui.TreeWidget, target_dir: []const u8) !void {
+    const arena = dvui.currentWindow().arena();
+
+    // The primary (floating) row's path is stashed here by the branch that reports `floating()`.
+    const primary_path_opt: ?[]const u8 = dvui.dataGetSlice(null, unique_id, "removed_path", []u8);
+    const is_multi = tree.drag_branch_ids != null;
+
+    if (is_multi) {
+        // Snapshot paths first: moving invalidates `selected_paths` entries and their strings.
+        // Omit paths that are already under another selected folder (the folder move covers them).
+        var paths = std.ArrayList([]u8){};
+        defer paths.deinit(arena);
+        var it = selected_paths.iterator();
+        while (it.next()) |e| {
+            const path = e.value_ptr.*;
+            if (selectionPathExcludedByAncestor(path)) continue;
+            const copy = arena.dupe(u8, path) catch continue;
+            paths.append(arena, copy) catch continue;
+        }
+
+        // Stable order keeps sibling-relative order roughly predictable for the user.
+        std.mem.sort([]u8, paths.items, {}, struct {
+            fn lt(_: void, a: []u8, b: []u8) bool {
+                return std.mem.order(u8, a, b) == .lt;
+            }
+        }.lt);
+
+        for (paths.items) |p| {
+            _ = try moveOnePath(p, target_dir, arena);
+        }
+
+        // Rebuild the selection map from the new paths on disk.
+        selectionFreeAll();
+        selected_id = null;
+        for (paths.items) |old_path| {
+            const base = std.fs.path.basename(old_path);
+            const new_path = std.fs.path.join(arena, &.{ target_dir, base }) catch continue;
+            std.fs.accessAbsolute(new_path, .{}) catch continue;
+            const new_id = dvui.Id.update(tree.data().id, new_path).asUsize();
+            selectionPut(new_id, new_path);
+            selected_id = new_id;
+        }
+        selection_anchor = selected_id;
+    } else if (primary_path_opt) |removed_path| {
+        _ = try moveOnePath(removed_path, target_dir, arena);
+    }
+
+    dvui.dataRemove(null, unique_id, "removed_path");
+}
+
+fn moveOnePath(source_path: []const u8, target_dir: []const u8, arena: std.mem.Allocator) !bool {
+    const base = std.fs.path.basename(source_path);
+    const new_path = try std.fs.path.join(arena, &.{ target_dir, base });
+    if (std.mem.eql(u8, source_path, new_path)) return false;
+
+    std.fs.renameAbsolute(source_path, new_path) catch {
+        dvui.log.err("Failed to move {s} to {s}", .{ source_path, new_path });
+        return false;
+    };
+
+    if (pixi.editor.getFileFromPath(source_path)) |file| {
+        pixi.app.allocator.free(file.path);
+        file.path = pixi.app.allocator.dupe(u8, new_path) catch {
+            dvui.log.err("Failed to duplicate path: {s}", .{new_path});
+            return error.FailedToDuplicatePath;
+        };
+    }
+    return true;
+}
+
+/// Remove stale selections whose underlying file no longer exists (e.g. moved by a multi-drag).
+pub fn pruneMissingSelections() void {
+    var i: usize = 0;
+    while (i < selected_paths.count()) {
+        const entry = selected_paths.entries.get(i);
+        std.fs.accessAbsolute(entry.value, .{}) catch {
+            const removed = selected_paths.fetchSwapRemove(entry.key) orelse {
+                i += 1;
+                continue;
+            };
+            if (selected_id == removed.key) selected_id = null;
+            pixi.app.allocator.free(removed.value);
+            continue;
+        };
+        i += 1;
+    }
 }
 
 pub fn extension(file: []const u8) Extension {

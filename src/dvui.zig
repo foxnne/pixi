@@ -13,6 +13,7 @@ pub const ReorderWidget = Widgets.ReorderWidget;
 pub const PanedWidget = Widgets.PanedWidget;
 pub const FloatingWindowWidget = Widgets.FloatingWindowWidget;
 pub const TreeWidget = Widgets.TreeWidget;
+pub const TreeSelection = Widgets.TreeSelection;
 
 /// Currently this is specialized for the layers paned widget, just includes icon and dragging flag so we know when the pane is dragging
 pub fn paned(src: std.builtin.SourceLocation, init_opts: PanedWidget.InitOptions, opts: dvui.Options) *PanedWidget {

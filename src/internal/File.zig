@@ -126,6 +126,25 @@ pub const EditorData = struct {
     /// Layer list reorder preview while dragging in the tree (`null` = no preview). Matches drop logic in `explorer/tools.zig`.
     layer_drag_preview_removed: ?usize = null,
     layer_drag_preview_insert_before: ?usize = null,
+
+    /// Multi-selection for the layer list. Sorted, deduplicated. Lazily seeded with the primary
+    /// `selected_layer_index` on first click gesture; the tree's drop handler uses this set to
+    /// move multiple selected layers as a group. The primary index must always be present (the
+    /// editor cannot have zero selected layers).
+    selected_layer_indices: std.ArrayListUnmanaged(usize) = .empty,
+    layer_selection_anchor: ?usize = null,
+
+    /// Multi-selection for the animation list. Sorted, deduplicated. Empty iff no animation is
+    /// selected; otherwise always contains the primary `selected_animation_index`.
+    selected_animation_indices: std.ArrayListUnmanaged(usize) = .empty,
+    animation_selection_anchor: ?usize = null,
+
+    /// Multi-selection for the frame list of the currently selected animation. Cleared and
+    /// reseeded whenever the primary animation changes. `..._for_animation_id` tracks which
+    /// animation the set belongs to so stale selections are discarded cheaply.
+    selected_frame_indices: std.ArrayListUnmanaged(usize) = .empty,
+    selected_frame_indices_for_animation_id: u64 = 0,
+    frame_selection_anchor: ?usize = null,
 };
 
 pub const History = @import("History.zig");
@@ -1156,6 +1175,10 @@ pub fn deinit(file: *File) void {
     file.editor.temporary_layer.deinit();
     file.editor.selection_layer.deinit();
     file.editor.transform_layer.deinit();
+
+    file.editor.selected_layer_indices.deinit(pixi.app.allocator);
+    file.editor.selected_animation_indices.deinit(pixi.app.allocator);
+    file.editor.selected_frame_indices.deinit(pixi.app.allocator);
 
     file.layers.deinit(pixi.app.allocator);
     file.deleted_layers.deinit(pixi.app.allocator);
