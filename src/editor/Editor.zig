@@ -369,8 +369,8 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         defer overall_box.deinit();
 
         if (!pixi.backend.isMaximized(dvui.currentWindow())) {
-            var animation = dvui.animate(@src(), .{ .duration = 400_000, .kind = .vertical, .easing = dvui.easing.outBack }, .{});
-            defer animation.deinit();
+            // var animation = dvui.animate(@src(), .{ .duration = 400_000, .kind = .vertical, .easing = dvui.easing.outBack }, .{});
+            // defer animation.deinit();
 
             var titlebar_box = dvui.box(
                 @src(),
@@ -382,8 +382,88 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 },
             );
             defer titlebar_box.deinit();
-            // On Windows the caption buttons are handled natively (hit-test returns HTMINBUTTON/HTMAXBUTTON/HTCLOSE) so we don't draw our own; just a spacer so the title bar is draggable.
+
+            // The whole title bar is the drag region. Button rects (registered below) take precedence
+            // in the backend's hit-test so clicking a button doesn't drag. On macOS, AppKit handles
+            // dragging natively; this rect is unused there.
+            const titlebar_rect = titlebar_box.data().rectScale().r;
+
+            // Push the caption buttons to the right edge.
             _ = dvui.spacer(@src(), .{ .expand = .horizontal });
+
+            // Windows: draw our own minimize / maximize / close buttons on the right. macOS has native
+            // traffic lights drawn by AppKit on the left; don't draw anything here.
+            var min_rect: ?dvui.Rect.Physical = null;
+            var max_rect: ?dvui.Rect.Physical = null;
+            var close_rect: ?dvui.Rect.Physical = null;
+            if (builtin.os.tag == .windows) {
+                const hovered = pixi.backend.getHoveredTitleBarButton();
+                const button_w: f32 = 46;
+                const button_h = pixi.editor.settings.titlebar_height;
+                const icon_pad = dvui.Rect.all(11);
+                const stroke = dvui.themeGet().color(.control, .text);
+                const hover_fill = dvui.themeGet().color(.control, .fill_hover);
+                const close_hover_fill = dvui.Color{ .r = 232, .g = 17, .b = 35, .a = 255 };
+                const close_hover_stroke = dvui.Color{ .r = 255, .g = 255, .b = 255, .a = 255 };
+
+                // minimize
+                {
+                    const is_hover = hovered == .minimize;
+                    var b = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                        .min_size_content = .{ .w = button_w, .h = button_h },
+                        .background = is_hover,
+                        .color_fill = hover_fill,
+                    });
+                    defer b.deinit();
+                    min_rect = b.data().rectScale().r;
+                    dvui.icon(@src(), "win_min", icons.tvg.lucide.minus, .{ .stroke_color = stroke }, .{
+                        .expand = .ratio,
+                        .padding = icon_pad,
+                    });
+                }
+                // maximize / restore
+                {
+                    const is_hover = hovered == .maximize;
+                    var b = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                        .min_size_content = .{ .w = button_w, .h = button_h },
+                        .background = is_hover,
+                        .color_fill = hover_fill,
+                    });
+                    defer b.deinit();
+                    max_rect = b.data().rectScale().r;
+                    dvui.icon(@src(), "win_max", icons.tvg.lucide.square, .{ .stroke_color = stroke }, .{
+                        .expand = .ratio,
+                        .padding = icon_pad,
+                    });
+                }
+                // close
+                {
+                    const is_hover = hovered == .close;
+                    var b = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                        .min_size_content = .{ .w = button_w, .h = button_h },
+                        .background = is_hover,
+                        .color_fill = close_hover_fill,
+                    });
+                    defer b.deinit();
+                    close_rect = b.data().rectScale().r;
+                    dvui.icon(@src(), "win_close", icons.tvg.lucide.x, .{
+                        .stroke_color = if (is_hover) close_hover_stroke else stroke,
+                    }, .{
+                        .expand = .ratio,
+                        .padding = icon_pad,
+                    });
+                }
+            }
+
+            if (builtin.os.tag == .windows) {
+                const drag_arr = [1]dvui.Rect.Physical{titlebar_rect};
+                pixi.backend.setTitleBarHints(.{
+                    .drag_rects = &drag_arr,
+                    .minimize_rect = min_rect,
+                    .maximize_rect = max_rect,
+                    .close_rect = close_rect,
+                });
+            }
         }
 
         var base_box = dvui.box(
