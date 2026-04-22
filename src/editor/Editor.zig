@@ -400,7 +400,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 const hovered = pixi.backend.getHoveredTitleBarButton();
                 const button_w: f32 = 46;
                 const button_h = pixi.editor.settings.titlebar_height;
-                const icon_pad = dvui.Rect.all(11);
+
                 const stroke = dvui.themeGet().color(.control, .text);
                 const hover_fill = dvui.themeGet().color(.control, .fill_hover);
                 const close_hover_fill = dvui.Color{ .r = 232, .g = 17, .b = 35, .a = 255 };
@@ -418,7 +418,8 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                     min_rect = b.data().rectScale().r;
                     dvui.icon(@src(), "win_min", icons.tvg.lucide.minus, .{ .stroke_color = stroke }, .{
                         .expand = .ratio,
-                        .padding = icon_pad,
+                        .padding = .all(11),
+                        .gravity_x = 0.5,
                     });
                 }
                 // maximize / restore
@@ -433,7 +434,8 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                     max_rect = b.data().rectScale().r;
                     dvui.icon(@src(), "win_max", icons.tvg.lucide.square, .{ .stroke_color = stroke }, .{
                         .expand = .ratio,
-                        .padding = icon_pad,
+                        .padding = .all(11),
+                        .gravity_x = 0.5,
                     });
                 }
                 // close
@@ -450,7 +452,8 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                         .stroke_color = if (is_hover) close_hover_stroke else stroke,
                     }, .{
                         .expand = .ratio,
-                        .padding = icon_pad,
+                        .padding = .all(6),
+                        .gravity_x = 0.5,
                     });
                 }
             }
