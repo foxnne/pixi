@@ -91,6 +91,8 @@ pub fn drawFiles(path: []const u8, tree: *pixi.dvui.TreeWidget) !void {
         .id_extra = 0,
         .expand = .horizontal,
         .color_fill = .transparent,
+        .margin = dvui.Rect.all(0),
+        .padding = dvui.Rect.all(1),
     });
     defer branch.deinit();
 
@@ -184,6 +186,7 @@ fn lessThan(_: void, lhs: std.fs.Dir.Entry, rhs: std.fs.Dir.Entry) bool {
 
 pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind: std.fs.Dir.Entry.Kind, full_path: []const u8) !void {
     const padding = dvui.Rect.all(2);
+    const font = dvui.Font.theme(.body);
 
     const selected: bool = if (selected_id) |id| id_extra == id else false;
     const editing: bool = if (edit_id) |id| id_extra == id else false;
@@ -197,6 +200,7 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
             .color_text = dvui.themeGet().color(.window, .text),
             .gravity_y = 0.5,
             .id_extra = id_extra,
+            .font = font,
         });
         defer te.deinit();
 
@@ -285,6 +289,7 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
             .padding = padding,
             .id_extra = id_extra,
             .color_text = color,
+            .font = font,
         })) {
             edit_id = id_extra;
         }
@@ -293,6 +298,7 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
             .color_text = color,
             .padding = padding,
             .id_extra = id_extra,
+            .font = font,
         });
     }
 }
