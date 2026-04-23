@@ -66,6 +66,7 @@ pub const NativeMenuAction = enum(c_int) {
     transform = 7,
     toggle_explorer = 8,
     show_dvui_demo = 9,
+    save_as = 10,
 };
 
 // Queue a single pending native action id.
@@ -595,6 +596,22 @@ pub fn setupMacOSMenuBar() void {
         save_item.msgSend(void, "setKeyEquivalentModifierMask:", .{NSEventModifierFlagCommand});
     }
 
+    // Save As — ⇧⌘S
+    {
+        const save_as_title = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"Save As…".ptr});
+        const save_as_sel = pixi_get_selector("saveAs:") orelse return;
+        const save_as_item = file_menu.msgSend(objc.Object, "addItemWithTitle:action:keyEquivalent:", .{
+            save_as_title.value,
+            save_as_sel,
+            key_s.value,
+        });
+        if (save_as_item.value != 0) {
+            save_as_item.msgSend(void, "setTarget:", .{target.value});
+            save_as_item.msgSend(void, "setKeyEquivalentModifierMask:", .{NSEventModifierFlagCommand | NSEventModifierFlagShift});
+            setMenuItemImage(save_as_item, NSImage, NSString, "arrow.down.doc", "Save As");
+        }
+    }
+
     const file_title = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"File".ptr});
     const file_item = NSMenuItem.msgSend(objc.Object, "alloc", .{}).msgSend(objc.Object, "initWithTitle:action:keyEquivalent:", .{
         file_title.value,
@@ -729,7 +746,7 @@ fn addNativeMenuItemWithTarget(menu: objc.Object, _: objc.Class, NSStringClass: 
 /// Returns and clears a pending native menu action (macOS menu bar). Call once per frame; on non-macOS always returns null.
 pub fn pollPendingNativeMenuAction() ?NativeMenuAction {
     const id = pending_native_menu_action_id.swap(-1, .acq_rel);
-    if (id < 0 or id > 9) return null;
+    if (id < 0 or id > 10) return null;
     return @enumFromInt(id);
 }
 

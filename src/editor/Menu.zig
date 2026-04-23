@@ -125,6 +125,14 @@ pub fn draw() !dvui.App.Result {
                 fw.close();
             }
         }
+
+        if (menuItemWithHotkey(@src(), "Save As…", dvui.currentWindow().keybinds.get("save_as") orelse .{}, pixi.editor.activeFile() != null, .{}, .{
+            .expand = .horizontal,
+            .color_text = dvui.themeGet().color(.window, .text),
+        }) != null) {
+            pixi.editor.requestSaveAs();
+            fw.close();
+        }
     }
 
     if (menuItem(

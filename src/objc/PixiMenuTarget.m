@@ -7,6 +7,7 @@ extern void PixiNativeMenuAction(int id);
 - (void)openFolder:(id)sender;
 - (void)openFiles:(id)sender;
 - (void)save:(id)sender;
+- (void)saveAs:(id)sender;
 - (void)copy:(id)sender;
 - (void)paste:(id)sender;
 - (void)undo:(id)sender;
@@ -20,6 +21,7 @@ extern void PixiNativeMenuAction(int id);
 - (void)openFolder:(id)sender     { (void)sender; PixiNativeMenuAction(0); }
 - (void)openFiles:(id)sender     { (void)sender; PixiNativeMenuAction(1); }
 - (void)save:(id)sender          { (void)sender; PixiNativeMenuAction(2); }
+- (void)saveAs:(id)sender        { (void)sender; PixiNativeMenuAction(10); }
 - (void)copy:(id)sender          { (void)sender; PixiNativeMenuAction(3); }
 - (void)paste:(id)sender         { (void)sender; PixiNativeMenuAction(4); }
 - (void)undo:(id)sender          { (void)sender; PixiNativeMenuAction(5); }

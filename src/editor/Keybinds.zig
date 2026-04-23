@@ -16,6 +16,7 @@ pub fn register() !void {
         try window.keybinds.putNoClobber(window.gpa, "redo", .{ .key = .z, .command = true, .shift = true });
         try window.keybinds.putNoClobber(window.gpa, "zoom", .{ .command = true });
         try window.keybinds.putNoClobber(window.gpa, "save", .{ .command = true, .key = .s });
+        try window.keybinds.putNoClobber(window.gpa, "save_as", .{ .command = true, .shift = true, .key = .s });
         try window.keybinds.putNoClobber(window.gpa, "sample", .{ .control = true });
         try window.keybinds.putNoClobber(window.gpa, "transform", .{ .command = true, .key = .t });
         try window.keybinds.putNoClobber(window.gpa, "explorer", .{ .command = true, .key = .e });
@@ -29,6 +30,7 @@ pub fn register() !void {
         try window.keybinds.putNoClobber(window.gpa, "redo", .{ .key = .z, .control = true, .shift = true });
         try window.keybinds.putNoClobber(window.gpa, "zoom", .{ .control = true });
         try window.keybinds.putNoClobber(window.gpa, "save", .{ .control = true, .key = .s });
+        try window.keybinds.putNoClobber(window.gpa, "save_as", .{ .control = true, .shift = true, .key = .s });
         try window.keybinds.putNoClobber(window.gpa, "sample", .{ .alt = true });
         try window.keybinds.putNoClobber(window.gpa, "transform", .{ .control = true, .key = .t });
         try window.keybinds.putNoClobber(window.gpa, "explorer", .{ .control = true, .key = .e });
@@ -106,6 +108,10 @@ pub fn tick() !void {
 
                         pixi.editor.tools.setStrokeSize(pixi.editor.tools.stroke_size);
                     }
+                }
+
+                if (ke.matchBind("save_as") and ke.action == .down) {
+                    pixi.editor.requestSaveAs();
                 }
 
                 if (ke.matchBind("export") and ke.action == .down) {

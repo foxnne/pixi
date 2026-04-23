@@ -78,7 +78,10 @@ pending_native_menu_actions: [16]pixi.backend.NativeMenuAction = undefined,
 pending_native_menu_actions_len: u8 = 0,
 
 /// When set, next `tick` runs `warmupDrawingComposites` on the active file (after open or drawing-tool select).
-composite_warmup_pending: bool = false,
+pending_composite_warmup: bool = false,
+
+/// Filled from the async SDL save dialog callback, then applied inside `tick` (when `currentWindow` is valid).
+pending_save_as_path: ?[]u8 = null,
 
 pub const SpriteClipboard = struct {
     source: dvui.ImageSource,
@@ -303,8 +306,8 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     if (pixi.perf.record) pixi.perf.beginFrame();
     defer if (pixi.perf.record) pixi.perf.endFrameAndMaybeLog();
 
-    if (editor.composite_warmup_pending) {
-        editor.composite_warmup_pending = false;
+    if (editor.pending_composite_warmup) {
+        editor.pending_composite_warmup = false;
         if (editor.activeFile()) |file| {
             const w = file.width();
             const h = file.height();
@@ -469,6 +472,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         defer editor.explorer.paned.deinit();
 
         editor.flushQueuedNativeMenuActions();
+        editor.processPendingSaveAs();
 
         if (dvui.firstFrame(editor.explorer.paned.wd.id)) {
             editor.explorer.paned.split_ratio.* = 0.0;
@@ -638,6 +642,9 @@ pub fn handleNativeMenuAction(editor: *Editor, action: pixi.backend.NativeMenuAc
                     std.log.err("Failed to save", .{});
                 };
             }
+        },
+        .save_as => {
+            editor.requestSaveAs();
         },
         .copy => {
             if (editor.activeFile() != null) {
@@ -1095,14 +1102,14 @@ pub fn openFilePath(editor: *Editor, path: []const u8, grouping: u64) !bool {
 
         // If the workspace grouping does exist, go ahead and set the active file
         editor.setActiveFile(editor.open_files.count() - 1);
-        editor.composite_warmup_pending = true;
+        editor.pending_composite_warmup = true;
         return true;
     }
     return error.FailedToOpenFile;
 }
 
 pub fn requestCompositeWarmup(editor: *Editor) void {
-    editor.composite_warmup_pending = true;
+    editor.pending_composite_warmup = true;
 }
 
 pub fn newFile(editor: *Editor, path: []const u8, options: pixi.Internal.File.InitOptions) !*pixi.Internal.File {
@@ -1117,7 +1124,7 @@ pub fn newFile(editor: *Editor, path: []const u8, options: pixi.Internal.File.In
 
     try editor.open_files.put(file.id, file);
     editor.setActiveFile(editor.open_files.count() - 1);
-    editor.composite_warmup_pending = true;
+    editor.pending_composite_warmup = true;
 
     return editor.open_files.getPtr(file.id) orelse return error.FailedToCreateFile;
 }
@@ -1537,6 +1544,64 @@ pub fn save(editor: *Editor) !void {
     }
 }
 
+const save_as_dialog_filters: [3]sdl3.SDL_DialogFileFilter = .{
+    .{ .name = "Pixi", .pattern = "pixi" },
+    .{ .name = "PNG", .pattern = "png" },
+    .{ .name = "JPEG", .pattern = "jpg;jpeg" },
+};
+
+/// Opens a Save As dialog: `.pixi` (all layers) or flat `.png` / `.jpg` / `.jpeg` (visible layers composited).
+pub fn requestSaveAs(_: *Editor) void {
+    const active = pixi.editor.activeFile() orelse return;
+    const def = pixi.Internal.File.defaultSaveAsFilename(pixi.app.allocator, active.path) catch {
+        std.log.err("Failed to build default save-as name", .{});
+        return;
+    };
+    defer pixi.app.allocator.free(def);
+    const current_file_dir: ?[]const u8 = std.fs.path.dirname(active.path);
+    pixi.backend.showSaveFileDialog(saveAsDialogCallback, &save_as_dialog_filters, def, current_file_dir);
+}
+
+/// Save dialog may invoke this from AppKit outside `Window.begin` / `end`; do not use `currentWindow` here.
+pub fn saveAsDialogCallback(paths: ?[][:0]const u8) void {
+    if (paths) |p| {
+        if (p.len == 0) return;
+        const path0 = p[0];
+        if (path0.len == 0) return;
+        if (pixi.editor.pending_save_as_path) |old| {
+            pixi.app.allocator.free(old);
+        }
+        pixi.editor.pending_save_as_path = pixi.app.allocator.dupe(u8, path0[0..path0.len]) catch {
+            dvui.log.err("Save As: out of memory queuing path", .{});
+            return;
+        };
+    }
+}
+
+fn processPendingSaveAs(editor: *Editor) void {
+    const path = editor.pending_save_as_path orelse return;
+    editor.pending_save_as_path = null;
+    defer pixi.app.allocator.free(path);
+
+    const ext = std.fs.path.extension(path);
+    if (editor.activeFile()) |file| {
+        if (std.mem.eql(u8, ext, ".pixi")) {
+            file.saveAsPixi(path, dvui.currentWindow()) catch |err| {
+                dvui.log.err("Save As: {any}", .{err});
+            };
+        } else if (std.mem.eql(u8, ext, ".png") or
+            std.mem.eql(u8, ext, ".jpg") or
+            std.mem.eql(u8, ext, ".jpeg"))
+        {
+            file.saveAsFlattened(path, dvui.currentWindow()) catch |err| {
+                dvui.log.err("Save As: {any}", .{err});
+            };
+        } else {
+            dvui.log.err("Save As: choose extension .pixi, .png, .jpg, or .jpeg (got {s})", .{ext});
+        }
+    }
+}
+
 pub fn undo(editor: *Editor) !void {
     if (editor.activeFile()) |file| {
         try file.history.undoRedo(file, .undo);
@@ -1628,6 +1693,11 @@ pub fn closeReference(editor: *Editor, index: usize) !void {
 }
 
 pub fn deinit(editor: *Editor) !void {
+    if (editor.pending_save_as_path) |p| {
+        pixi.app.allocator.free(p);
+        editor.pending_save_as_path = null;
+    }
+
     if (editor.colors.palette) |*palette| palette.deinit();
     if (editor.colors.file_tree_palette) |*palette| palette.deinit();
 

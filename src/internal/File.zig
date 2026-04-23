@@ -2695,6 +2695,192 @@ pub fn saveZip(self: *File, window: *dvui.Window) !void {
     self.history.bookmark = 0;
 }
 
+/// Point `path` at `new_path`, then `saveZip` (same on-disk work as a normal .pixi save). Restores the previous `path` if saving fails.
+pub fn saveAsPixi(self: *File, new_path: []const u8, window: *dvui.Window) !void {
+    if (self.editor.saving) return;
+    if (std.mem.eql(u8, self.path, new_path)) {
+        return saveZip(self, window);
+    }
+    const old_path = self.path;
+    const new_owned = try pixi.app.allocator.dupe(u8, new_path);
+    self.path = new_owned;
+    errdefer {
+        pixi.app.allocator.free(self.path[0..self.path.len]);
+        self.path = old_path;
+    }
+    try saveZip(self, window);
+    pixi.app.allocator.free(old_path[0..old_path.len]);
+}
+
+/// Default filename (with `.pixi`) for a Save As dialog, derived from the current path.
+pub fn defaultSaveAsFilename(allocator: std.mem.Allocator, current_path: []const u8) ![]u8 {
+    const base = std.fs.path.basename(current_path);
+    const stem: []const u8 = if (std.mem.lastIndexOf(u8, base, ".")) |i| base[0..i] else base;
+    if (stem.len == 0) {
+        return try std.fmt.allocPrint(allocator, "{s}", .{"untitled.pixi"});
+    }
+    return try std.fmt.allocPrint(allocator, "{s}.pixi", .{stem});
+}
+
+fn deinitAllUserLayers(self: *File) void {
+    while (self.layers.len > 0) {
+        const i = self.layers.len - 1;
+        var layer = self.layers.get(i);
+        layer.deinit();
+        self.layers.orderedRemove(i);
+    }
+}
+
+fn clearAnimationsForSaveAs(self: *File) void {
+    for (self.animations.items(.name)) |n| {
+        pixi.app.allocator.free(n);
+    }
+    for (self.animations.items(.frames)) |frames| {
+        pixi.app.allocator.free(frames);
+    }
+    self.animations.clearRetainingCapacity();
+    self.deleted_animations.clearRetainingCapacity();
+    self.selected_animation_index = null;
+    self.selected_animation_frame_index = 0;
+    self.editor.selected_animation_indices.clearRetainingCapacity();
+    self.editor.selected_frame_indices.clearRetainingCapacity();
+}
+
+fn reinitEditorSurfaceForFlatDocument(self: *File) !void {
+    self.editor.temporary_layer.deinit();
+    self.editor.selection_layer.deinit();
+    self.editor.transform_layer.deinit();
+    self.editor.checkerboard.deinit();
+    switch (self.editor.checkerboard_tile) {
+        .pixelsPMA => |p| pixi.app.allocator.free(p.rgba),
+        .pixels => |p| pixi.app.allocator.free(p.rgba),
+        .texture => |t| dvui.textureDestroyLater(t),
+        .imageFile => |i| pixi.app.allocator.free(i.bytes),
+    }
+    self.editor.selected_sprites.deinit();
+
+    self.editor.temporary_layer = try .init(self.newLayerID(), "Temporary", self.width(), self.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+    self.editor.selection_layer = try .init(self.newLayerID(), "Selection", self.width(), self.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+    self.editor.transform_layer = try .init(self.newLayerID(), "Transform", self.width(), self.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+    self.editor.selected_sprites = try std.DynamicBitSet.initEmpty(pixi.app.allocator, self.spriteCount());
+
+    self.editor.checkerboard = try std.DynamicBitSet.initEmpty(pixi.app.allocator, self.width() * self.height());
+    for (0..self.width() * self.height()) |i| {
+        const value = pixi.math.checker(.{ .w = @floatFromInt(self.width()), .h = @floatFromInt(self.height()) }, i);
+        self.editor.checkerboard.setValue(i, value);
+    }
+    {
+        const alpha_width = alpha_checkerboard_count;
+        const aspect_ratio = @as(f32, @floatFromInt(self.column_width)) / @as(f32, @floatFromInt(self.row_height));
+        const alpha_height = @round(alpha_width / aspect_ratio);
+        self.editor.checkerboard_tile = pixi.image.init(
+            alpha_width,
+            std.math.clamp(2, @as(u32, @intFromFloat(alpha_height)), 1024),
+            .{ .r = 0, .g = 0, .b = 0, .a = 0 },
+            .ptr,
+        ) catch return error.LayerCreateError;
+        for (pixi.image.pixels(self.editor.checkerboard_tile), 0..) |*pixel, j| {
+            if (pixi.math.checker(pixi.image.size(self.editor.checkerboard_tile), j)) {
+                pixel.* = pixi.editor.settings.checker_color_even;
+            } else {
+                pixel.* = pixi.editor.settings.checker_color_odd;
+            }
+        }
+    }
+    self.editor.selected_layer_indices.clearRetainingCapacity();
+    try self.editor.selected_layer_indices.append(pixi.app.allocator, 0);
+}
+
+/// Flattens visible layers (via GPU composite), writes PNG or JPEG to `output_path`, and replaces
+/// the document with a single layer matching the flattened result.
+pub fn saveAsFlattened(self: *File, output_path: []const u8, window: *dvui.Window) !void {
+    if (self.editor.saving) return;
+    self.editor.saving = true;
+    errdefer self.editor.saving = false;
+
+    strokeUndoFreeSnapshot(self);
+    const w = self.width();
+    const h = self.height();
+    if (w == 0 or h == 0) {
+        self.editor.saving = false;
+        return error.InvalidImageSize;
+    }
+
+    try pixi.render.syncLayerComposite(self);
+    const target = self.editor.layer_composite_target orelse {
+        self.editor.saving = false;
+        return error.NoLayerComposite;
+    };
+
+    const pma_read: []dvui.Color.PMA = try dvui.Texture.readTarget(pixi.app.allocator, target);
+    defer {
+        const byte_len = pma_read.len * @sizeOf(dvui.Color.PMA);
+        pixi.app.allocator.free(@as([*]u8, @ptrCast(pma_read.ptr))[0..byte_len]);
+    }
+
+    const ext = std.fs.path.extension(output_path);
+    const is_png = std.mem.eql(u8, ext, ".png");
+    const is_jpg = std.mem.eql(u8, ext, ".jpg") or std.mem.eql(u8, ext, ".jpeg");
+    if (!is_png and !is_jpg) {
+        self.editor.saving = false;
+        return error.InvalidExtension;
+    }
+
+    var single_layer: pixi.Internal.Layer = try .fromPixelsPMA(self.newLayerID(), "Layer", pma_read, w, h, .ptr);
+    errdefer single_layer.deinit();
+
+    if (is_png) {
+        const r: u32 = @intFromFloat(@round(window.natural_scale * 72.0 / 0.0254));
+        try pixi.image.writeToPngResolution(single_layer.source, output_path, r);
+    } else {
+        const ppi: u16 = @intFromFloat(@round(window.natural_scale * 72.0));
+        try pixi.image.writeToJpgPpi(single_layer.source, output_path, ppi);
+    }
+
+    pixi.render.destroyLayerCompositeResources(self);
+    pixi.render.destroySplitCompositeResources(self);
+
+    deinitAllUserLayers(self);
+    clearAnimationsForSaveAs(self);
+    self.sprites.clearRetainingCapacity();
+    for (0..self.spriteCount()) |_| {
+        self.sprites.append(pixi.app.allocator, .{ .origin = .{ 0, 0 } }) catch {
+            single_layer.deinit();
+            return error.FileLoadError;
+        };
+    }
+
+    const new_path = try pixi.app.allocator.dupe(u8, output_path);
+    pixi.app.allocator.free(self.path[0..self.path.len]);
+    self.path = new_path;
+    self.columns = 1;
+    self.rows = 1;
+    self.column_width = w;
+    self.row_height = h;
+    self.selected_layer_index = 0;
+    self.peek_layer_index = null;
+    self.layers.append(pixi.app.allocator, single_layer) catch {
+        single_layer.deinit();
+        return error.LayerCreateError;
+    };
+
+    self.history.deinit();
+    self.history = .init(pixi.app.allocator);
+
+    try reinitEditorSurfaceForFlatDocument(self);
+    self.editor.layer_composite_dirty = true;
+    self.editor.split_composite_dirty = true;
+    self.editor.saving = false;
+    {
+        const id_mutex = dvui.toastAdd(window, @src(), self.id, self.editor.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
+        const id = id_mutex.id;
+        const message = std.fmt.allocPrint(window.arena(), "Saved {s} to disk", .{std.fs.path.basename(self.path)}) catch "Saved file";
+        dvui.dataSetSlice(window, id, "_message", message);
+        id_mutex.mutex.unlock();
+    }
+    pixi.editor.requestCompositeWarmup();
+}
+
 pub fn saveAsync(self: *File) !void {
     //if (!self.dirty()) return;
 
