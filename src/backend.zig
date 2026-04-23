@@ -67,6 +67,7 @@ pub const NativeMenuAction = enum(c_int) {
     toggle_explorer = 8,
     show_dvui_demo = 9,
     save_as = 10,
+    new_file = 11,
 };
 
 // Queue a single pending native action id.
@@ -544,11 +545,27 @@ pub fn setupMacOSMenuBar() void {
 
     const empty = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"".ptr});
     const key_f = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"f".ptr});
+    const key_n = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"n".ptr});
     const key_o = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"o".ptr});
     const key_s = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"s".ptr});
 
     const NSImage = objc.getClass("NSImage") orelse return;
 
+    // New — ⌘N
+    {
+        const new_title = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"New".ptr});
+        const new_sel = pixi_get_selector("newFile:") orelse return;
+        const new_item = file_menu.msgSend(objc.Object, "addItemWithTitle:action:keyEquivalent:", .{
+            new_title.value,
+            new_sel,
+            key_n.value,
+        });
+        if (new_item.value != 0) {
+            new_item.msgSend(void, "setTarget:", .{target.value});
+            new_item.msgSend(void, "setKeyEquivalentModifierMask:", .{NSEventModifierFlagCommand});
+            setMenuItemImage(new_item, NSImage, NSString, "doc.badge.plus", "New");
+        }
+    }
     // Open Folder — ⌘F, folder icon
     {
         const open_folder_title = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"Open Folder".ptr});
@@ -746,7 +763,7 @@ fn addNativeMenuItemWithTarget(menu: objc.Object, _: objc.Class, NSStringClass: 
 /// Returns and clears a pending native menu action (macOS menu bar). Call once per frame; on non-macOS always returns null.
 pub fn pollPendingNativeMenuAction() ?NativeMenuAction {
     const id = pending_native_menu_action_id.swap(-1, .acq_rel);
-    if (id < 0 or id > 10) return null;
+    if (id < 0 or id > 11) return null;
     return @enumFromInt(id);
 }
 

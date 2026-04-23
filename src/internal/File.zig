@@ -632,6 +632,12 @@ fn isFlatImageExtension(ext: []const u8) bool {
         std.mem.eql(u8, ext, ".jpeg");
 }
 
+/// Extensions that `saveAsync` can write without a Save As dialog.
+pub fn hasRecognizedSaveExtension(path: []const u8) bool {
+    const ext = std.fs.path.extension(path);
+    return std.mem.eql(u8, ext, ".pixi") or isFlatImageExtension(ext);
+}
+
 /// Loads a PNG or JPEG as the first layer of a new file, and retains the path
 /// when saved; layers will be flattened to that file
 pub fn fromPathFlatImage(path: []const u8) !?pixi.Internal.File {
@@ -2883,6 +2889,8 @@ pub fn saveAsFlattened(self: *File, output_path: []const u8, window: *dvui.Windo
 
 pub fn saveAsync(self: *File) !void {
     //if (!self.dirty()) return;
+
+    if (!hasRecognizedSaveExtension(self.path)) return;
 
     const ext = std.fs.path.extension(self.path);
 

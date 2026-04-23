@@ -4,6 +4,7 @@
 extern void PixiNativeMenuAction(int id);
 
 @interface PixiMenuTarget : NSObject
+- (void)newFile:(id)sender;
 - (void)openFolder:(id)sender;
 - (void)openFiles:(id)sender;
 - (void)save:(id)sender;
@@ -18,6 +19,7 @@ extern void PixiNativeMenuAction(int id);
 @end
 
 @implementation PixiMenuTarget
+- (void)newFile:(id)sender       { (void)sender; PixiNativeMenuAction(11); }
 - (void)openFolder:(id)sender     { (void)sender; PixiNativeMenuAction(0); }
 - (void)openFiles:(id)sender     { (void)sender; PixiNativeMenuAction(1); }
 - (void)save:(id)sender          { (void)sender; PixiNativeMenuAction(2); }

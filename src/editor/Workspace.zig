@@ -1323,6 +1323,34 @@ pub fn drawHomePage(_: *Workspace, canvas_vbox: *dvui.BoxWidget) !void {
         button.drawBackground();
 
         pixi.dvui.labelWithKeybind(
+            "New File...",
+            dvui.currentWindow().keybinds.get("new_file") orelse .{},
+            true,
+            .{ .padding = dvui.Rect.all(4), .expand = .horizontal, .gravity_x = 1.0 },
+            .{ .padding = dvui.Rect.all(4), .expand = .horizontal, .gravity_x = 1.0 },
+        );
+
+        if (button.clicked()) {
+            pixi.editor.requestNewFileDialog();
+        }
+    }
+
+    {
+        var button: dvui.ButtonWidget = undefined;
+        button.init(@src(), .{ .draw_focus = true }, .{
+            .gravity_x = 0.5,
+            .expand = .horizontal,
+            .padding = dvui.Rect.all(2),
+            .color_fill = .transparent,
+            .color_fill_hover = dvui.themeGet().color(.window, .fill_hover),
+            .color_fill_press = dvui.themeGet().color(.window, .fill_press),
+        });
+        defer button.deinit();
+
+        button.processEvents();
+        button.drawBackground();
+
+        pixi.dvui.labelWithKeybind(
             "Open Files",
             dvui.currentWindow().keybinds.get("open_files") orelse .{},
             true,
