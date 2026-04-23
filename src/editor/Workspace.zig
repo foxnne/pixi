@@ -1344,7 +1344,7 @@ pub fn drawHomePage(_: *Workspace, canvas_vbox: *dvui.BoxWidget) !void {
             // }
 
             pixi.backend.showOpenFileDialog(openFilesCallback, &.{
-                .{ .name = "Image Files", .pattern = "pixi;png;jpg" },
+                .{ .name = "Image Files", .pattern = "pixi;png;jpg;jpeg" },
             }, "", null);
         }
     }

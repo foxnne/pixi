@@ -673,7 +673,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                             applyFileClick(inner_id_extra.*, abs_path, mode);
                             if (mode == .replace) {
                                 switch (ext) {
-                                    .pixi, .png => {
+                                    .pixi, .png, .jpg => {
                                         _ = pixi.editor.openFilePath(abs_path, pixi.editor.currentGroupingID()) catch |err| {
                                             dvui.log.err("{any}: {s}", .{ err, abs_path });
                                         };
@@ -1019,7 +1019,7 @@ pub fn extension(file: []const u8) Extension {
     if (std.mem.eql(u8, ext, ".atlas")) return .atlas;
     if (std.mem.eql(u8, ext, ".png")) return .png;
     if (std.mem.eql(u8, ext, ".gif")) return .gif;
-    if (std.mem.eql(u8, ext, ".jpg")) return .jpg;
+    if (std.mem.eql(u8, ext, ".jpg") or std.mem.eql(u8, ext, ".jpeg")) return .jpg;
     if (std.mem.eql(u8, ext, ".pdf")) return .pdf;
     if (std.mem.eql(u8, ext, ".psd")) return .psd;
     if (std.mem.eql(u8, ext, ".aseprite")) return .aseprite;

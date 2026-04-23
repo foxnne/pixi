@@ -79,7 +79,7 @@ pub fn tick() !void {
                     if (ke.matchBind("open_files") and ke.action == .down) {
                         if (try dvui.dialogNativeFileOpenMultiple(
                             dvui.currentWindow().arena(),
-                            .{ .title = "Open Files...", .filter_description = ".pixi, .png", .filters = &.{ "*.pixi", "*.png" } },
+                            .{ .title = "Open Files...", .filter_description = ".pixi, .png, .jpg, .jpeg", .filters = &.{ "*.pixi", "*.png", "*.jpg", "*.jpeg" } },
                         )) |files| {
                             for (files) |file| {
                                 _ = pixi.editor.openFilePath(file, pixi.editor.open_workspace_grouping) catch {

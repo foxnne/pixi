@@ -23,13 +23,17 @@ pub const Selector = enum {
 pub fn save(atlas: Atlas, path: []const u8, selector: Selector) !void {
     switch (selector) {
         .source => {
-            if (!std.mem.eql(u8, ".png", std.fs.path.extension(path))) {
-                std.log.debug("File name must end with .png extension!", .{});
-                return error.InvalidExtension;
-            }
+            const ext = std.fs.path.extension(path);
             const write_path = std.fmt.allocPrintSentinel(pixi.editor.arena.allocator(), "{s}", .{path}, 0) catch unreachable;
 
-            try pixi.image.writeToPng(atlas.source, write_path);
+            if (std.mem.eql(u8, ext, ".png")) {
+                try pixi.image.writeToPng(atlas.source, write_path);
+            } else if (std.mem.eql(u8, ext, ".jpg") or std.mem.eql(u8, ext, ".jpeg")) {
+                try pixi.image.writeToJpg(atlas.source, write_path);
+            } else {
+                std.log.debug("File name must end with .png, .jpg, or .jpeg extension!", .{});
+                return error.InvalidExtension;
+            }
         },
         .data => {
             if (!std.mem.eql(u8, ".atlas", std.fs.path.extension(path))) {

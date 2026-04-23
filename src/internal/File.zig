@@ -269,8 +269,8 @@ pub fn layerOrderAfterMove(len: usize, removed: usize, insert_before: usize, out
 /// Attempts to load a file from the given path to create a new file
 pub fn fromPath(path: []const u8) !?pixi.Internal.File {
     const extension = std.fs.path.extension(path[0..path.len]);
-    if (std.mem.eql(u8, extension, ".png")) {
-        const file = fromPathPng(path) catch |err| {
+    if (isFlatImageExtension(extension)) {
+        const file = fromPathFlatImage(path) catch |err| {
             dvui.log.err("{any}: {s}", .{ err, path });
             return err;
         };
@@ -626,14 +626,20 @@ pub fn fromPathPixi(path: []const u8) !?pixi.Internal.File {
     return error.FileLoadError;
 }
 
-/// Loads a PNG file as the first layer of a new file, and retains the png path
-/// when saved, layers will be flattened to the png file
-pub fn fromPathPng(path: []const u8) !?pixi.Internal.File {
-    if (!std.mem.eql(u8, std.fs.path.extension(path[0..path.len]), ".png"))
+fn isFlatImageExtension(ext: []const u8) bool {
+    return std.mem.eql(u8, ext, ".png") or
+        std.mem.eql(u8, ext, ".jpg") or
+        std.mem.eql(u8, ext, ".jpeg");
+}
+
+/// Loads a PNG or JPEG as the first layer of a new file, and retains the path
+/// when saved; layers will be flattened to that file
+pub fn fromPathFlatImage(path: []const u8) !?pixi.Internal.File {
+    if (!isFlatImageExtension(std.fs.path.extension(path[0..path.len])))
         return error.InvalidExtension;
 
-    var png_layer: pixi.Internal.Layer = try pixi.Internal.Layer.fromImageFilePath(pixi.editor.newFileID(), "Layer", path, .ptr);
-    const size = png_layer.size();
+    var image_layer: pixi.Internal.Layer = try pixi.Internal.Layer.fromImageFilePath(pixi.editor.newFileID(), "Layer", path, .ptr);
+    const size = image_layer.size();
     const column_width: u32 = @intFromFloat(size.w);
     const row_height: u32 = @intFromFloat(size.h);
 
@@ -648,7 +654,7 @@ pub fn fromPathPng(path: []const u8) !?pixi.Internal.File {
         .buffers = pixi.Internal.File.Buffers.init(pixi.app.allocator),
     };
 
-    internal.layers.append(pixi.app.allocator, png_layer) catch return error.LayerCreateError;
+    internal.layers.append(pixi.app.allocator, image_layer) catch return error.LayerCreateError;
 
     // Initialize editor layers and selected sprites
     internal.editor.temporary_layer = try .init(internal.newLayerID(), "Temporary", internal.width(), internal.height(), .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
@@ -1268,6 +1274,37 @@ pub fn fmtSprite(file: *File, allocator: std.mem.Allocator, sprite_index: usize,
         .index => std.fmt.allocPrint(allocator, "{d}", .{sprite_index}) catch return error.MemoryAllocationFailed,
         .grid => std.fmt.allocPrint(allocator, "{s}{d}", .{ try fmtColumn(file, allocator, file.columnFromIndex(sprite_index)), file.rowFromIndex(sprite_index) }) catch return error.MemoryAllocationFailed,
     };
+}
+
+/// Default base name (no extension) for exporting a single tile: `{file_stem}_{anim}_{frame_idx}` if the
+/// sprite appears in an animation, else `{file_stem}_{grid}`. If `selected_animation_index` is set
+/// and that animation contains the sprite, that animation and frame index are used; otherwise the
+/// first matching animation in file order is used.
+pub fn spriteExportName(file: *File, allocator: std.mem.Allocator, sprite_index: usize) ![]const u8 {
+    const basename = std.fs.path.basename(file.path);
+    const file_stem = std.fs.path.stem(basename);
+
+    if (file.selected_animation_index) |ai| {
+        const anim = file.animations.get(ai);
+        for (anim.frames, 0..) |frame, fi| {
+            if (frame.sprite_index == sprite_index) {
+                return try std.fmt.allocPrint(allocator, "{s}_{s}_{d}", .{ file_stem, anim.name, fi });
+            }
+        }
+    }
+
+    for (file.animations.items(.frames), file.animations.items(.name), 0..) |frames, name, aidx| {
+        _ = aidx;
+        for (frames, 0..) |frame, fi| {
+            if (frame.sprite_index == sprite_index) {
+                return try std.fmt.allocPrint(allocator, "{s}_{s}_{d}", .{ file_stem, name, fi });
+            }
+        }
+    }
+
+    const grid = try file.fmtSprite(allocator, sprite_index, .grid);
+    defer allocator.free(grid);
+    return try std.fmt.allocPrint(allocator, "{s}_{s}", .{ file_stem, grid });
 }
 
 pub fn fmtColumn(_: *File, allocator: std.mem.Allocator, column: usize) ![]const u8 {
@@ -2585,6 +2622,25 @@ pub fn savePng(self: *File, window: *dvui.Window) !void {
     self.history.bookmark = 0;
 }
 
+pub fn saveJpg(self: *File, window: *dvui.Window) !void {
+    if (self.editor.saving) return;
+    self.editor.saving = true;
+
+    const ppi: u16 = @intFromFloat(@round(window.natural_scale * 72.0));
+    try pixi.image.writeToJpgPpi(self.layers.get(self.selected_layer_index).source, self.path, ppi);
+
+    {
+        const id_mutex = dvui.toastAdd(window, @src(), self.id, self.editor.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
+        const id = id_mutex.id;
+        const message = std.fmt.allocPrint(window.arena(), "Saved {s} to disk", .{std.fs.path.basename(self.path)}) catch "Saved file";
+        dvui.dataSetSlice(window, id, "_message", message);
+        id_mutex.mutex.unlock();
+    }
+
+    self.editor.saving = false;
+    self.history.bookmark = 0;
+}
+
 pub fn saveZip(self: *File, window: *dvui.Window) !void {
     if (self.editor.saving) return;
     self.editor.saving = true;
@@ -2649,6 +2705,9 @@ pub fn saveAsync(self: *File) !void {
         thread.detach();
     } else if (std.mem.eql(u8, ext, ".png")) {
         const thread = try std.Thread.spawn(.{}, savePng, .{ self, dvui.currentWindow() });
+        thread.detach();
+    } else if (std.mem.eql(u8, ext, ".jpg") or std.mem.eql(u8, ext, ".jpeg")) {
+        const thread = try std.Thread.spawn(.{}, saveJpg, .{ self, dvui.currentWindow() });
         thread.detach();
     }
 }
