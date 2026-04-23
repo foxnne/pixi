@@ -902,7 +902,7 @@ pub fn drawAnimations(self: *Sprites) !void {
             color_box.deinit();
 
             const font = dvui.Font.theme(.body);
-            const rename_padding = dvui.Rect.all(2);
+            const rename_padding = dvui.Rect.all(0);
 
             if (self.edit_anim_id != anim_id) {
                 var name_label_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
@@ -928,7 +928,7 @@ pub fn drawAnimations(self: *Sprites) !void {
                         .gravity_y = 0.5,
                         .margin = dvui.Rect{},
                         .font = font,
-                        .padding = dvui.Rect.all(0),
+                        .padding = .{ .y = 1 },
                         .color_text = name_color,
                     })) {
                         const lr = name_label_box.data().borderRectScale().r;
@@ -942,7 +942,7 @@ pub fn drawAnimations(self: *Sprites) !void {
                         .gravity_y = 0.5,
                         .margin = dvui.Rect{},
                         .font = font,
-                        .padding = dvui.Rect.all(0),
+                        .padding = .{ .y = 1 },
                         .color_text = name_color,
                     });
                 }
@@ -1647,7 +1647,7 @@ pub fn drawFrames(self: *Sprites) !void {
                         .transparent,
                     .color_fill_hover = .transparent,
                     .margin = dvui.Rect{},
-                    .padding = .{ .x = 5, .y = 2, .w = 5, .h = 2 },
+                    .padding = .{ .x = 5, .y = 3, .w = 5, .h = 2 },
                     .corner_radius = dvui.Rect.all(8),
                     .box_shadow = if (branch.floating()) .{
                         .color = .black,
