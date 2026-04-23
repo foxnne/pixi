@@ -7,6 +7,31 @@ const Editor = pixi.Editor;
 
 const Sprites = @This();
 
+/// In-flight primary-button gesture for the animation list (reorder / click / rename).
+const AnimationRowGesture = struct {
+    file_id: u64,
+    press_idx: usize,
+    press_p: dvui.Point.Physical,
+    drag_branch: ?usize,
+    moved: bool,
+    reorder_drag: bool,
+};
+var animation_row_gesture: ?AnimationRowGesture = null;
+var anim_rename_hit_te_id: ?dvui.Id = null;
+var anim_rename_hit_rect: ?dvui.Rect.Physical = null;
+
+/// In-flight primary-button gesture for the frame list (reorder / click).
+const FrameRowGesture = struct {
+    file_id: u64,
+    anim_id: u64,
+    press_idx: usize,
+    press_p: dvui.Point.Physical,
+    drag_branch: ?usize,
+    moved: bool,
+    reorder_drag: bool,
+};
+var frame_row_gesture: ?FrameRowGesture = null;
+
 animation_removed_index: ?usize = null,
 animation_insert_before_index: ?usize = null,
 sprite_removed_index: ?usize = null,
@@ -16,10 +41,23 @@ prev_anim_count: usize = 0,
 prev_anim_id: u64 = 0,
 prev_sprite_count: usize = 0,
 
-/// Number inputs for sprite origin (sprites tab); resync when `origin_fields_sync_key` changes.
+/// Origin axis values for sprites tab (slider + text); resync when `origin_fields_sync_key` changes.
 origin_edit_x: f32 = 0,
 origin_edit_y: f32 = 0,
 origin_fields_sync_key: u64 = 0,
+
+/// Mouse-drag batching for origin sliders: snapshot until drag ends, then one history step if origins changed.
+origin_x_drag_indices: ?[]usize = null,
+origin_x_drag_old_vals: ?[][2]f32 = null,
+origin_x_slider_drag_prev: bool = false,
+origin_y_drag_indices: ?[]usize = null,
+origin_y_drag_old_vals: ?[][2]f32 = null,
+origin_y_slider_drag_prev: bool = false,
+
+/// Visible clip of the animation list scroll area (for pointer gating, same idea as layers).
+animations_scroll_viewport_rect: ?dvui.Rect.Physical = null,
+/// Visible clip of the frames list scroll area.
+frames_scroll_viewport_rect: ?dvui.Rect.Physical = null,
 
 pub fn init() Sprites {
     return .{};
@@ -31,6 +69,91 @@ fn selectionUiKey(file: *pixi.Internal.File) u64 {
     const first = file.editor.selected_sprites.findFirstSet() orelse return 0;
     const last = file.editor.selected_sprites.findLastSet() orelse return 0;
     return (c << 48) ^ (first << 24) ^ last;
+}
+
+fn selectionOriginsDifferFrom(file: *pixi.Internal.File, indices: []const usize, old_vals: []const [2]f32) bool {
+    for (indices, old_vals) |si, ov| {
+        const cur = file.sprites.get(si).origin;
+        if (cur[0] != ov[0] or cur[1] != ov[1]) return true;
+    }
+    return false;
+}
+
+fn freeOriginAxisDragSnapshot(self: *Sprites, axis: enum { x, y }) void {
+    switch (axis) {
+        .x => {
+            if (self.origin_x_drag_indices) |s| {
+                pixi.app.allocator.free(s);
+                self.origin_x_drag_indices = null;
+            }
+            if (self.origin_x_drag_old_vals) |v| {
+                pixi.app.allocator.free(v);
+                self.origin_x_drag_old_vals = null;
+            }
+        },
+        .y => {
+            if (self.origin_y_drag_indices) |s| {
+                pixi.app.allocator.free(s);
+                self.origin_y_drag_indices = null;
+            }
+            if (self.origin_y_drag_old_vals) |v| {
+                pixi.app.allocator.free(v);
+                self.origin_y_drag_old_vals = null;
+            }
+        },
+    }
+}
+
+fn beginOriginAxisDragSnapshot(self: *Sprites, file: *pixi.Internal.File, axis: enum { x, y }) !void {
+    switch (axis) {
+        .x => if (self.origin_x_drag_indices != null) return,
+        .y => if (self.origin_y_drag_indices != null) return,
+    }
+    const count = file.editor.selected_sprites.count();
+    const indices = try pixi.app.allocator.alloc(usize, count);
+    errdefer pixi.app.allocator.free(indices);
+    const old_vals = try pixi.app.allocator.alloc([2]f32, count);
+    var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+    var i: usize = 0;
+    while (iter.next()) |si| : (i += 1) {
+        indices[i] = si;
+        old_vals[i] = file.sprites.items(.origin)[si];
+    }
+    switch (axis) {
+        .x => {
+            self.origin_x_drag_indices = indices;
+            self.origin_x_drag_old_vals = old_vals;
+        },
+        .y => {
+            self.origin_y_drag_indices = indices;
+            self.origin_y_drag_old_vals = old_vals;
+        },
+    }
+}
+
+fn appendOriginsHistory(file: *pixi.Internal.File, indices: []usize, old_vals: [][2]f32) !void {
+    file.history.append(.{ .origins = .{ .indices = indices, .values = old_vals } }) catch |err| {
+        pixi.app.allocator.free(indices);
+        pixi.app.allocator.free(old_vals);
+        return err;
+    };
+}
+
+fn applySpriteOriginAxisNoHistory(file: *pixi.Internal.File, axis: enum { x, y }, new_val: f32) void {
+    const cw = @as(f32, @floatFromInt(file.column_width));
+    const rh = @as(f32, @floatFromInt(file.row_height));
+    const max_v: f32 = switch (axis) {
+        .x => cw,
+        .y => rh,
+    };
+    const clamped = std.math.clamp(new_val, 0, max_v);
+    var iter = file.editor.selected_sprites.iterator(.{ .kind = .set, .direction = .forward });
+    while (iter.next()) |si| {
+        switch (axis) {
+            .x => file.sprites.items(.origin)[si][0] = clamped,
+            .y => file.sprites.items(.origin)[si][1] = clamped,
+        }
+    }
 }
 
 fn commitSpriteOriginAxis(file: *pixi.Internal.File, axis: enum { x, y }, new_val: f32) !void {
@@ -132,6 +255,10 @@ pub fn drawOriginControls(self: *Sprites) !void {
         const key = selectionUiKey(file);
         if (key != self.origin_fields_sync_key) {
             self.origin_fields_sync_key = key;
+            freeOriginAxisDragSnapshot(self, .x);
+            freeOriginAxisDragSnapshot(self, .y);
+            self.origin_x_slider_drag_prev = false;
+            self.origin_y_slider_drag_prev = false;
 
             var ox_unified: ?f32 = null;
             var oy_unified: ?f32 = null;
@@ -153,8 +280,8 @@ pub fn drawOriginControls(self: *Sprites) !void {
                 }
             }
 
-            self.origin_edit_x = ox_unified orelse 0;
-            self.origin_edit_y = oy_unified orelse 0;
+            self.origin_edit_x = ox_unified orelse if (file.editor.selected_sprites.findFirstSet()) |first_si| file.sprites.get(first_si).origin[0] else 0;
+            self.origin_edit_y = oy_unified orelse if (file.editor.selected_sprites.findFirstSet()) |first_si| file.sprites.get(first_si).origin[1] else 0;
         }
 
         const cw = @as(f32, @floatFromInt(file.column_width));
@@ -172,61 +299,163 @@ pub fn drawOriginControls(self: *Sprites) !void {
             }
         }
 
-        var origin_row = dvui.box(@src(), .{ .dir = .vertical }, .{
+        var origin_group = dvui.groupBox(@src(), "Origin", .{
             .expand = .horizontal,
         });
-        defer origin_row.deinit();
+        defer origin_group.deinit();
 
-        dvui.labelNoFmt(@src(), "ORIGIN", .{}, .{ .font = dvui.Font.theme(.body).larger(-1.0) });
+        var animation = dvui.animate(@src(), .{ .duration = 400_000, .easing = dvui.easing.outBack, .kind = .vertical }, .{
+            .expand = .horizontal,
+        });
+        defer animation.deinit();
 
-        var fields = dvui.box(@src(), .{ .dir = .horizontal }, .{
+        var fields = dvui.box(@src(), .{ .dir = .vertical }, .{
             .expand = .horizontal,
         });
         defer fields.deinit();
 
-        dvui.labelNoFmt(@src(), "X", .{}, .{ .font = dvui.Font.theme(.body) });
-        if (mixed_x) {
-            dvui.labelNoFmt(@src(), "(mixed)", .{}, .{ .font = dvui.Font.theme(.body).larger(-2.0), .margin = dvui.Rect.rect(0, 0, 4, 0) });
-        }
-        const res_x = dvui.textEntryNumber(@src(), f32, .{
-            .value = &self.origin_edit_x,
-            .min = 0,
-            .max = cw,
-            .show_min_max = true,
-        }, .{
-            .id_extra = 0xb00001,
-        });
+        {
+            var row = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .expand = .horizontal,
+            });
+            defer row.deinit();
 
-        dvui.labelNoFmt(@src(), "Y", .{}, .{ .font = dvui.Font.theme(.body), .margin = dvui.Rect.rect(12, 0, 6, 0) });
-        if (mixed_y) {
-            dvui.labelNoFmt(@src(), "(mixed)", .{}, .{ .font = dvui.Font.theme(.body).larger(-2.0), .margin = dvui.Rect.rect(0, 0, 4, 0) });
-        }
-        const res_y = dvui.textEntryNumber(@src(), f32, .{
-            .value = &self.origin_edit_y,
-            .min = 0,
-            .max = rh,
-            .show_min_max = true,
-        }, .{
-            .id_extra = 0xb00002,
-        });
+            dvui.labelNoFmt(@src(), "X", .{}, .{ .font = dvui.Font.theme(.body) });
+            if (mixed_x) {
+                dvui.icon(@src(), "OriginXIcon", icons.tvg.lucide.@"link-2-off", .{
+                    .stroke_color = dvui.themeGet().color(.control, .text),
+                }, .{
+                    .gravity_y = 0.5,
+                    .expand = .none,
+                    .margin = dvui.Rect.all(0),
+                    .padding = dvui.Rect.all(0),
+                });
+            } else {
+                dvui.icon(@src(), "OriginXIcon", icons.tvg.lucide.@"link-2", .{
+                    .stroke_color = dvui.themeGet().color(.control, .text),
+                }, .{
+                    .gravity_y = 0.5,
+                    .expand = .none,
+                    .margin = dvui.Rect.all(0),
+                    .padding = dvui.Rect.all(0),
+                });
+            }
+            var x_slider_wd: dvui.WidgetData = undefined;
+            const x_changed = dvui.sliderEntry(@src(), "{d:0.0}", .{
+                .value = &self.origin_edit_x,
+                .min = 0,
+                .max = cw,
+                .interval = 1,
+            }, .{
+                .id_extra = 0xb00001,
+                .expand = .horizontal,
+                .data_out = &x_slider_wd,
+            });
+            const x_slider_dragging = dvui.dataGet(null, x_slider_wd.id, "_start_v", f32) != null;
 
-        if (res_x.changed) switch (res_x.value) {
-            .Valid => |v| {
-                const cl = std.math.clamp(v, 0, cw);
-                try commitSpriteOriginAxis(file, .x, cl);
+            if (x_slider_dragging and self.origin_x_drag_indices == null) {
+                try beginOriginAxisDragSnapshot(self, file, .x);
+            }
+
+            if (x_changed) {
+                const cl = std.math.clamp(self.origin_edit_x, 0, cw);
+                if (x_slider_dragging) {
+                    applySpriteOriginAxisNoHistory(file, .x, cl);
+                } else {
+                    freeOriginAxisDragSnapshot(self, .x);
+                    try commitSpriteOriginAxis(file, .x, cl);
+                }
                 self.origin_edit_x = cl;
-            },
-            else => {},
-        };
+            }
 
-        if (res_y.changed) switch (res_y.value) {
-            .Valid => |v| {
-                const cl = std.math.clamp(v, 0, rh);
-                try commitSpriteOriginAxis(file, .y, cl);
+            if (self.origin_x_slider_drag_prev and !x_slider_dragging) {
+                if (self.origin_x_drag_indices) |indices| {
+                    const old_vals = self.origin_x_drag_old_vals.?;
+                    defer {
+                        self.origin_x_drag_indices = null;
+                        self.origin_x_drag_old_vals = null;
+                    }
+                    if (selectionOriginsDifferFrom(file, indices, old_vals)) {
+                        try appendOriginsHistory(file, indices, old_vals);
+                    } else {
+                        pixi.app.allocator.free(indices);
+                        pixi.app.allocator.free(old_vals);
+                    }
+                }
+            }
+            self.origin_x_slider_drag_prev = x_slider_dragging;
+        }
+        {
+            var row = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .expand = .horizontal,
+            });
+            defer row.deinit();
+
+            dvui.labelNoFmt(@src(), "Y", .{}, .{ .font = dvui.Font.theme(.body) });
+            if (mixed_y) {
+                dvui.icon(@src(), "OriginYIcon", icons.tvg.lucide.@"link-2-off", .{
+                    .stroke_color = dvui.themeGet().color(.control, .text),
+                }, .{
+                    .gravity_y = 0.5,
+                    .expand = .none,
+                    .margin = dvui.Rect.all(0),
+                    .padding = dvui.Rect.all(0),
+                });
+            } else {
+                dvui.icon(@src(), "OriginYIcon", icons.tvg.lucide.@"link-2", .{
+                    .stroke_color = dvui.themeGet().color(.control, .text),
+                }, .{
+                    .gravity_y = 0.5,
+                    .expand = .none,
+                    .margin = dvui.Rect.all(0),
+                    .padding = dvui.Rect.all(0),
+                });
+            }
+            var y_slider_wd: dvui.WidgetData = undefined;
+            const y_changed = dvui.sliderEntry(@src(), "{d:0.0}", .{
+                .value = &self.origin_edit_y,
+                .min = 0,
+                .max = rh,
+                .interval = 1,
+            }, .{
+                .id_extra = 0xb00002,
+                .expand = .horizontal,
+                .data_out = &y_slider_wd,
+            });
+            const y_slider_dragging = dvui.dataGet(null, y_slider_wd.id, "_start_v", f32) != null;
+
+            if (y_slider_dragging and self.origin_y_drag_indices == null) {
+                try beginOriginAxisDragSnapshot(self, file, .y);
+            }
+
+            if (y_changed) {
+                const cl = std.math.clamp(self.origin_edit_y, 0, rh);
+                if (y_slider_dragging) {
+                    applySpriteOriginAxisNoHistory(file, .y, cl);
+                } else {
+                    freeOriginAxisDragSnapshot(self, .y);
+                    try commitSpriteOriginAxis(file, .y, cl);
+                }
                 self.origin_edit_y = cl;
-            },
-            else => {},
-        };
+            }
+
+            if (self.origin_y_slider_drag_prev and !y_slider_dragging) {
+                if (self.origin_y_drag_indices) |indices| {
+                    const old_vals = self.origin_y_drag_old_vals.?;
+                    defer {
+                        self.origin_y_drag_indices = null;
+                        self.origin_y_drag_old_vals = null;
+                    }
+                    if (selectionOriginsDifferFrom(file, indices, old_vals)) {
+                        try appendOriginsHistory(file, indices, old_vals);
+                    } else {
+                        pixi.app.allocator.free(indices);
+                        pixi.app.allocator.free(old_vals);
+                    }
+                }
+            }
+            self.origin_y_slider_drag_prev = y_slider_dragging;
+        }
     }
 }
 
@@ -433,6 +662,10 @@ pub fn drawAnimations(self: *Sprites) !void {
         // Make sure to update the prev anim count!
         defer self.prev_anim_count = file.animations.len;
 
+        self.animations_scroll_viewport_rect = null;
+        anim_rename_hit_te_id = null;
+        anim_rename_hit_rect = null;
+
         var scroll_area = dvui.scrollArea(@src(), .{
             .scroll_info = &file.editor.animations_scroll_info,
             .horizontal_bar = .auto_overlay,
@@ -444,6 +677,10 @@ pub fn drawAnimations(self: *Sprites) !void {
             .max_size_content = .{ .h = std.math.floatMax(f32), .w = parent_width / 2.0 },
         });
         defer scroll_area.deinit();
+
+        if (dvui.ScrollContainerWidget.current()) |sc| {
+            self.animations_scroll_viewport_rect = sc.data().contentRectScale().r;
+        }
 
         var inner_box = dvui.box(@src(), .{ .dir = .vertical }, .{
             .expand = .both,
@@ -465,17 +702,18 @@ pub fn drawAnimations(self: *Sprites) !void {
 
         const vertical_scroll = file.editor.animations_scroll_info.offset(.vertical);
 
-        var reorderable = pixi.dvui.reorder(@src(), .{ .drag_name = "anim_drag" }, .{
+        var tree = pixi.dvui.TreeWidget.tree(@src(), .{ .enable_reordering = true }, .{
             .expand = .horizontal,
             .background = false,
         });
-        defer reorderable.deinit();
+        defer tree.deinit();
+
+        var anim_hits_buf: [256]AnimationRowHit = undefined;
+        var anim_hits_len: usize = 0;
 
         // Drag and drop is completing
         if (self.animation_insert_before_index) |insert_before| {
             if (self.animation_removed_index) |removed| {
-                //const prev_order = try pixi.app.allocator.dupe(pixi.Animation.Frame, file.animations.items(.id));
-
                 const anim = file.animations.get(removed);
                 file.animations.orderedRemove(removed);
 
@@ -497,17 +735,6 @@ pub fn drawAnimations(self: *Sprites) !void {
                     }
                 }
 
-                // if (!std.mem.eql(u64, file.animations.items(.id)[0..file.animations.len], prev_order)) {
-                //     file.history.append(.{
-                //         .animation_order = .{
-                //             .order = prev_order,
-                //             .selected = file.animations.items(.id)[file.selected_animation_index orelse 0],
-                //         },
-                //     }) catch {
-                //         dvui.log.err("Failed to append history", .{});
-                //     };
-                // }
-
                 self.animation_insert_before_index = null;
                 self.animation_removed_index = null;
             }
@@ -515,22 +742,15 @@ pub fn drawAnimations(self: *Sprites) !void {
 
         const box = dvui.box(@src(), .{ .dir = .vertical }, .{
             .expand = .horizontal,
-            .margin = dvui.Rect.all(4),
+            .background = false,
+            .corner_radius = dvui.Rect.all(1000),
+            .margin = dvui.Rect.rect(4, 0, 4, 4),
         });
         defer box.deinit();
 
-        const total_duration: i32 = 600_000;
-        const max_step_duration: i32 = @divTrunc(total_duration, 3);
-
-        var duration_step: i32 = max_step_duration;
-
-        if (file.animations.len > 0) {
-            duration_step = std.math.clamp(@divTrunc(total_duration, @as(i32, @intCast(file.animations.len))), 0, max_step_duration);
-        }
+        const no_buttons_r: dvui.Rect.Physical = .{ .x = 0, .y = 0, .w = 0, .h = 0 };
 
         for (file.animations.items(.id), 0..) |anim_id, anim_index| {
-            const duration = max_step_duration + (duration_step * @as(i32, @intCast(anim_index + 1)));
-
             const selected = if (self.edit_anim_id) |id| id == anim_id else file.selected_animation_index == anim_index;
 
             var color = dvui.themeGet().color(.control, .fill_hover);
@@ -538,99 +758,131 @@ pub fn drawAnimations(self: *Sprites) !void {
                 color = palette.getDVUIColor(anim_id);
             }
 
-            var r = reorderable.reorderable(@src(), .{}, .{
+            var branch = tree.branch(@src(), .{
+                .expanded = false,
+                .process_events = false,
+                .can_accept_children = false,
+                .animation_duration = 250_000,
+                .animation_easing = dvui.easing.outBack,
+            }, .{
                 .id_extra = anim_id,
                 .expand = .horizontal,
                 .corner_radius = dvui.Rect.all(1000),
-                .min_size_content = .{ .w = 0.0, .h = reorderable.reorderable_size.h },
+                .background = false,
+                .margin = .all(0),
+                .padding = dvui.Rect.all(1),
             });
-            defer r.deinit();
+            defer branch.deinit();
 
-            if (dvui.firstFrame(r.data().id) or self.prev_anim_count != file.animations.len) {
-                dvui.animation(r.data().id, "anim_expand", .{
-                    .start_val = 0.2,
-                    .end_val = 1.0,
-                    .end_time = duration,
-                    .easing = dvui.easing.outBack,
-                });
-            }
-
-            if (dvui.animationGet(r.data().id, "anim_expand")) |a| {
-                if (dvui.minSizeGet(r.data().id)) |ms| {
-                    if (r.data().rect.w > ms.w + 0.001) {
-                        // we are bigger than our min size (maybe expanded) - account for floating point
-                        const w = r.data().rect.w;
-                        r.data().rect.w *= @max(a.value(), 0);
-                        r.data().rect.x += r.data().options.gravityGet().x * (w - r.data().rect.w);
-                    }
-                }
-            }
-
-            if (r.removed()) {
+            if (branch.removed()) {
                 self.animation_removed_index = anim_index;
-            } else if (r.insertBefore()) {
+            } else if (branch.insertBefore()) {
                 self.animation_insert_before_index = anim_index;
             }
 
-            const hovered = pixi.dvui.hovered(r.data());
+            const row_r = branch.data().borderRectScale().r;
+            const mp = dvui.currentWindow().mouse_pt;
+            const row_hovered = row_r.contains(mp) and animationPointerInScrollViewport(mp, self.animations_scroll_viewport_rect);
+
+            const ctrl_hover = dvui.themeGet().color(.control, .fill).opacity(0.5);
+            const row_highlight = blk: {
+                if (tree.reorderDragActive()) {
+                    if (tree.id_branch) |idb| {
+                        break :blk idb == branch.data().id.asUsize();
+                    }
+                    break :blk false;
+                }
+                break :blk row_hovered and tree.drag_point == null;
+            };
 
             var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .both,
                 .background = true,
-                .color_fill = if (selected or hovered) dvui.themeGet().color(.control, .fill_hover) else dvui.themeGet().color(.control, .fill),
-                .corner_radius = dvui.Rect.all(1000),
-                .margin = dvui.Rect.all(2),
-                .padding = dvui.Rect.all(1),
-                .border = dvui.Rect.all(1.0),
-                .color_border = if (selected) color else dvui.themeGet().color(.control, .fill),
-                .box_shadow = if (!r.floating()) .{
+                .color_fill = if (selected or row_highlight)
+                    ctrl_hover
+                else
+                    .transparent,
+                .color_fill_hover = .transparent,
+                .margin = .all(0),
+                .padding = dvui.Rect.all(5),
+                .corner_radius = dvui.Rect.all(8),
+                .box_shadow = if (branch.floating()) .{
                     .color = .black,
                     .offset = .{ .x = -2.0, .y = 2.0 },
                     .fade = 6.0,
                     .alpha = 0.25,
-                    .corner_radius = dvui.Rect.all(1000),
+                    .corner_radius = dvui.Rect.all(8),
                 } else null,
             });
             defer hbox.deinit();
 
-            _ = pixi.dvui.ReorderWidget.draggable(@src(), .{
-                .reorderable = r,
-                .tvg_bytes = icons.tvg.lucide.@"grip-horizontal",
-                .color = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
-            }, .{
+            var color_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .none,
+                .background = true,
                 .gravity_y = 0.5,
-                .margin = .{ .x = 4, .w = 4 },
+                .min_size_content = .{ .w = 8.0, .h = 8.0 },
+                .color_fill = color,
+                .corner_radius = dvui.Rect.all(1000),
+                .margin = dvui.Rect.all(2),
+                .padding = dvui.Rect.all(0),
             });
+            color_box.deinit();
 
-            const font = dvui.Font.theme(.mono).larger(-2.0);
-            const padding: dvui.Rect = .{ .w = 6 };
+            const font = dvui.Font.theme(.body);
+            const rename_padding = dvui.Rect.all(2);
+            var row_label_r: ?dvui.Rect.Physical = null;
 
             if (self.edit_anim_id != anim_id) {
+                var name_label_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                    .expand = .none,
+                    .background = false,
+                    .gravity_y = 0.5,
+                    .margin = dvui.Rect.rect(2, 0, 2, 0),
+                    .padding = dvui.Rect.all(0),
+                });
+                defer name_label_box.deinit();
+
+                dvui.labelNoFmt(@src(), file.animations.items(.name)[anim_index], .{ .ellipsize = true }, .{
+                    .expand = .none,
+                    .gravity_y = 0.5,
+                    .margin = dvui.Rect{},
+                    .font = font,
+                    .padding = dvui.Rect.all(0),
+                    .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
+                });
+
                 if (file.selected_animation_index == anim_index) {
-                    if (dvui.labelClick(@src(), "{s}", .{file.animations.items(.name)[anim_index]}, .{}, .{
-                        .gravity_y = 0.5,
-                        .font = font,
-                        .margin = dvui.Rect.all(2),
-                        .padding = padding,
-                        .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
-                    })) {
-                        self.edit_anim_id = anim_id;
-                    }
-                } else {
-                    dvui.labelNoFmt(@src(), file.animations.items(.name)[anim_index], .{ .ellipsize = true }, .{
-                        .gravity_y = 0.5,
-                        .margin = dvui.Rect.all(2),
-                        .font = font,
-                        .padding = padding,
-                        .color_text = if (!selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.window, .text),
-                    });
+                    row_label_r = name_label_box.data().borderRectScale().r;
+                }
+
+                var drag_sink = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                    .expand = .both,
+                    .background = false,
+                    .min_size_content = .{ .w = 0, .h = 0 },
+                    .gravity_y = 0.5,
+                });
+                defer drag_sink.deinit();
+
+                if (row_hovered and animationPointerInScrollViewport(mp, self.animations_scroll_viewport_rect)) {
+                    dvui.cursorSet(.hand);
+                }
+
+                if (anim_hits_len < anim_hits_buf.len) {
+                    anim_hits_buf[anim_hits_len] = .{
+                        .row_r = branch.data().borderRectScale().r,
+                        .buttons_r = no_buttons_r,
+                        .branch_usize = branch.data().id.asUsize(),
+                        .anim_index = anim_index,
+                        .hbox_tl = hbox.data().rectScale().r.topLeft(),
+                        .label_r = row_label_r,
+                    };
+                    anim_hits_len += 1;
                 }
             } else {
                 var te = dvui.textEntry(@src(), .{}, .{
                     .expand = .horizontal,
                     .background = false,
-                    .padding = padding,
+                    .padding = rename_padding,
                     .margin = dvui.Rect.all(0),
                     .font = font,
                     .gravity_y = 0.5,
@@ -642,7 +894,11 @@ pub fn drawAnimations(self: *Sprites) !void {
                     dvui.focusWidget(te.data().id, null, null);
                 }
 
-                if (te.enter_pressed or dvui.focusedWidgetId() != te.data().id) {
+                anim_rename_hit_te_id = te.data().id;
+                anim_rename_hit_rect = te.data().borderRectScale().r;
+
+                const should_commit_rename = te.enter_pressed or dvui.focusedWidgetId() != te.data().id;
+                if (should_commit_rename) {
                     if (!std.mem.eql(u8, file.animations.items(.name)[anim_index], te.getText()) and te.getText().len > 0) {
                         file.history.append(.{
                             .animation_name = .{
@@ -655,25 +911,13 @@ pub fn drawAnimations(self: *Sprites) !void {
                         pixi.app.allocator.free(file.animations.items(.name)[anim_index]);
                         file.animations.items(.name)[anim_index] = try pixi.app.allocator.dupe(u8, te.getText());
                     }
-                    self.edit_anim_id = null;
-                }
-            }
-
-            // if (reorderable.drag_point == null) {
-            //     var button_box = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .none, .background = false, .gravity_x = 1.0, .min_size_content = .{ .w = 20.0, .h = 20.0 } });
-            //     defer button_box.deinit();
-            // }
-
-            // This consumes the click event, so we need to do this last
-            if (dvui.clicked(hbox.data(), .{ .hover_cursor = .hand })) {
-                file.selected_animation_index = anim_index;
-                const anim = file.animations.get(anim_index);
-                if (anim.frames.len > 0) {
-                    if (file.selected_animation_frame_index >= anim.frames.len) {
-                        file.selected_animation_frame_index = anim.frames.len - 1;
+                    if (te.enter_pressed) {
+                        file.selected_animation_index = anim_index;
                     }
-                } else {
-                    file.selected_animation_frame_index = 0;
+                    dvui.captureMouse(null, 0);
+                    dvui.focusWidget(null, null, null);
+                    self.edit_anim_id = null;
+                    dvui.refresh(null, @src(), tree.data().id);
                 }
             }
 
@@ -691,8 +935,25 @@ pub fn drawAnimations(self: *Sprites) !void {
             }
         }
 
-        if (reorderable.finalSlot(.default, dvui.Rect.all(1000))) {
-            self.animation_insert_before_index = file.animations.len;
+        processAnimationTreePointerEvents(self, tree, file, anim_hits_buf[0..anim_hits_len], self.animations_scroll_viewport_rect);
+
+        if (tree.drag_point != null) {
+            var tail = tree.branch(@src(), .{
+                .expanded = false,
+                .process_events = false,
+                .can_accept_children = false,
+            }, .{
+                .id_extra = 0x7fff_fffd,
+                .expand = .horizontal,
+                .min_size_content = .{ .w = 0, .h = 14 },
+                .color_fill = .transparent,
+                .color_fill_hover = .transparent,
+                .color_fill_press = .transparent,
+            });
+            defer tail.deinit();
+            if (tail.insertBefore()) {
+                self.animation_insert_before_index = file.animations.len;
+            }
         }
 
         // Only draw shadow if the scroll bar has been scrolled some
@@ -1091,6 +1352,8 @@ pub fn drawFrames(self: *Sprites) !void {
 
         controls_box.deinit();
 
+        self.frames_scroll_viewport_rect = null;
+
         var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.editor.sprites_scroll_info, .horizontal_bar = .auto_overlay, .vertical_bar = .auto_overlay }, .{
             .expand = .horizontal,
             .background = false,
@@ -1098,6 +1361,10 @@ pub fn drawFrames(self: *Sprites) !void {
         });
 
         defer scroll_area.deinit();
+
+        if (dvui.ScrollContainerWidget.current()) |sc| {
+            self.frames_scroll_viewport_rect = sc.data().contentRectScale().r;
+        }
 
         var inner_box = dvui.box(@src(), .{ .dir = .vertical }, .{
             .expand = .both,
@@ -1109,46 +1376,29 @@ pub fn drawFrames(self: *Sprites) !void {
         const vertical_scroll = file.editor.sprites_scroll_info.offset(.vertical);
 
         if (file.selected_animation_index) |animation_index| {
-            const animation = file.animations.get(animation_index);
+            var animation = file.animations.get(animation_index);
+            if (animation.id != self.prev_anim_id) {
+                frame_row_gesture = null;
+            }
 
             defer self.prev_sprite_count = animation.frames.len;
             defer self.prev_anim_id = animation.id;
 
-            var reorder = pixi.dvui.reorder(@src(), .{ .drag_name = "sprite_drag" }, .{
+            var tree = pixi.dvui.TreeWidget.tree(@src(), .{ .enable_reordering = true }, .{
                 .expand = .horizontal,
                 .background = false,
             });
-            defer reorder.deinit();
+            defer tree.deinit();
 
-            //var sprite = file.sprites.get(frame);
+            var frame_hits_buf: [512]FrameRowHit = undefined;
+            var frame_hits_len: usize = 0;
 
-            // Drag and drop is completing
             if (self.sprite_insert_before_index) |insert_before| {
                 if (self.sprite_removed_index) |removed| {
                     const prev_order = try pixi.app.allocator.dupe(pixi.Animation.Frame, animation.frames);
                     defer file.animations.set(animation_index, animation);
 
                     dvui.ReorderWidget.reorderSlice(pixi.Animation.Frame, animation.frames, removed, insert_before);
-
-                    // file.animations.orderedRemove(removed);
-
-                    // if (insert_before <= file.animations.len) {
-                    //     file.animations.insert(pixi.app.allocator, if (removed < insert_before) insert_before - 1 else insert_before, anim) catch {
-                    //         dvui.log.err("Failed to insert animation", .{});
-                    //     };
-                    // } else {
-                    //     file.animations.insert(pixi.app.allocator, if (removed < insert_before) file.animations.len else 0, anim) catch {
-                    //         dvui.log.err("Failed to insert animation", .{});
-                    //     };
-                    // }
-
-                    // if (removed == file.selected_animation_index) {
-                    //     if (insert_before < file.animations.len) {
-                    //         file.selected_animation_index = if (removed < insert_before) insert_before - 1 else insert_before;
-                    //     } else {
-                    //         file.selected_animation_index = 0;
-                    //     }
-                    // }
 
                     if (!animation.eqlFrames(prev_order)) {
                         file.history.append(.{
@@ -1170,125 +1420,116 @@ pub fn drawFrames(self: *Sprites) !void {
 
             const box = dvui.box(@src(), .{ .dir = .vertical }, .{
                 .expand = .horizontal,
-                .margin = dvui.Rect.all(4),
+                .background = false,
+                .corner_radius = dvui.Rect.all(1000),
+                .margin = dvui.Rect.rect(4, 0, 4, 4),
             });
             defer box.deinit();
 
-            const total_duration: i32 = 600_000;
-            const max_step_duration: i32 = @divTrunc(total_duration, 3);
-
-            var duration_step: i32 = max_step_duration;
-            if (animation.frames.len > 0) {
-                duration_step = std.math.clamp(@divTrunc(total_duration, @as(i32, @intCast(animation.frames.len))), 0, max_step_duration);
-            }
-
             for (animation.frames, 0..) |*frame, frame_index| {
-                const duration = max_step_duration + (duration_step * @as(i32, @intCast(frame_index + 1)));
-                var color = dvui.themeGet().color(.control, .fill_hover);
+                var anim_color = dvui.themeGet().color(.control, .fill_hover);
                 if (pixi.editor.colors.file_tree_palette) |*palette| {
-                    color = palette.getDVUIColor(animation.id);
+                    anim_color = palette.getDVUIColor(animation.id);
                 }
 
-                var r = reorder.reorderable(@src(), .{}, .{
-                    .id_extra = frame_index,
+                var branch = tree.branch(@src(), .{
+                    .expanded = false,
+                    .process_events = false,
+                    .can_accept_children = false,
+                    .animation_duration = 250_000,
+                    .animation_easing = dvui.easing.outBack,
+                }, .{
+                    .id_extra = @intCast(frame_index),
                     .expand = .horizontal,
                     .corner_radius = dvui.Rect.all(1000),
-                    .min_size_content = .{ .w = 0.0, .h = reorder.reorderable_size.h },
+                    .background = false,
+                    .margin = .all(0),
+                    .padding = dvui.Rect.all(1),
                 });
-                defer r.deinit();
+                defer branch.deinit();
 
-                if (dvui.firstFrame(r.data().id) or self.prev_sprite_count != animation.frames.len) {
-                    dvui.animation(r.data().id, "sprite_expand", .{
-                        .start_val = 0.0,
-                        .end_val = 1.0,
-                        .end_time = duration,
-                        .easing = dvui.easing.outBack,
-                    });
-                }
-
-                if (dvui.animationGet(r.data().id, "sprite_expand")) |a| {
-                    if (dvui.minSizeGet(r.data().id)) |ms| {
-                        if (r.data().rect.w > ms.w + 0.001) {
-                            // we are bigger than our min size (maybe expanded) - account for floating point
-                            const w = r.data().rect.w;
-                            r.data().rect.w *= @max(a.value(), 0);
-                            r.data().rect.x += r.data().options.gravityGet().x * (w - r.data().rect.w);
-                        }
-                    }
-                }
-
-                if (r.removed()) {
+                if (branch.removed()) {
                     self.sprite_removed_index = frame_index;
-                } else if (r.insertBefore()) {
+                } else if (branch.insertBefore()) {
                     self.sprite_insert_before_index = frame_index;
                 }
 
-                const selected = if (frame.sprite_index < file.editor.selected_sprites.capacity()) file.editor.selected_sprites.isSet(frame.sprite_index) else false;
-                const hovered = pixi.dvui.hovered(r.data());
+                const row_r = branch.data().borderRectScale().r;
+                const mp = dvui.currentWindow().mouse_pt;
+                const row_hovered = row_r.contains(mp) and animationPointerInScrollViewport(mp, self.frames_scroll_viewport_rect);
+
+                const sprite_selected = if (frame.sprite_index < file.editor.selected_sprites.capacity()) file.editor.selected_sprites.isSet(frame.sprite_index) else false;
+                const ctrl_hover = dvui.themeGet().color(.control, .fill).opacity(0.5);
+                const row_highlight = blk: {
+                    if (tree.reorderDragActive()) {
+                        if (tree.id_branch) |idb| {
+                            break :blk idb == branch.data().id.asUsize();
+                        }
+                        break :blk false;
+                    }
+                    break :blk row_hovered and tree.drag_point == null;
+                };
 
                 var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                    .expand = .horizontal,
-                    .background = false,
+                    .expand = .both,
+                    .background = true,
+                    .color_fill = if (sprite_selected or row_highlight or frame_index == file.selected_animation_frame_index)
+                        ctrl_hover
+                    else
+                        .transparent,
+                    .color_fill_hover = .transparent,
+                    .margin = dvui.Rect{},
+                    .padding = dvui.Rect.all(1),
+                    .corner_radius = dvui.Rect.all(8),
+                    .box_shadow = if (branch.floating()) .{
+                        .color = .black,
+                        .offset = .{ .x = -2.0, .y = 2.0 },
+                        .fade = 6.0,
+                        .alpha = 0.25,
+                        .corner_radius = dvui.Rect.all(8),
+                    } else null,
                 });
                 defer hbox.deinit();
 
-                var index_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                    .expand = .both,
+                var color_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                    .expand = .none,
                     .background = true,
-                    .color_fill = if (hovered) dvui.themeGet().color(.control, .fill_hover) else dvui.themeGet().color(.control, .fill),
+                    .gravity_y = 0.5,
+                    .min_size_content = .{ .w = 8.0, .h = 8.0 },
+                    .color_fill = anim_color,
                     .corner_radius = dvui.Rect.all(1000),
                     .margin = dvui.Rect.all(2),
-                    .padding = dvui.Rect.all(1),
-                    .border = dvui.Rect.all(1.0),
-                    .color_border = if (selected) dvui.themeGet().color(.highlight, .fill) else dvui.themeGet().color(.control, .fill),
-                    .box_shadow = if (!r.floating()) .{
-                        .color = .black,
-                        .offset = .{ .x = -2.0, .y = 2.0 },
-                        .fade = 6.0,
-                        .alpha = 0.25,
-                        .corner_radius = dvui.Rect.all(1000),
-                    } else null,
+                    .padding = dvui.Rect.all(0),
                 });
-                _ = pixi.dvui.ReorderWidget.draggable(@src(), .{
-                    .reorderable = r,
-                    .tvg_bytes = icons.tvg.lucide.@"grip-horizontal",
-                    .color = dvui.themeGet().color(.control, .text),
-                }, .{
-                    .expand = .none,
-                    .gravity_y = 0.5,
-                    .margin = .{ .x = 4, .w = 4 },
-                });
+                color_box.deinit();
 
                 dvui.labelNoFmt(@src(), try file.fmtSprite(dvui.currentWindow().arena(), frame.sprite_index, .grid), .{}, .{
+                    .expand = .none,
                     .gravity_y = 0.5,
-                    .margin = dvui.Rect.all(0),
+                    .margin = dvui.Rect.rect(2, 0, 2, 0),
                     .font = dvui.Font.theme(.mono).larger(-2.0),
-                    .padding = .{ .x = 6, .y = 2, .w = 6, .h = 2 },
+                    .padding = dvui.Rect.all(0),
                     .background = if (frame_index == file.selected_animation_frame_index) true else false,
                     .color_fill = if (frame_index == file.selected_animation_frame_index) dvui.themeGet().color(.window, .fill) else dvui.themeGet().color(.control, .fill),
                     .corner_radius = dvui.Rect.all(1000),
-                    .color_text = if (selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.control, .text),
+                    .color_text = if (sprite_selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.control, .text),
                 });
 
-                index_box.deinit();
+                var drag_sink = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                    .expand = .both,
+                    .background = false,
+                    .min_size_content = .{ .w = 0, .h = 0 },
+                    .gravity_y = 0.5,
+                });
+                defer drag_sink.deinit();
 
                 var ms_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                    .expand = .horizontal,
-                    .background = true,
-                    .margin = dvui.Rect.all(2),
-                    .padding = dvui.Rect.all(1),
-                    .color_border = if (selected) dvui.themeGet().color(.highlight, .fill) else dvui.themeGet().color(.control, .fill),
-                    .border = dvui.Rect.all(1.0),
-                    .corner_radius = dvui.Rect.all(1000),
+                    .expand = .none,
+                    .background = false,
                     .gravity_y = 0.5,
                     .gravity_x = 1.0,
-                    .box_shadow = if (!r.floating()) .{
-                        .color = .black,
-                        .offset = .{ .x = -2.0, .y = 2.0 },
-                        .fade = 6.0,
-                        .alpha = 0.25,
-                        .corner_radius = dvui.Rect.all(1000),
-                    } else null,
+                    .padding = dvui.Rect.all(0),
+                    .margin = dvui.Rect.all(0),
                 });
                 defer ms_box.deinit();
 
@@ -1299,7 +1540,7 @@ pub fn drawFrames(self: *Sprites) !void {
 
                 const result = dvui.textEntryNumber(@src(), u32, .{ .value = &frame.ms, .min = 0, .max = 9999999 }, .{
                     .expand = .horizontal,
-                    .background = true,
+                    .background = false,
                     .padding = dvui.Rect.all(2),
                     .margin = dvui.Rect.all(0),
                     .border = dvui.Rect.all(0),
@@ -1311,7 +1552,6 @@ pub fn drawFrames(self: *Sprites) !void {
                     .gravity_y = 0.5,
                 });
 
-                // Set all frames that are currently selected
                 if (result.changed) {
                     if (result.value == .Valid) {
                         for (animation.frames) |*f| {
@@ -1329,25 +1569,43 @@ pub fn drawFrames(self: *Sprites) !void {
                     .padding = .{ .x = 2, .w = 6 },
                 });
 
-                if (dvui.clickedEx(hbox.data(), .{ .hover_cursor = .hand })) |e| {
-                    if (e == .mouse) {
-                        if (frame.sprite_index < file.editor.selected_sprites.capacity()) {
-                            if (e.mouse.mod.matchBind("ctrl/cmd")) {
-                                file.editor.selected_sprites.set(frame.sprite_index);
-                            } else if (e.mouse.mod.matchBind("shift")) {
-                                file.editor.selected_sprites.unset(frame.sprite_index);
-                            } else {
-                                file.clearSelectedSprites();
-                                file.editor.selected_sprites.set(frame.sprite_index);
-                                file.selected_animation_frame_index = frame_index;
-                            }
-                        }
-                    }
+                if (row_hovered and animationPointerInScrollViewport(mp, self.frames_scroll_viewport_rect)) {
+                    dvui.cursorSet(.hand);
+                }
+
+                const ms_buttons_r = ms_box.data().borderRectScale().r;
+                if (frame_hits_len < frame_hits_buf.len) {
+                    frame_hits_buf[frame_hits_len] = .{
+                        .row_r = branch.data().borderRectScale().r,
+                        .buttons_r = ms_buttons_r,
+                        .branch_usize = branch.data().id.asUsize(),
+                        .frame_index = frame_index,
+                        .sprite_index = frame.sprite_index,
+                        .hbox_tl = hbox.data().rectScale().r.topLeft(),
+                    };
+                    frame_hits_len += 1;
                 }
             }
 
-            if (reorder.finalSlot(.default, dvui.Rect.all(1000))) {
-                self.sprite_insert_before_index = animation.frames.len;
+            processFrameTreePointerEvents(tree, file, animation.id, animation_index, frame_hits_buf[0..frame_hits_len], self.frames_scroll_viewport_rect);
+
+            if (tree.drag_point != null) {
+                var tail = tree.branch(@src(), .{
+                    .expanded = false,
+                    .process_events = false,
+                    .can_accept_children = false,
+                }, .{
+                    .id_extra = 0x7fff_fffc,
+                    .expand = .horizontal,
+                    .min_size_content = .{ .w = 0, .h = 14 },
+                    .color_fill = .transparent,
+                    .color_fill_hover = .transparent,
+                    .color_fill_press = .transparent,
+                });
+                defer tail.deinit();
+                if (tail.insertBefore()) {
+                    self.sprite_insert_before_index = animation.frames.len;
+                }
             }
         }
 
@@ -1357,6 +1615,426 @@ pub fn drawFrames(self: *Sprites) !void {
 
         if (file.editor.sprites_scroll_info.virtual_size.h > file.editor.sprites_scroll_info.viewport.h and vertical_scroll < file.editor.animations_scroll_info.scrollMax(.vertical))
             pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .bottom, .{});
+    }
+}
+
+/// Geometry for one frame row; used for tree pointer pass (reorder / click).
+const FrameRowHit = struct {
+    row_r: dvui.Rect.Physical,
+    buttons_r: dvui.Rect.Physical,
+    branch_usize: usize,
+    frame_index: usize,
+    sprite_index: usize,
+    hbox_tl: dvui.Point.Physical,
+};
+
+fn frameGestureMatches(file: *const pixi.Internal.File, anim_id: u64) bool {
+    return frame_row_gesture != null and frame_row_gesture.?.file_id == file.id and frame_row_gesture.?.anim_id == anim_id;
+}
+
+fn frameTreeClearGestureKeysOnly(_: *const pixi.Internal.File) void {
+    frame_row_gesture = null;
+}
+
+fn frameTreeResetRowPointerGesture(_: *const pixi.Internal.File) void {
+    dvui.dragEnd();
+    frame_row_gesture = null;
+}
+
+fn processFrameTreePointerEvents(
+    tree: *pixi.dvui.TreeWidget,
+    file: *pixi.Internal.File,
+    anim_id: u64,
+    animation_index: usize,
+    hits: []const FrameRowHit,
+    viewport_r: ?dvui.Rect.Physical,
+) void {
+    if (!tree.init_options.enable_reordering) return;
+
+    for (dvui.events()) |*e| {
+        switch (e.evt) {
+            .mouse => |me| {
+                if (me.action == .press and me.button.pointer()) {
+                    if (!animationPointerInScrollViewport(me.p, viewport_r)) continue;
+
+                    var row_hit: ?FrameRowHit = null;
+                    var ri = hits.len;
+                    while (ri > 0) {
+                        ri -= 1;
+                        const h = hits[ri];
+                        if (h.row_r.contains(me.p) and !h.buttons_r.contains(me.p)) {
+                            row_hit = h;
+                            break;
+                        }
+                    }
+                    if (row_hit) |h| {
+                        const cw = dvui.currentWindow();
+                        if (cw.dragging.state != .none) dvui.dragEnd();
+                        frameTreeClearGestureKeysOnly(file);
+                        dvui.dragPreStart(me.p, .{ .offset = h.hbox_tl.diff(me.p) });
+                        frame_row_gesture = .{
+                            .file_id = file.id,
+                            .anim_id = anim_id,
+                            .press_idx = h.frame_index,
+                            .press_p = me.p,
+                            .drag_branch = h.branch_usize,
+                            .moved = false,
+                            .reorder_drag = false,
+                        };
+                    } else {
+                        frameTreeResetRowPointerGesture(file);
+                    }
+                    continue;
+                }
+
+                if (me.action == .motion) {
+                    if (frame_row_gesture) |*g| {
+                        if (g.file_id == file.id and g.anim_id == anim_id) {
+                            const dx = me.p.x - g.press_p.x;
+                            const dy = me.p.y - g.press_p.y;
+                            if (dx * dx + dy * dy > 16.0) {
+                                g.moved = true;
+                            }
+                        }
+                    }
+
+                    if (tree.reorderDragActive()) {
+                        _ = tree.matchEvent(e);
+                        continue;
+                    }
+
+                    const branch_usize = if (frameGestureMatches(file, anim_id)) frame_row_gesture.?.drag_branch else null;
+                    if (branch_usize == null) continue;
+                    _ = tree.matchEvent(e);
+                    if (!animationTreeMotionAllowsReorder(tree, e)) continue;
+
+                    const prev_th = dvui.Dragging.threshold;
+                    dvui.Dragging.threshold = @max(prev_th, 8.0);
+                    defer dvui.Dragging.threshold = prev_th;
+                    if (dvui.dragging(me.p, null)) |_| {
+                        var row_size: dvui.Size = .{};
+                        for (hits) |h| {
+                            if (h.branch_usize == branch_usize.?) {
+                                const rn = h.row_r.toNatural();
+                                row_size = .{ .w = rn.w, .h = rn.h };
+                                break;
+                            }
+                        }
+                        tree.dragStart(branch_usize.?, me.p, row_size);
+                        if (frame_row_gesture) |*g| {
+                            if (g.file_id == file.id and g.anim_id == anim_id) {
+                                g.reorder_drag = true;
+                                g.drag_branch = null;
+                            }
+                        }
+                    }
+                } else if (me.action == .release and me.button.pointer()) {
+                    const release_in_vp = animationPointerInScrollViewport(me.p, viewport_r);
+
+                    var release_frame_idx: ?usize = null;
+                    var rj = hits.len;
+                    while (rj > 0) {
+                        rj -= 1;
+                        const h = hits[rj];
+                        if (release_in_vp and h.row_r.contains(me.p) and !h.buttons_r.contains(me.p)) {
+                            release_frame_idx = h.frame_index;
+                            break;
+                        }
+                    }
+
+                    const idx_opt: ?usize = if (frameGestureMatches(file, anim_id)) frame_row_gesture.?.press_idx else null;
+                    const did_reorder = if (frameGestureMatches(file, anim_id)) frame_row_gesture.?.reorder_drag else false;
+
+                    var selected_on_release = false;
+                    if (!did_reorder and !tree.drag_ending) {
+                        if (release_in_vp) {
+                            const frames = file.animations.get(animation_index).frames;
+                            if (release_frame_idx) |f_idx| {
+                                if (f_idx < frames.len) {
+                                    const spr = frames[f_idx].sprite_index;
+                                    if (spr < file.editor.selected_sprites.capacity()) {
+                                        if (me.mod.matchBind("ctrl/cmd")) {
+                                            file.editor.selected_sprites.set(spr);
+                                        } else if (me.mod.matchBind("shift")) {
+                                            file.editor.selected_sprites.unset(spr);
+                                        } else {
+                                            file.clearSelectedSprites();
+                                            file.editor.selected_sprites.set(spr);
+                                            file.selected_animation_frame_index = f_idx;
+                                        }
+                                        selected_on_release = true;
+                                    }
+                                }
+                            } else if (idx_opt) |idx| {
+                                if (idx < frames.len) {
+                                    const spr = frames[idx].sprite_index;
+                                    if (spr < file.editor.selected_sprites.capacity()) {
+                                        if (me.mod.matchBind("ctrl/cmd")) {
+                                            file.editor.selected_sprites.set(spr);
+                                        } else if (me.mod.matchBind("shift")) {
+                                            file.editor.selected_sprites.unset(spr);
+                                        } else {
+                                            file.clearSelectedSprites();
+                                            file.editor.selected_sprites.set(spr);
+                                            file.selected_animation_frame_index = idx;
+                                        }
+                                        selected_on_release = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (idx_opt != null) {
+                        frameTreeResetRowPointerGesture(file);
+                        if (!did_reorder and !dvui.captured(tree.data().id)) {
+                            dvui.captureMouse(null, e.num);
+                        }
+                    }
+
+                    if (selected_on_release) {
+                        dvui.refresh(null, @src(), tree.data().id);
+                    }
+                }
+            },
+            else => {},
+        }
+    }
+}
+
+/// Geometry for one animation row; used for tree pointer pass (reorder / click / rename).
+const AnimationRowHit = struct {
+    row_r: dvui.Rect.Physical,
+    buttons_r: dvui.Rect.Physical,
+    branch_usize: usize,
+    anim_index: usize,
+    hbox_tl: dvui.Point.Physical,
+    label_r: ?dvui.Rect.Physical,
+};
+
+fn animationGestureMatches(file: *const pixi.Internal.File) bool {
+    return animation_row_gesture != null and animation_row_gesture.?.file_id == file.id;
+}
+
+fn animationTreeClearGestureKeysOnly(_: *const pixi.Internal.File) void {
+    animation_row_gesture = null;
+}
+
+fn animationTreeResetRowPointerGesture(_: *const pixi.Internal.File) void {
+    dvui.dragEnd();
+    animation_row_gesture = null;
+}
+
+fn animationPointerRenameConsumes(e: *const dvui.Event, me: dvui.Event.Mouse) bool {
+    if (e.handled) return true;
+    if (anim_rename_hit_te_id) |rid| {
+        if (e.target_widgetId) |tid| {
+            if (tid == rid) return true;
+        }
+    }
+    if (anim_rename_hit_rect) |r| {
+        if (r.contains(me.p)) return true;
+    }
+    return false;
+}
+
+fn animationPointerInScrollViewport(p: dvui.Point.Physical, viewport_r: ?dvui.Rect.Physical) bool {
+    if (viewport_r) |r| return r.contains(p);
+    return true;
+}
+
+fn animationTreePointerInTreeSurface(tree: *pixi.dvui.TreeWidget, p: dvui.Point.Physical, floating_win: dvui.Id) bool {
+    if (floating_win != dvui.subwindowCurrentId()) return false;
+    const tr = tree.data().borderRectScale().r;
+    if (!tr.contains(p)) return false;
+    if (!dvui.clipGet().contains(p)) return false;
+    return true;
+}
+
+fn animationTreePointerInTreeBorder(tree: *pixi.dvui.TreeWidget, p: dvui.Point.Physical, floating_win: dvui.Id) bool {
+    if (floating_win != dvui.subwindowCurrentId()) return false;
+    return tree.data().borderRectScale().r.contains(p);
+}
+
+fn animationTreeMotionAllowsReorder(tree: *pixi.dvui.TreeWidget, e: *dvui.Event) bool {
+    if (e.target_widgetId) |fwid| {
+        if (fwid == tree.data().id) return true;
+    }
+    const cw = dvui.currentWindow();
+    if (cw.dragging.state == .dragging and cw.dragging.name != null) return false;
+    const me = e.evt.mouse;
+    const in_surface = animationTreePointerInTreeSurface(tree, me.p, me.floating_win);
+    const in_border = animationTreePointerInTreeBorder(tree, me.p, me.floating_win);
+    return in_surface or in_border;
+}
+
+fn syncAnimationSelectionFrames(file: *pixi.Internal.File, anim_index: usize) void {
+    const anim = file.animations.get(anim_index);
+    if (anim.frames.len > 0) {
+        if (file.selected_animation_frame_index >= anim.frames.len) {
+            file.selected_animation_frame_index = anim.frames.len - 1;
+        }
+    } else {
+        file.selected_animation_frame_index = 0;
+    }
+}
+
+fn processAnimationTreePointerEvents(self: *Sprites, tree: *pixi.dvui.TreeWidget, file: *pixi.Internal.File, hits: []const AnimationRowHit, viewport_r: ?dvui.Rect.Physical) void {
+    if (!tree.init_options.enable_reordering) return;
+
+    for (dvui.events()) |*e| {
+        switch (e.evt) {
+            .mouse => |me| {
+                if (me.action == .press and me.button.pointer()) {
+                    if (animationPointerRenameConsumes(e, me)) continue;
+                    if (!animationPointerInScrollViewport(me.p, viewport_r)) continue;
+
+                    var row_hit: ?AnimationRowHit = null;
+                    var ri = hits.len;
+                    while (ri > 0) {
+                        ri -= 1;
+                        const h = hits[ri];
+                        if (h.row_r.contains(me.p) and !h.buttons_r.contains(me.p)) {
+                            row_hit = h;
+                            break;
+                        }
+                    }
+                    if (row_hit) |h| {
+                        const cw = dvui.currentWindow();
+                        if (cw.dragging.state != .none) dvui.dragEnd();
+                        animationTreeClearGestureKeysOnly(file);
+                        dvui.dragPreStart(me.p, .{ .offset = h.hbox_tl.diff(me.p) });
+                        animation_row_gesture = .{
+                            .file_id = file.id,
+                            .press_idx = h.anim_index,
+                            .press_p = me.p,
+                            .drag_branch = h.branch_usize,
+                            .moved = false,
+                            .reorder_drag = false,
+                        };
+                    } else {
+                        animationTreeResetRowPointerGesture(file);
+                    }
+                    continue;
+                }
+
+                if (me.action == .motion) {
+                    if (animationPointerRenameConsumes(e, me)) continue;
+
+                    if (animation_row_gesture) |*g| {
+                        if (g.file_id == file.id) {
+                            const dx = me.p.x - g.press_p.x;
+                            const dy = me.p.y - g.press_p.y;
+                            if (dx * dx + dy * dy > 16.0) {
+                                g.moved = true;
+                            }
+                        }
+                    }
+
+                    if (tree.reorderDragActive()) {
+                        _ = tree.matchEvent(e);
+                        continue;
+                    }
+
+                    const branch_usize = if (animationGestureMatches(file)) animation_row_gesture.?.drag_branch else null;
+                    if (branch_usize == null) continue;
+                    _ = tree.matchEvent(e);
+                    if (!animationTreeMotionAllowsReorder(tree, e)) continue;
+
+                    const prev_th = dvui.Dragging.threshold;
+                    dvui.Dragging.threshold = @max(prev_th, 8.0);
+                    defer dvui.Dragging.threshold = prev_th;
+                    if (dvui.dragging(me.p, null)) |_| {
+                        var row_size: dvui.Size = .{};
+                        for (hits) |h| {
+                            if (h.branch_usize == branch_usize.?) {
+                                const rn = h.row_r.toNatural();
+                                row_size = .{ .w = rn.w, .h = rn.h };
+                                break;
+                            }
+                        }
+                        tree.dragStart(branch_usize.?, me.p, row_size);
+                        if (animation_row_gesture) |*g| {
+                            if (g.file_id == file.id) {
+                                g.reorder_drag = true;
+                                g.drag_branch = null;
+                            }
+                        }
+                    }
+                } else if (me.action == .release and me.button.pointer()) {
+                    if (animationPointerRenameConsumes(e, me)) continue;
+
+                    const release_in_vp = animationPointerInScrollViewport(me.p, viewport_r);
+
+                    const sel_before = file.selected_animation_index;
+                    var release_anim: ?usize = null;
+                    var rj = hits.len;
+                    while (rj > 0) {
+                        rj -= 1;
+                        const h = hits[rj];
+                        if (release_in_vp and h.row_r.contains(me.p) and !h.buttons_r.contains(me.p)) {
+                            release_anim = h.anim_index;
+                            break;
+                        }
+                    }
+
+                    const idx_opt: ?usize = if (animationGestureMatches(file)) animation_row_gesture.?.press_idx else null;
+                    const did_reorder = if (animationGestureMatches(file)) animation_row_gesture.?.reorder_drag else false;
+
+                    var selected_on_release = false;
+                    if (!did_reorder and !tree.drag_ending) {
+                        if (release_in_vp) {
+                            if (release_anim) |rh| {
+                                file.selected_animation_index = rh;
+                                syncAnimationSelectionFrames(file, rh);
+                                selected_on_release = true;
+                            } else if (idx_opt) |idx| {
+                                file.selected_animation_index = idx;
+                                syncAnimationSelectionFrames(file, idx);
+                                selected_on_release = true;
+                            }
+                        }
+                    }
+
+                    var opened_animation_rename = false;
+                    const moved_while_armed = if (animationGestureMatches(file)) animation_row_gesture.?.moved else false;
+
+                    if (!did_reorder and !tree.drag_ending and !moved_while_armed and release_in_vp) {
+                        if (idx_opt) |pi| {
+                            if (release_anim) |rl| {
+                                if (pi == rl and sel_before == pi) {
+                                    if (animationGestureMatches(file)) {
+                                        const pp = animation_row_gesture.?.press_p;
+                                        for (hits) |h| {
+                                            if (h.anim_index != pi) continue;
+                                            if (h.label_r) |lr| {
+                                                if (animationPointerInScrollViewport(pp, viewport_r) and lr.contains(pp) and lr.contains(me.p)) {
+                                                    self.edit_anim_id = file.animations.items(.id)[pi];
+                                                    opened_animation_rename = true;
+                                                }
+                                            }
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (idx_opt != null) {
+                        animationTreeResetRowPointerGesture(file);
+                        if (!did_reorder and !dvui.captured(tree.data().id)) {
+                            dvui.captureMouse(null, e.num);
+                        }
+                    }
+
+                    if (selected_on_release or opened_animation_rename) {
+                        dvui.refresh(null, @src(), tree.data().id);
+                    }
+                }
+            },
+            else => {},
+        }
     }
 }
 

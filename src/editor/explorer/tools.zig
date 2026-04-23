@@ -482,7 +482,7 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
                 .corner_radius = dvui.Rect.all(1000),
                 .background = false,
                 .margin = .all(0),
-                .padding = .all(2),
+                .padding = dvui.Rect.all(1),
             });
             defer branch.deinit();
 
@@ -542,7 +542,7 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
                     .transparent,
                 .color_fill_hover = .transparent,
                 .margin = dvui.Rect{},
-                .padding = dvui.Rect.all(0),
+                .padding = dvui.Rect.all(1),
                 .corner_radius = dvui.Rect.all(8),
                 .box_shadow = null,
             });
@@ -566,7 +566,7 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
                 .min_size_content = .{ .w = 8.0, .h = 8.0 },
                 .color_fill = color,
                 .corner_radius = dvui.Rect.all(1000),
-                .margin = .{ .x = 4, .w = 4 },
+                .margin = dvui.Rect.all(2),
                 .padding = dvui.Rect.all(0),
             });
             color_box.deinit();
