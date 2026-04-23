@@ -1356,6 +1356,17 @@ pub fn clearSelectedSprites(file: *File) void {
     file.editor.selected_sprites.setRangeValue(.{ .start = 0, .end = file.spriteCount() }, false);
 }
 
+/// Collapse animation list multi-selection to the current primary only. Used when the primary is
+/// set from the canvas/grid; the animation tree keeps multi-select via `applyAnimationClick`, but
+/// those paths must not leave stale extra indices when the grid picks a new animation.
+pub fn collapseAnimationSelectionToPrimary(file: *File) void {
+    if (file.selected_animation_index) |p| {
+        file.editor.selected_animation_indices.clearRetainingCapacity();
+        file.editor.selected_animation_indices.append(pixi.app.allocator, p) catch return;
+        file.editor.animation_selection_anchor = p;
+    }
+}
+
 pub fn setSpriteSelection(file: *File, selection_rect: dvui.Rect, value: bool) void {
     for (0..spriteCount(file)) |index| {
         if (!file.spriteRect(index).intersect(selection_rect).empty()) {
