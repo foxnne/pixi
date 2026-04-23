@@ -1666,7 +1666,7 @@ pub fn drawFrames(self: *Sprites) !void {
                     .min_size_content = .{ .w = 8.0, .h = 8.0 },
                     .color_fill = anim_color,
                     .corner_radius = dvui.Rect.all(1000),
-                    .margin = dvui.Rect.all(0),
+                    .margin = .{ .x = 2, .w = 4 },
                     .padding = dvui.Rect.all(0),
                 });
                 color_box.deinit();
