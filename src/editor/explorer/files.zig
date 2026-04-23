@@ -23,6 +23,14 @@ pub var selection_anchor: ?usize = null;
 const FileVisRow = struct { id: usize, path: []const u8 };
 var visible_file_rows_order: std.ArrayListUnmanaged(FileVisRow) = .empty;
 
+/// Shift-range uses row order built incrementally during draw; applying mid-traverse misses the anchor
+/// when it appears later in DFS than the clicked row. Flush after the tree pass completes.
+var pending_file_shift_range: ?struct {
+    anchor_id: usize,
+    clicked_id: usize,
+    clicked_path: []const u8,
+} = null;
+
 /// Set from New File dialog when creating on disk; tree uses this to expand parents, focus rename, and set `new_file_close_rect`.
 pub var new_file_path: ?[]const u8 = null;
 /// When set, the dialog animates into this rect (explorer row) then closes.
@@ -340,6 +348,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
     var id_extra: usize = 0;
 
     visible_file_rows_order.clearRetainingCapacity();
+    errdefer pending_file_shift_range = null;
 
     const recursor = struct {
         fn search(directory: []const u8, tree: *pixi.dvui.TreeWidget, inner_unique_id: dvui.Id, inner_id_extra: *usize, color_id: *usize, filter_text: []const u8, parent_branch: ?*pixi.dvui.TreeWidget.Branch) !void {
@@ -516,12 +525,11 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                                 .expand = .horizontal,
                             })) != null) {
                                 const arena = dvui.currentWindow().arena();
-                                const top = selectionPathsSorted(arena) catch |err| blk: {
-                                    dvui.log.err("Failed to collect selection paths: {any}", .{err});
+                                const to_open = selectionTopMostOpenableFilesForOpenActions(arena) catch |err| blk: {
+                                    dvui.log.err("Failed to collect files to open: {any}", .{err});
                                     break :blk &[_][]const u8{};
                                 };
-                                for (top) |p| {
-                                    if (!openablePath(p)) continue;
+                                for (to_open) |p| {
                                     _ = pixi.editor.openFilePath(p, pixi.editor.currentGroupingID()) catch |e| {
                                         dvui.log.err("Failed to open file: {any} ({s})", .{ e, p });
                                     };
@@ -534,14 +542,13 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                                 .expand = .horizontal,
                             })) != null) {
                                 const arena = dvui.currentWindow().arena();
-                                const top = selectionPathsSorted(arena) catch |err| blk: {
-                                    dvui.log.err("Failed to collect selection paths: {any}", .{err});
+                                const to_open = selectionTopMostOpenableFilesForOpenActions(arena) catch |err| blk: {
+                                    dvui.log.err("Failed to collect files to open: {any}", .{err});
                                     break :blk &[_][]const u8{};
                                 };
                                 var side_grouping: u64 = undefined;
                                 var have_grouping = false;
-                                for (top) |p| {
-                                    if (!openablePath(p)) continue;
+                                for (to_open) |p| {
                                     if (!have_grouping) {
                                         side_grouping = if (pixi.editor.open_files.count() == 0)
                                             pixi.editor.currentGroupingID()
@@ -801,6 +808,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
     }.search;
 
     try recursor(root_directory, outer_tree, unique_id, &id_extra, &color_i, outer_filter_text, null);
+    flushPendingFileShiftRange();
 
     return;
 }
@@ -860,9 +868,19 @@ fn applyFileClick(id: usize, path: []const u8, mode: pixi.dvui.TreeSelection.Cli
         },
         .extend => {
             const pivot = selection_anchor orelse selected_id orelse id;
-            applyFileShiftRange(id, path, pivot);
+            pending_file_shift_range = .{
+                .anchor_id = pivot,
+                .clicked_id = id,
+                .clicked_path = path,
+            };
         },
     }
+}
+
+fn flushPendingFileShiftRange() void {
+    const p = pending_file_shift_range orelse return;
+    pending_file_shift_range = null;
+    applyFileShiftRange(p.clicked_id, p.clicked_path, p.anchor_id);
 }
 
 fn applyFileShiftRange(clicked_id: usize, clicked_path: []const u8, anchor_id: usize) void {
@@ -953,6 +971,43 @@ fn openablePath(abs_path: []const u8) bool {
         .pixi, .png, .jpg => true,
         else => false,
     };
+}
+
+fn appendOpenableFilesInTree(arena: std.mem.Allocator, root_abs: []const u8, out: *std.ArrayListUnmanaged([]const u8)) !void {
+    var dir = std.fs.openDirAbsolute(root_abs, .{ .iterate = true }) catch |err| {
+        dvui.log.err("Failed to open directory for open: {s} ({any})", .{ root_abs, err });
+        return;
+    };
+    defer dir.close();
+    var walker = try dir.walk(arena);
+    defer walker.deinit();
+    while (try walker.next()) |entry| {
+        if (entry.kind != .file) continue;
+        const full = try std.fs.path.join(arena, &.{ root_abs, entry.path });
+        if (!openablePath(full)) continue;
+        try out.append(arena, try arena.dupe(u8, full));
+    }
+}
+
+/// Top-most selection (no selected ancestor), then every openable canvas file: each selected file,
+/// plus all openable descendants of selected directories. Sorted lexically. Not used for delete.
+fn selectionTopMostOpenableFilesForOpenActions(arena: std.mem.Allocator) ![]const []const u8 {
+    const top = try selectionPathsSorted(arena);
+    var files: std.ArrayListUnmanaged([]const u8) = .empty;
+    errdefer files.deinit(arena);
+    for (top) |p| {
+        if (pathIsDirAbsolute(p)) {
+            try appendOpenableFilesInTree(arena, p, &files);
+        } else if (openablePath(p)) {
+            try files.append(arena, try arena.dupe(u8, p));
+        }
+    }
+    std.mem.sort([]const u8, files.items, {}, struct {
+        fn lt(_: void, a: []const u8, b: []const u8) bool {
+            return std.mem.order(u8, a, b) == .lt;
+        }
+    }.lt);
+    return files.toOwnedSlice(arena);
 }
 
 /// Branch ids for `TreeWidget.selected_branch_ids`: same as selection, minus descendants when a parent folder is also selected.
