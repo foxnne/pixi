@@ -167,12 +167,12 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
         .corner_radius = dvui.Rect.all(10),
         .max_size_content = maxSize,
         .border = .all(0),
-        .color_fill = dvui.themeGet().color(.control, .fill).opacity(0.85),
+        .color_fill = dvui.themeGet().color(.content, .fill).opacity(0.85),
         .box_shadow = .{
             .color = .black,
             .alpha = 0.35,
-            .offset = .{ .x = -4, .y = 4 },
             .fade = 10,
+            .corner_radius = dvui.Rect.all(10),
         },
     });
     defer win.deinit();
@@ -314,7 +314,13 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
 }
 
 pub fn windowHeader(str: []const u8, right_str: []const u8, openflag: ?*bool) dvui.Rect.Physical {
-    var over = dvui.overlay(@src(), .{ .expand = .horizontal, .name = "WindowHeader", .background = true, .color_fill = dvui.themeGet().color(.control, .fill), .corner_radius = .{ .x = 10, .y = 10 } });
+    var over = dvui.overlay(@src(), .{
+        .expand = .horizontal,
+        .name = "WindowHeader",
+        .background = true,
+        .color_fill = dvui.themeGet().color(.content, .fill),
+        .corner_radius = .{ .x = 10, .y = 10 },
+    });
 
     dvui.labelNoFmt(@src(), str, .{ .align_x = 0.5 }, .{
         .expand = .horizontal,
