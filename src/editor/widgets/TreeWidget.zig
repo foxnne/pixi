@@ -1,6 +1,21 @@
 const std = @import("std");
 const dvui = @import("dvui");
 
+/// True when a primary-button release in `r` used shift/ctrl/cmd (selection modifiers).
+fn pointerReleaseInRectHasSelectionModifier(r: dvui.Rect.Physical) bool {
+    for (dvui.events()) |*e| {
+        switch (e.evt) {
+            .mouse => |me| {
+                if (me.action == .release and me.button.pointer() and r.contains(me.p)) {
+                    return me.mod.shift() or me.mod.control() or me.mod.command();
+                }
+            },
+            else => {},
+        }
+    }
+    return false;
+}
+
 const Options = dvui.Options;
 const Rect = dvui.Rect;
 const RectScale = dvui.RectScale;
@@ -13,8 +28,14 @@ const TreeWidget = @This();
 
 wd: WidgetData = undefined,
 layout: dvui.BasicLayout = .{},
-/// Which row is being dragged; matches `Branch.InitOptions.branch_id` (or branch widget id).
+/// Primary dragged row; matches `Branch.InitOptions.branch_id` (or branch widget id). For
+/// multi-drag, row content is still drawn in a stacked floating preview; this id matches the row
+/// that initiated the drag / receives drop-target semantics as before.
 id_branch: ?usize = null,
+/// When non-null, this is the full set of branch ids being dragged together (includes the primary).
+/// Each id gets an in-tree placeholder slot and its row content is drawn in a stacked floating
+/// preview. For a single-item drag this is null and only `id_branch` is used.
+drag_branch_ids: ?[]usize = null,
 drag_point: ?dvui.Point.Physical = null,
 drag_ending: bool = false,
 branch_size: Size = .{},
@@ -28,6 +49,10 @@ drop_target_drop_into: bool = false,
 /// Row size (natural) captured at `dragStart`; used for placeholder + floating min size so the
 /// drag source's button laid out in a floating subwindow cannot inflate `branch_size` unbounded.
 drag_row_size: ?Size = null,
+/// Optional consumer-provided selection: when a branch that is in this set starts a drag, the
+/// tree upgrades to a multi-item drag with this exact set. Lifetime: must remain valid for the
+/// duration of this frame (not stored across frames by the tree).
+selected_branch_ids: ?[]const usize = null,
 
 pub const InitOptions = struct {
     enable_reordering: bool = true,
@@ -45,6 +70,7 @@ pub fn init(self: *TreeWidget, src: std.builtin.SourceLocation, init_opts: InitO
     self.drag_point = dvui.dataGet(null, self.wd.id, "_drag_point", dvui.Point.Physical) orelse null;
     self.branch_size = dvui.dataGet(null, self.wd.id, "_branch_size", dvui.Size) orelse dvui.Size{};
     self.drag_row_size = dvui.dataGet(null, self.wd.id, "_drag_row_size", Size);
+    self.drag_branch_ids = dvui.dataGetSlice(null, self.wd.id, "_drag_branch_ids", []usize);
     if (init_opts.drag_name) |dn| {
         if (self.drag_point != null and !dvui.dragName(dn)) {
             self.drag_ending = true;
@@ -164,6 +190,7 @@ pub fn deinit(self: *TreeWidget) void {
         self.id_branch = null;
         self.drag_point = null;
         self.drag_row_size = null;
+        self.drag_branch_ids = null;
         dvui.refresh(null, @src(), self.data().id);
     }
 
@@ -187,6 +214,13 @@ pub fn deinit(self: *TreeWidget) void {
         dvui.dataRemove(null, self.data().id, "_drag_row_size");
     }
 
+    // Do NOT re-`dataSetSlice` here: `init` populated `drag_branch_ids` from dvui's internal
+    // storage, so re-writing the same slice would be an aliasing memcpy (@memcpy arguments alias).
+    // `dragStart*` owns writes to this slot; here we only need to clear it when the drag ended.
+    if (self.drag_branch_ids == null) {
+        dvui.dataRemove(null, self.data().id, "_drag_branch_ids");
+    }
+
     self.data().minSizeSetAndRefresh();
     self.data().minSizeReportToParent();
     dvui.parentReset(self.data().id, self.data().parent);
@@ -197,11 +231,65 @@ pub fn dragStart(self: *TreeWidget, branch_id: usize, p: dvui.Point.Physical, ro
     self.id_branch = branch_id;
     self.drag_point = p;
     self.drag_row_size = if (row_size.w > 0 and row_size.h > 0) row_size else self.branch_size;
+    self.drag_branch_ids = null;
+    dvui.dataRemove(null, self.wd.id, "_drag_branch_ids");
     dvui.captureMouse(self.data(), 0);
     if (self.init_options.drag_name) |dn| {
         dvui.dragStart(p, .{ .name = dn });
         dvui.captureMouse(null, 0);
     }
+}
+
+/// Multi-row drag. `primary_branch_id` is the one rendered as the floating ghost; `branch_ids` is the
+/// full set of rows being dragged together (must include `primary_branch_id`). Every row in the set
+/// gets a reserved placeholder slot and its content is faded while the drag is active. The caller is
+/// responsible for interpreting the drop target and moving all rows as a group.
+pub fn dragStartMulti(
+    self: *TreeWidget,
+    primary_branch_id: usize,
+    branch_ids: []const usize,
+    p: dvui.Point.Physical,
+    row_size: Size,
+) void {
+    self.id_branch = primary_branch_id;
+    self.drag_point = p;
+    self.drag_row_size = if (row_size.w > 0 and row_size.h > 0) row_size else self.branch_size;
+    if (branch_ids.len > 1) {
+        dvui.dataSetSlice(null, self.wd.id, "_drag_branch_ids", branch_ids);
+        self.drag_branch_ids = dvui.dataGetSlice(null, self.wd.id, "_drag_branch_ids", []usize);
+    } else {
+        self.drag_branch_ids = null;
+        dvui.dataRemove(null, self.wd.id, "_drag_branch_ids");
+    }
+    dvui.captureMouse(self.data(), 0);
+    if (self.init_options.drag_name) |dn| {
+        dvui.dragStart(p, .{ .name = dn });
+        dvui.captureMouse(null, 0);
+    }
+}
+
+/// Returns true if `branch_id` is part of the active drag (either the primary, or a secondary row
+/// in a multi-drag set).
+pub fn isDragSource(self: *TreeWidget, branch_id: usize) bool {
+    if (self.drag_branch_ids) |ids| {
+        for (ids) |id| {
+            if (id == branch_id) return true;
+        }
+        return false;
+    }
+    if (self.id_branch) |idb| return idb == branch_id;
+    return false;
+}
+
+/// Index of `branch_id` in the multi-drag set (stack order in the floating preview). Single-item
+/// drags always use 0. When `drag_branch_ids` is null, returns 0.
+pub fn multiDragStackIndex(self: *TreeWidget, branch_id: usize) usize {
+    if (self.drag_branch_ids) |ids| {
+        for (ids, 0..) |id, i| {
+            if (id == branch_id) return i;
+        }
+    }
+    return 0;
 }
 
 /// True while a row reorder interaction is active: `dragStart` ran and/or this tree holds capture.
@@ -297,10 +385,23 @@ pub const Branch = struct {
 
     // can call this after init before install
     pub fn floating(self: *Branch) bool {
-        if (self.tree.drag_point != null and self.tree.id_branch.? == (self.init_options.branch_id orelse self.data().id.asUsize()) and !self.tree.drag_ending) {
-            return true;
-        }
+        if (self.tree.drag_point == null or self.tree.drag_ending) return false;
+        return self.floating_widget != null;
+    }
 
+    /// True while this branch is a secondary source of an active multi-drag (dragged but not the
+    /// primary "floating ghost" row). Callers can use this to render the row as a placeholder slot.
+    pub fn dragSourceSecondary(self: *Branch) bool {
+        if (self.tree.drag_point == null or self.tree.drag_ending) return false;
+        const bid = self.init_options.branch_id orelse self.data().id.asUsize();
+        if (self.tree.id_branch) |idb| {
+            if (idb == bid) return false;
+        }
+        if (self.tree.drag_branch_ids) |ids| {
+            for (ids) |id| {
+                if (id == bid) return true;
+            }
+        }
         return false;
     }
 
@@ -309,17 +410,19 @@ pub const Branch = struct {
         var check_button_hovered: bool = false;
         const branch_id = self.init_options.branch_id orelse self.data().id.asUsize();
         if (self.tree.drag_point) |dp| {
-            const topleft = dp.plus(dvui.dragOffset().plus(.{ .x = 5, .y = 5 }));
-            if (self.tree.id_branch.? == branch_id) {
+            if (self.tree.isDragSource(branch_id)) {
                 const drag_min = self.tree.drag_row_size orelse self.tree.branch_size;
-                // We are the drag source: reserve our original slot so tree shape does not collapse.
+                const stack_i = self.tree.multiDragStackIndex(branch_id);
+                const row_gap: f32 = 2.0;
+
+                // Reserve the original slot so tree shape does not collapse; row chrome is drawn only
+                // in the floating subwindow below (same for primary and secondary multi-drag rows).
                 self.wd = WidgetData.init(self.wd.src, .{}, wrapOuter(self.options).override(.{
                     .min_size_content = drag_min,
                 }));
                 self.wd.register();
                 dvui.parentSet(self.widget());
 
-                // Placeholder only (see floating `ButtonWidget` below). Use this rect, not `row_rs`, or the tint tracks the cursor.
                 const slot_rs = self.wd.borderRectScale().r;
                 const over_slot = slot_rs.contains(dvui.currentWindow().mouse_pt);
                 if (over_slot) {
@@ -328,12 +431,15 @@ pub const Branch = struct {
                     slot_rs.fill(.all(8), .{ .color = dvui.themeGet().color(.err, .fill), .fade = 0.25 });
                 }
 
+                var npt = dp.plus(dvui.dragOffset().plus(.{ .x = 5, .y = 5 })).toNatural();
+                npt.y += @as(f32, @floatFromInt(stack_i)) * (drag_min.h + row_gap);
+
                 self.floating_widget = @as(dvui.FloatingWidget, undefined);
                 self.floating_widget.?.init(
                     @src(),
                     .{ .mouse_events = false },
                     .{
-                        .rect = Rect.fromPoint(.cast(topleft.toNatural())),
+                        .rect = Rect.fromPoint(.cast(npt)),
                         .min_size_content = drag_min,
                         .background = true,
                         .corner_radius = dvui.Rect.all(8),
@@ -350,10 +456,6 @@ pub const Branch = struct {
                         },
                     },
                 );
-
-                // Drag source content should appear as a ghost while moving.
-                self.drag_alpha_restore = dvui.alpha(1.0);
-                dvui.alphaSet(self.drag_alpha_restore.? * 0.9);
             } else {
                 self.wd = WidgetData.init(self.wd.src, .{}, wrapOuter(self.options));
                 self.wd.register();
@@ -388,7 +490,7 @@ pub const Branch = struct {
             dvui.parentSet(self.widget());
         }
 
-        self.button.init(@src(), .{}, wrapInner(self.options).override(.{ .expand = self.options.expand }));
+        self.button.init(@src(), .{ .draw_focus = false }, wrapInner(self.options).override(.{ .expand = self.options.expand }));
         if (self.init_options.process_events) {
             self.button.processEvents();
         }
@@ -451,7 +553,22 @@ pub const Branch = struct {
                         if (dvui.captured(self.button.data().id)) {
                             e.handle(@src(), self.button.data());
                             if (dvui.dragging(me.p, null)) |_| {
-                                self.tree.dragStart(self.data().id.asUsize(), me.p, self.button.data().rect.size());
+                                const bid = self.init_options.branch_id orelse self.data().id.asUsize();
+                                const row_size = self.button.data().rect.size();
+                                if (self.tree.selected_branch_ids) |ids| {
+                                    var this_in = false;
+                                    for (ids) |i| if (i == bid) {
+                                        this_in = true;
+                                        break;
+                                    };
+                                    if (this_in and ids.len > 1) {
+                                        self.tree.dragStartMulti(bid, ids, me.p, row_size);
+                                    } else {
+                                        self.tree.dragStart(bid, me.p, row_size);
+                                    }
+                                } else {
+                                    self.tree.dragStart(bid, me.p, row_size);
+                                }
                             }
                         }
                     }
@@ -506,7 +623,10 @@ pub const Branch = struct {
     pub fn expander(self: *Branch, src: std.builtin.SourceLocation, init_opts: ExpanderOptions, opts: Options) bool {
         var clicked: bool = false;
         if (self.button.clicked()) {
-            clicked = true;
+            const r = self.button.data().borderRectScale().r;
+            if (!pointerReleaseInRectHasSelectionModifier(r)) {
+                clicked = true;
+            }
         }
 
         self.hbox.deinit();
@@ -565,10 +685,17 @@ pub const Branch = struct {
     }
 
     pub fn removed(self: *Branch) bool {
-        if (self.tree.drag_ending and self.tree.id_branch.? == (self.init_options.branch_id orelse self.data().id.asUsize())) {
-            return true;
+        if (!self.tree.drag_ending) return false;
+        const bid = self.init_options.branch_id orelse self.data().id.asUsize();
+        if (self.tree.drag_branch_ids) |ids| {
+            for (ids) |id| {
+                if (id == bid) return true;
+            }
+            return false;
         }
-
+        if (self.tree.id_branch) |idb| {
+            if (idb == bid) return true;
+        }
         return false;
     }
 

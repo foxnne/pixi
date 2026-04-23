@@ -12,3 +12,4 @@ pub const ReorderWidget = @import("ReorderWidget.zig");
 pub const PanedWidget = @import("PanedWidget.zig");
 pub const FloatingWindowWidget = @import("FloatingWindowWidget.zig");
 pub const TreeWidget = @import("TreeWidget.zig");
+pub const TreeSelection = @import("TreeSelection.zig");
