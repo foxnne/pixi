@@ -261,6 +261,7 @@ pub fn processAnimationSelection(self: *FileWidget) void {
                                     if (!file.editor.playing)
                                         file.selected_animation_frame_index = frame_index;
 
+                                    file.collapseAnimationSelectionToPrimary();
                                     found = true;
                                     break;
                                 }
@@ -1483,6 +1484,7 @@ pub fn drawSpriteBubble(
             } else {
                 if (self.init_options.file.createAnimation() catch null) |anim_index| {
                     self.init_options.file.selected_animation_index = anim_index;
+                    self.init_options.file.collapseAnimationSelectionToPrimary();
                     self.init_options.file.editor.animations_scroll_to_index = anim_index;
                     pixi.editor.explorer.sprites.edit_anim_id = self.init_options.file.animations.items(.id)[anim_index];
                     pixi.editor.explorer.pane = .sprites;
