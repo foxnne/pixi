@@ -11,6 +11,7 @@ pub fn register() !void {
 
     if (builtin.os.tag.isDarwin()) {
         try window.keybinds.putNoClobber(window.gpa, "open_folder", .{ .key = .f, .command = true });
+        try window.keybinds.putNoClobber(window.gpa, "new_file", .{ .key = .n, .command = true });
         try window.keybinds.putNoClobber(window.gpa, "open_files", .{ .key = .o, .command = true });
         try window.keybinds.putNoClobber(window.gpa, "undo", .{ .key = .z, .command = true, .shift = false });
         try window.keybinds.putNoClobber(window.gpa, "redo", .{ .key = .z, .command = true, .shift = true });
@@ -25,6 +26,7 @@ pub fn register() !void {
         try window.keybinds.putNoClobber(window.gpa, "delete_selection_contents", .{ .key = .backspace });
     } else {
         try window.keybinds.putNoClobber(window.gpa, "open_folder", .{ .key = .f, .control = true });
+        try window.keybinds.putNoClobber(window.gpa, "new_file", .{ .key = .n, .control = true });
         try window.keybinds.putNoClobber(window.gpa, "open_files", .{ .key = .o, .control = true });
         try window.keybinds.putNoClobber(window.gpa, "undo", .{ .key = .z, .control = true, .shift = false });
         try window.keybinds.putNoClobber(window.gpa, "redo", .{ .key = .z, .control = true, .shift = true });
@@ -196,6 +198,10 @@ pub fn tick() !void {
                         pixi.editor.save() catch {
                             std.log.err("Failed to save", .{});
                         };
+                    }
+
+                    if (ke.matchBind("new_file") and ke.action == .down) {
+                        pixi.editor.requestNewFileDialog();
                     }
 
                     if (ke.matchBind("transform") and ke.action == .down) {

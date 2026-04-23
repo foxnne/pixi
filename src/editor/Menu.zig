@@ -51,6 +51,13 @@ pub fn draw() !dvui.App.Result {
             fw.close();
         }
 
+        if (menuItemWithHotkey(@src(), "New File…", dvui.currentWindow().keybinds.get("new_file") orelse .{}, true, .{}, .{
+            .expand = .horizontal,
+        }) != null) {
+            pixi.editor.requestNewFileDialog();
+            fw.close();
+        }
+
         if (menuItemWithHotkey(@src(), "Open Files", dvui.currentWindow().keybinds.get("open_files") orelse .{}, true, .{}, .{
             .expand = .horizontal,
             //.style = .control,
@@ -114,16 +121,17 @@ pub fn draw() !dvui.App.Result {
 
         _ = dvui.separator(@src(), .{ .expand = .horizontal });
 
-        if (menuItemWithHotkey(@src(), "Save", dvui.currentWindow().keybinds.get("save") orelse .{}, if (pixi.editor.activeFile()) |file| if (file.dirty()) true else false else false, .{}, .{
+        if (menuItemWithHotkey(@src(), "Save", dvui.currentWindow().keybinds.get("save") orelse .{}, if (pixi.editor.activeFile()) |file|
+            (file.dirty() or !pixi.Internal.File.hasRecognizedSaveExtension(file.path))
+        else
+            false, .{}, .{
             .expand = .horizontal,
             .color_text = dvui.themeGet().color(.window, .text),
         }) != null) {
-            if (pixi.editor.activeFile()) |file| {
-                file.saveAsync() catch {
-                    std.log.err("Failed to save", .{});
-                };
-                fw.close();
-            }
+            pixi.editor.save() catch {
+                std.log.err("Failed to save", .{});
+            };
+            fw.close();
         }
 
         if (menuItemWithHotkey(@src(), "Save As…", dvui.currentWindow().keybinds.get("save_as") orelse .{}, pixi.editor.activeFile() != null, .{}, .{

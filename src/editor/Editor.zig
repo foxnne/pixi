@@ -637,11 +637,12 @@ pub fn handleNativeMenuAction(editor: *Editor, action: pixi.backend.NativeMenuAc
             }
         },
         .save => {
-            if (editor.activeFile()) |file| {
-                file.saveAsync() catch {
-                    std.log.err("Failed to save", .{});
-                };
-            }
+            editor.save() catch {
+                std.log.err("Failed to save", .{});
+            };
+        },
+        .new_file => {
+            editor.requestNewFileDialog();
         },
         .save_as => {
             editor.requestSaveAs();
@@ -1129,6 +1130,36 @@ pub fn newFile(editor: *Editor, path: []const u8, options: pixi.Internal.File.In
     return editor.open_files.getPtr(file.id) orelse return error.FailedToCreateFile;
 }
 
+/// Heap-owned path like `untitled-1`, unique among `open_files` basenames.
+pub fn allocNextUntitledPath(editor: *Editor) ![]u8 {
+    var max_n: u32 = 0;
+    for (editor.open_files.values()) |f| {
+        const base = std.fs.path.basename(f.path);
+        if (std.mem.startsWith(u8, base, "untitled-")) {
+            const suffix = base["untitled-".len..];
+            const n = std.fmt.parseUnsigned(u32, suffix, 10) catch continue;
+            max_n = @max(max_n, n);
+        } else if (std.mem.eql(u8, base, "untitled")) {
+            max_n = @max(max_n, 1);
+        }
+    }
+    return std.fmt.allocPrint(pixi.app.allocator, "untitled-{d}", .{max_n + 1});
+}
+
+/// Opens the New File dimensions dialog; on confirm, creates an in-memory `untitled-n` document (or on-disk from explorer when `_parent_path` is set).
+pub fn requestNewFileDialog(_: *Editor) void {
+    var mutex = pixi.dvui.dialog(@src(), .{
+        .displayFn = Dialogs.NewFile.dialog,
+        .callafterFn = Dialogs.NewFile.callAfter,
+        .title = "New File...",
+        .ok_label = "Create",
+        .cancel_label = "Cancel",
+        .resizeable = false,
+        .default = .ok,
+    });
+    mutex.mutex.unlock();
+}
+
 pub fn setActiveFile(editor: *Editor, index: usize) void {
     if (index >= editor.open_files.values().len) return;
     const file = editor.open_files.values()[index];
@@ -1538,10 +1569,14 @@ pub fn transform(editor: *Editor) !void {
 }
 
 /// Performs a save operation on the currently open file.
+/// Paths without a recognized on-disk extension (e.g. in-memory `untitled-n`) open Save As instead.
 pub fn save(editor: *Editor) !void {
-    if (editor.activeFile()) |file| {
-        try file.saveAsync();
+    const file = editor.activeFile() orelse return;
+    if (!pixi.Internal.File.hasRecognizedSaveExtension(file.path)) {
+        editor.requestSaveAs();
+        return;
     }
+    try file.saveAsync();
 }
 
 const save_as_dialog_filters: [3]sdl3.SDL_DialogFileFilter = .{

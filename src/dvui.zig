@@ -300,11 +300,20 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
 
         if (ok_button.clicked()) {
             if (!valid) return;
+            const fly_to_explorer_row = dvui.dataGetSlice(null, id, "_parent_path", []u8) != null;
             if (callafter) |ca| {
                 ca(id, .ok) catch {
                     dvui.log.err("Dialog callafter for {x} returned {any}", .{ id, error.FailedToCallAfter });
                     return;
                 };
+            }
+            if (!fly_to_explorer_row) {
+                var close_rect_ok = win.data().rectScale().r;
+                close_rect_ok.x = close_rect_ok.center().x;
+                close_rect_ok.y = close_rect_ok.center().y;
+                close_rect_ok.w = 1;
+                close_rect_ok.h = 1;
+                dvui.dataSet(null, win.data().id, "_close_rect", close_rect_ok);
             }
         }
         if (default != null and dvui.firstFrame(hbox.data().id) and default.? == .ok and valid) {

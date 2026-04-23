@@ -20,7 +20,7 @@ pub const min_size: [2]u32 = .{ 1, 1 };
 pub fn dialog(id: dvui.Id) anyerror!bool {
     const entry_font = dvui.Font.theme(.mono).larger(-2);
 
-    // Reference our parent path so it remains alive until the dialog is closed
+    // Touch explorer target path every frame so dvui does not drop it at Window.end before OK.
     _ = dvui.dataGetSlice(null, id, "_parent_path", []u8);
 
     var outer_box = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both });
@@ -182,37 +182,50 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
     return false;
 }
 
-/// Returns a physical rect that the dialog should animate into after closing, or null if the dialog should be removed without animation
 pub fn callAfter(id: dvui.Id, response: dvui.enums.DialogResponse) anyerror!void {
-    const path = dvui.dataGetSlice(null, id, "_parent_path", []u8) orelse {
-        dvui.log.err("Lost data for dialog {x}\n", .{id});
-        dvui.dialogRemove(id);
-        return error.LostData;
-    };
+    const parent_path = dvui.dataGetSlice(null, id, "_parent_path", []u8);
 
     switch (response) {
         .ok => {
-            const new_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{ path, "untitled.pixi" });
+            if (parent_path) |parent| {
+                const new_path = try std.fs.path.join(pixi.app.allocator, &.{ parent, "untitled.pixi" });
+                defer pixi.app.allocator.free(new_path);
 
-            var file = pixi.editor.newFile(new_path, .{
-                .column_width = column_width,
-                .row_height = row_height,
-                .columns = if (mode == .single) 1 else columns,
-                .rows = if (mode == .single) 1 else rows,
-            }) catch {
-                dvui.log.err("Failed to create file: {s}", .{path});
-                return error.FailedToCreateFile;
-            };
+                const file = pixi.editor.newFile(new_path, .{
+                    .column_width = column_width,
+                    .row_height = row_height,
+                    .columns = if (mode == .single) 1 else columns,
+                    .rows = if (mode == .single) 1 else rows,
+                }) catch {
+                    dvui.log.err("Failed to create file in folder: {s}", .{parent});
+                    return error.FailedToCreateFile;
+                };
 
-            file.saveAsync() catch {
-                dvui.log.err("Failed to save file: {s}", .{new_path});
-                return error.FailedToSaveFile;
-            };
+                // Save synchronously so the tree's directory scan sees the new file on the next draw
+                // (saveAsync would finish later and the fly-to / rename row would never match).
+                file.saveAsync() catch {
+                    dvui.log.err("Failed to save file: {s}", .{new_path});
+                    return error.FailedToSaveFile;
+                };
 
-            pixi.Editor.Explorer.files.new_file_path = pixi.app.allocator.dupe(u8, new_path) catch {
-                dvui.log.err("Failed to duplicate path: {s}", .{new_path});
-                return error.FailedToDuplicatePath;
-            };
+                if (pixi.Editor.Explorer.files.new_file_path) |old| {
+                    pixi.app.allocator.free(old);
+                }
+                pixi.Editor.Explorer.files.new_file_path = try pixi.app.allocator.dupe(u8, file.path);
+                dvui.refresh(null, @src(), dvui.currentWindow().data().id);
+            } else {
+                const new_path = try pixi.editor.allocNextUntitledPath();
+                defer pixi.app.allocator.free(new_path);
+                _ = pixi.editor.newFile(new_path, .{
+                    .column_width = column_width,
+                    .row_height = row_height,
+                    .columns = if (mode == .single) 1 else columns,
+                    .rows = if (mode == .single) 1 else rows,
+                }) catch {
+                    dvui.log.err("Failed to create new untitled file", .{});
+                    return error.FailedToCreateFile;
+                };
+            }
         },
         .cancel => {},
         else => {},
