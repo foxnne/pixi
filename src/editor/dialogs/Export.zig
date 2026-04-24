@@ -202,7 +202,7 @@ pub fn animationDialog(id: dvui.Id) anyerror!bool {
         exportDimensionsLabelForExport(column_width, row_height);
     }
 
-    return true;
+    return preview_sprite != null;
 }
 
 pub fn layerDialog(_: dvui.Id) anyerror!bool {
