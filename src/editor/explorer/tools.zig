@@ -46,7 +46,23 @@ pub fn init() Tools {
 }
 
 pub fn draw(self: *Tools) !void {
+    var tools_top = dvui.box(@src(), .{ .dir = .vertical }, .{
+        .expand = .both,
+        .background = false,
+    });
+    defer tools_top.deinit();
+
+    // First time (or after the tools pane was not drawn last frame), horizontal boxes lack
+    // published min sizes and can lay out like a vertical stack for one frame. Clip drawing
+    // until the next frame when sizes settle.
+    const tools_top_settling = dvui.firstFrame(tools_top.data().id);
+    const prev_clip: ?dvui.Rect.Physical = if (tools_top_settling)
+        dvui.clip(.{ .x = 0, .y = 0, .w = 0, .h = 0 })
+    else
+        null;
+
     drawTools() catch {};
+    if (prev_clip) |p| dvui.clipSet(p);
     drawColors() catch {};
     drawLayerControls() catch {};
 
@@ -84,18 +100,28 @@ pub fn draw(self: *Tools) !void {
         if (dvui.firstFrame(paned.data().id) and layer_count == 0)
             paned.split_ratio.* = 0.0;
 
-        const ratio = paned.getFirstFittedRatio(
-            .{
-                .min_split = 0,
-                .max_split = @min(max_split_ratio, 0.75),
-                .min_size = 0,
-            },
-        );
+        // `firstFrame` is also true the first time we see the paned after it was not drawn
+        // (e.g. another explorer tab was active). Min sizes for the subtree are not published
+        // from the prior frame, so getFirstFittedRatio can be clamped to max_split, then a
+        // second pass animates to the true fit. Restore from the saved ratio; refit+animate
+        // next frame when min sizes are valid.
+        if (dvui.firstFrame(paned.data().id) and layer_count > 0) {
+            paned.split_ratio.* = 0.01;
+            //pixi.editor.explorer.layers_ratio = paned.split_ratio.*;
+        } else {
+            const ratio = paned.getFirstFittedRatio(
+                .{
+                    .min_split = 0,
+                    .max_split = @min(max_split_ratio, 0.75),
+                    .min_size = 0,
+                },
+            );
 
-        const diff = @abs(ratio - paned.split_ratio.*);
+            const diff = @abs(ratio - paned.split_ratio.*);
 
-        if (diff > 0.000001 and layer_count > 0) {
-            paned.animateSplit(ratio, dvui.easing.outBack);
+            if (diff > 0.000001 and layer_count > 0) {
+                paned.animateSplit(ratio, dvui.easing.outBack);
+            }
         }
     } else {
         if (dvui.firstFrame(paned.data().id)) {
