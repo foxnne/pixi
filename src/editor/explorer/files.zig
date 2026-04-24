@@ -62,6 +62,15 @@ pub fn draw() !void {
     var tree = pixi.dvui.TreeWidget.tree(@src(), .{ .enable_reordering = true }, .{ .background = false, .expand = .both });
     defer tree.deinit();
 
+    // Same as tools pane header: first frame after open (or after Files wasn't drawn last frame)
+    // lacks published min sizes; clip until layout settles.
+    const files_tree_settling = dvui.firstFrame(tree.data().id);
+    const prev_clip: ?dvui.Rect.Physical = if (files_tree_settling)
+        dvui.clip(.{ .x = 0, .y = 0, .w = 0, .h = 0 })
+    else
+        null;
+    defer if (prev_clip) |p| dvui.clipSet(p);
+
     // Multi-drag uses this id list; descendants are omitted when a selected parent folder is dragged too.
     // Safe as long as `selected_paths` isn't mutated between now and `tree.deinit`.
     tree.selected_branch_ids = selectionBranchIdsForMultiDrag(dvui.currentWindow().arena()) catch selected_paths.keys();

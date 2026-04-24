@@ -345,6 +345,8 @@ pub const Branch = struct {
     expanded: bool = false,
     can_expand: bool = false,
     anim: ?*dvui.AnimateWidget = null,
+    /// Populated while `expander_vbox` is active: clip children to `anim`'s content (animated height).
+    expander_clip_prev: ?dvui.Rect.Physical = null,
     /// SAFETY: Set in `install`
     parent_focus_id: ?dvui.Id = undefined,
 
@@ -665,6 +667,10 @@ pub const Branch = struct {
 
             self.expander_vbox.init(src, .{ .dir = .vertical }, expander_opts.override(opts.strip()));
             self.expander_vbox.drawBackground();
+
+            // AnimateWidget shrinks layout height but does not clip drawing; row content (icons,
+            // sprites) can paint outside the collapsing region without this.
+            self.expander_clip_prev = dvui.clip(self.anim.?.data().contentRectScale().r);
         }
 
         self.can_expand = true;
@@ -756,6 +762,10 @@ pub const Branch = struct {
 
         if (self.can_expand) {
             if (self.expanded) {
+                if (self.expander_clip_prev) |p| {
+                    dvui.clipSet(p);
+                    self.expander_clip_prev = null;
+                }
                 self.expander_vbox.deinit();
             }
             if (self.anim) |a| {
