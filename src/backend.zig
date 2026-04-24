@@ -26,9 +26,6 @@ const DWMWA_SYSTEMBACKDROP_TYPE: u32 = 38; // Windows 11 SDK
 const DWMSBT_MAINWINDOW: u32 = 2; // Mica
 const DWMSBT_TRANSIENTWINDOW: u32 = 3; // Acrylic (frosted glass) — more visible blur than Mica
 
-// Layered window for whole-window opacity (LWA_ALPHA). Works with SDL's GPU renderer.
-const WS_EX_LAYERED: u32 = 0x00080000;
-
 // Undocumented user32 API for acrylic blur (used by Start menu, taskbar). Loaded at runtime.
 const WCA_ACCENT_POLICY: u32 = 19;
 const ACCENT_ENABLE_ACRYLICBLURBEHIND: u32 = 4;
@@ -544,9 +541,8 @@ pub fn setWindowStyle(win: *dvui.Window) void {
             @as(isize, @bitCast(@intFromPtr(black_brush))),
         );
 
-        // Enable layered window so SetLayeredWindowAttributes(..., LWA_ALPHA) can set whole-window opacity (see setTitlebarColor).
-        const exstyle = win32.ui.windows_and_messaging.GetWindowLongPtrW(hwnd_h, win32.ui.windows_and_messaging.GWL_EXSTYLE);
-        _ = win32.ui.windows_and_messaging.SetWindowLongPtrW(hwnd_h, win32.ui.windows_and_messaging.GWL_EXSTYLE, exstyle | WS_EX_LAYERED);
+        // Do not set WS_EX_LAYERED here: a layered main window is a common cause of broken mouse input on
+        // native modal dialogs (SDL_ShowOpenFileDialog / tinyfd) when that window is the dialog owner.
 
         // Force WM_NCCALCSIZE so the client area extends over the title bar immediately (not only after maximize).
         const SWP_NOMOVE: u32 = 0x0002;
@@ -612,15 +608,6 @@ pub fn setTitlebarColor(win: *dvui.Window, color: dvui.Color) void {
         const color_none: u32 = win32.graphics.dwm.DWMWA_COLOR_NONE;
         _ = win32.graphics.dwm.DwmSetWindowAttribute(hwnd_h, win32.graphics.dwm.DWMWA_CAPTION_COLOR, &color_none, @sizeOf(u32));
         _ = win32.graphics.dwm.DwmSetWindowAttribute(hwnd_h, win32.graphics.dwm.DWMWA_BORDER_COLOR, &color_none, @sizeOf(u32));
-
-        // Keep window fully opaque on Windows. LWA_ALPHA applies to the entire window (title bar + all UI),
-        // so using color.a would make content invisible; per-pixel alpha would require UpdateLayeredWindow (not supported by SDL).
-        _ = win32.ui.windows_and_messaging.SetLayeredWindowAttributes(
-            hwnd_h,
-            0,
-            255,
-            win32.ui.windows_and_messaging.LWA_ALPHA,
-        );
     }
 }
 
