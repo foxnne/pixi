@@ -97,6 +97,15 @@ pending_composite_warmup: bool = false,
 /// Filled from the async SDL save dialog callback, then applied inside `tick` (when `currentWindow` is valid).
 pending_save_as_path: ?[]u8 = null,
 
+/// After Save As from "Save and Close", close this file id once save completes.
+pending_close_file_id: ?u64 = null,
+/// User requested app quit while dirty files remain; drive `Dialogs.UnsavedClose` until clean.
+quit_in_progress: bool = false,
+/// Next frame: continue quit flow (next dirty prompt or exit).
+pending_quit_continue: bool = false,
+/// End this frame with `App.Result.close` (e.g. quit finished).
+pending_app_close: bool = false,
+
 pub const SpriteClipboard = struct {
     source: dvui.ImageSource,
     offset: dvui.Point,
@@ -336,6 +345,11 @@ const handle_dist = 60;
 
 pub fn tick(editor: *Editor) !dvui.App.Result {
     editor.window_opacity = if (dvui.themeGet().dark) editor.settings.window_opacity_dark else editor.settings.window_opacity_light;
+
+    if (editor.pending_quit_continue) {
+        editor.pending_quit_continue = false;
+        Dialogs.UnsavedClose.continueAppQuitIfNeeded();
+    }
 
     if (pixi.backend.pollPendingNativeMenuAction()) |action| {
         editor.queueNativeMenuAction(action);
@@ -751,6 +765,11 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
     dvui.Examples.demo(.full);
 
     _ = editor.arena.reset(.retain_capacity);
+
+    if (editor.pending_app_close) {
+        editor.pending_app_close = false;
+        return .close;
+    }
 
     return .ok;
 }
@@ -1203,19 +1222,19 @@ pub fn drawWorkspaces(editor: *Editor, index: usize) !dvui.App.Result {
 }
 
 pub fn close(app: *App, editor: *Editor) void {
-    var should_close = true;
-    for (editor.open_files.items) |file| {
+    _ = app;
+    if (editor.open_files.count() == 0) {
+        editor.pending_app_close = true;
+        return;
+    }
+    for (editor.open_files.values()) |file| {
         if (file.dirty()) {
-            should_close = false;
+            editor.quit_in_progress = true;
+            Dialogs.UnsavedClose.request(file.id, .app_quit);
+            return;
         }
     }
-
-    if (!should_close and !editor.popups.file_confirm_close_exit) {
-        editor.popups.file_confirm_close = true;
-        editor.popups.file_confirm_close_state = .all;
-        editor.popups.file_confirm_close_exit = true;
-    }
-    app.should_close = should_close;
+    editor.pending_app_close = true;
 }
 
 pub fn setProjectFolder(editor: *Editor, path: []const u8) !void {
@@ -1785,18 +1804,26 @@ pub fn requestSaveAs(_: *Editor) void {
 
 /// Save dialog may invoke this from AppKit outside `Window.begin` / `end`; do not use `currentWindow` here.
 pub fn saveAsDialogCallback(paths: ?[][:0]const u8) void {
-    if (paths) |p| {
-        if (p.len == 0) return;
-        const path0 = p[0];
-        if (path0.len == 0) return;
-        if (pixi.editor.pending_save_as_path) |old| {
-            pixi.app.allocator.free(old);
+    if (paths == null) {
+        if (pixi.editor.pending_close_file_id) |_| {
+            pixi.editor.pending_close_file_id = null;
+            if (pixi.editor.quit_in_progress) {
+                pixi.editor.quit_in_progress = false;
+            }
         }
-        pixi.editor.pending_save_as_path = pixi.app.allocator.dupe(u8, path0[0..path0.len]) catch {
-            dvui.log.err("Save As: out of memory queuing path", .{});
-            return;
-        };
+        return;
     }
+    const p = paths.?;
+    if (p.len == 0) return;
+    const path0 = p[0];
+    if (path0.len == 0) return;
+    if (pixi.editor.pending_save_as_path) |old| {
+        pixi.app.allocator.free(old);
+    }
+    pixi.editor.pending_save_as_path = pixi.app.allocator.dupe(u8, path0[0..path0.len]) catch {
+        dvui.log.err("Save As: out of memory queuing path", .{});
+        return;
+    };
 }
 
 fn processPendingSaveAs(editor: *Editor) void {
@@ -1805,10 +1832,16 @@ fn processPendingSaveAs(editor: *Editor) void {
     defer pixi.app.allocator.free(path);
 
     const ext = std.fs.path.extension(path);
-    if (editor.activeFile()) |file| {
+    const file = editor.activeFile() orelse {
+        editor.pending_close_file_id = null;
+        return;
+    };
+
+    const saved: bool = blk: {
         if (std.mem.eql(u8, ext, ".pixi")) {
             file.saveAsPixi(path, dvui.currentWindow()) catch |err| {
                 dvui.log.err("Save As: {any}", .{err});
+                break :blk false;
             };
         } else if (std.mem.eql(u8, ext, ".png") or
             std.mem.eql(u8, ext, ".jpg") or
@@ -1816,9 +1849,25 @@ fn processPendingSaveAs(editor: *Editor) void {
         {
             file.saveAsFlattened(path, dvui.currentWindow()) catch |err| {
                 dvui.log.err("Save As: {any}", .{err});
+                break :blk false;
             };
         } else {
             dvui.log.err("Save As: choose extension .pixi, .png, .jpg, or .jpeg (got {s})", .{ext});
+            break :blk false;
+        }
+        break :blk true;
+    };
+    if (!saved) return;
+
+    if (editor.pending_close_file_id) |cid| {
+        if (file.id == cid) {
+            editor.pending_close_file_id = null;
+            editor.rawCloseFileID(cid) catch |err| {
+                dvui.log.err("Failed to close file after Save As: {s}", .{@errorName(err)});
+            };
+            if (editor.quit_in_progress) {
+                editor.pending_quit_continue = true;
+            }
         }
     }
 }
@@ -1846,27 +1895,16 @@ pub fn openInFileBrowser(_: *Editor, path: []const u8) !void {
 pub fn closeFileID(editor: *Editor, id: u64) !void {
     if (editor.open_files.get(id)) |file| {
         if (file.dirty()) {
-            std.log.debug("closeFile: {d} is dirty", .{id});
-            return error.FileIsDirty;
+            Dialogs.UnsavedClose.request(id, .tab_close);
+            return;
         }
         try editor.rawCloseFileID(id);
     }
 }
 
 pub fn closeFile(editor: *Editor, index: usize) !void {
-    // Handle confirm close if file is dirty
-    {
-        const file = editor.open_files.values()[index];
-        if (file.dirty()) {
-            std.log.debug("closeFile: {d} is dirty", .{index});
-            // editor.popups.file_confirm_close = true;
-            // editor.popups.file_confirm_close_state = .one;
-            // editor.popups.file_confirm_close_index = index;
-            return;
-        }
-    }
-
-    try editor.rawCloseFile(index);
+    const file = editor.open_files.values()[index];
+    try editor.closeFileID(file.id);
 }
 
 pub fn rawCloseFile(editor: *Editor, index: usize) !void {
