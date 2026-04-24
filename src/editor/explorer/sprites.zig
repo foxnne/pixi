@@ -1675,7 +1675,6 @@ pub fn drawFrames(self: *Sprites) !void {
                     .expand = .none,
                     .gravity_y = 0.5,
                     .margin = dvui.Rect.rect(2, 0, 2, 0),
-                    .font = dvui.Font.theme(.mono).larger(-2.0),
                     .padding = dvui.Rect.all(0),
                     .corner_radius = dvui.Rect.all(1000),
                     .color_text = if (sprite_selected) dvui.themeGet().color(.control, .text) else dvui.themeGet().color(.control, .text),

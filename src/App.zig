@@ -7,9 +7,6 @@ const assets = @import("assets");
 
 const icon = assets.files.@"icon.png";
 
-const cozette_ttf = assets.files.fonts.@"CozetteVector.ttf";
-const cozette_bold_ttf = assets.files.fonts.@"CozetteVectorBold.ttf";
-
 const pixi = @import("pixi.zig");
 
 const App = @This();
@@ -67,9 +64,6 @@ pub fn AppInit(win: *dvui.Window) !void {
 
     pixi.packer = try allocator.create(Packer);
     pixi.packer.* = Packer.init(allocator) catch unreachable;
-
-    dvui.addFont("CozetteVector", cozette_ttf, null) catch {};
-    dvui.addFont("CozetteVectorBold", cozette_bold_ttf, null) catch {};
 
     pixi.backend.setupMacOSMenuBar();
 }
