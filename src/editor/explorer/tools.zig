@@ -586,7 +586,7 @@ pub fn drawLayers(tools: *Tools) !?dvui.Rect.Physical {
             var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .both,
                 .background = true,
-                .color_fill = if (selected or row_highlight)
+                .color_fill = if ((selected or row_highlight) and !branch.floating())
                     ctrl_hover
                 else
                     .transparent,
