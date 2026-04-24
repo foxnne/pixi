@@ -7,6 +7,9 @@ const Editor = pixi.Editor;
 
 const Sprites = @This();
 
+/// Edge shadows on animation/frame lists only when scroll range exceeds this (avoids subpixel overflow).
+const scroll_list_shadow_deadzone_ns: f32 = 4.0;
+
 fn pointerReleaseInRectWithoutSelectionModifier(r: dvui.Rect.Physical) bool {
     for (dvui.events()) |*e| {
         switch (e.evt) {
@@ -1042,11 +1045,12 @@ pub fn drawAnimations(self: *Sprites) !void {
             }
         }
 
-        // Only draw shadow if the scroll bar has been scrolled some
-        if (vertical_scroll > 0.0)
+        const anim_si = file.editor.animations_scroll_info;
+        const anim_v_max = anim_si.scrollMax(.vertical);
+        if (vertical_scroll > scroll_list_shadow_deadzone_ns)
             pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .top, .{});
 
-        if (file.editor.animations_scroll_info.virtual_size.h > file.editor.animations_scroll_info.viewport.h and vertical_scroll < file.editor.animations_scroll_info.scrollMax(.vertical))
+        if (anim_v_max > scroll_list_shadow_deadzone_ns and vertical_scroll < anim_v_max - scroll_list_shadow_deadzone_ns)
             pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .bottom, .{});
     }
 }
@@ -1440,7 +1444,13 @@ pub fn drawFrames(self: *Sprites) !void {
 
         self.frames_scroll_viewport_rect = null;
 
-        var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.editor.sprites_scroll_info, .horizontal_bar = .auto_overlay, .vertical_bar = .auto_overlay }, .{
+        // Vertical-only: wide frame rows widen this column; the explorer scroll pans horizontally so
+        // controls stay reachable. A nested horizontal scroller here fought the explorer at limits (bounce).
+        file.editor.sprites_scroll_info.horizontal = .none;
+        file.editor.sprites_scroll_info.viewport.x = 0;
+        file.editor.sprites_scroll_info.velocity.x = 0;
+
+        var scroll_area = dvui.scrollArea(@src(), .{ .scroll_info = &file.editor.sprites_scroll_info, .horizontal_bar = .hide, .vertical_bar = .auto_overlay }, .{
             .expand = .horizontal,
             .background = false,
             .corner_radius = dvui.Rect.all(1000),
@@ -1767,11 +1777,12 @@ pub fn drawFrames(self: *Sprites) !void {
             }
         }
 
-        // Only draw shadow if the scroll bar has been scrolled some
-        if (vertical_scroll > 0.0)
+        const frames_si = file.editor.sprites_scroll_info;
+        const frames_v_max = frames_si.scrollMax(.vertical);
+        if (vertical_scroll > scroll_list_shadow_deadzone_ns)
             pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .top, .{});
 
-        if (file.editor.sprites_scroll_info.virtual_size.h > file.editor.sprites_scroll_info.viewport.h and vertical_scroll < file.editor.sprites_scroll_info.scrollMax(.vertical))
+        if (frames_v_max > scroll_list_shadow_deadzone_ns and vertical_scroll < frames_v_max - scroll_list_shadow_deadzone_ns)
             pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .bottom, .{});
     }
 }

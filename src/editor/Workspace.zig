@@ -235,10 +235,7 @@ fn drawTabs(self: *Workspace) void {
 
                 defer hbox.deinit();
 
-                var hovered = false;
-                if (pixi.dvui.hovered(hbox.data())) {
-                    hovered = true;
-                }
+                const tab_hovered = pixi.dvui.hovered(hbox.data());
 
                 if (selected) {
                     if (!reorderable.floating()) {
@@ -307,22 +304,88 @@ fn drawTabs(self: *Workspace) void {
                     .gravity_y = 0.5,
                 });
 
+                const close_inner = pixi.dvui.windowHeaderCloseInnerSide();
+                const close_pad = pixi.dvui.window_header_close_margin;
+                const tab_status_slot = close_inner + close_pad.x + close_pad.w;
+
                 const status_close_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-                    .min_size_content = .{ .w = 18, .h = 18 },
-                    .max_size_content = .{ .w = 18, .h = 18 },
                     .expand = .none,
-                    .padding = dvui.Rect.all(2),
+                    .gravity_y = 0.5,
+                    .min_size_content = .{ .w = tab_status_slot, .h = tab_status_slot },
                 });
                 defer status_close_box.deinit();
 
-                if (hovered) {
-                    if (dvui.buttonIcon(@src(), "close", icons.tvg.lucide.x, .{ .draw_focus = false }, .{}, .{
+                if (tab_hovered) {
+                    var tab_close_button: dvui.ButtonWidget = undefined;
+                    tab_close_button.init(@src(), .{ .draw_focus = false }, pixi.dvui.windowHeaderCloseButtonOptions(.{
+                        .expand = .none,
+                        .min_size_content = .{ .w = close_inner, .h = close_inner },
+                        .id_extra = i *% 16 + 1,
+                    }));
+                    defer tab_close_button.deinit();
+
+                    tab_close_button.processEvents();
+                    tab_close_button.drawBackground();
+                    tab_close_button.drawFocus();
+
+                    if (tab_close_button.hovered()) {
+                        dvui.icon(@src(), "close", icons.tvg.lucide.x, .{
+                            .stroke_color = dvui.themeGet().color(.err, .fill).lighten(if (dvui.themeGet().dark) -10 else 10),
+                            .fill_color = dvui.themeGet().color(.err, .fill).lighten(if (dvui.themeGet().dark) -10 else 10),
+                        }, .{
+                            .expand = .ratio,
+                            .gravity_x = 0.5,
+                            .gravity_y = 0.5,
+                            .id_extra = i *% 16 + 2,
+                        });
+                    }
+
+                    if (tab_close_button.clicked()) {
+                        pixi.editor.closeFileID(file.id) catch |err| {
+                            dvui.log.err("closeFile: {d} failed: {s}", .{ i, @errorName(err) });
+                        };
+                        break;
+                    }
+                } else if (selected and !file.dirty()) {
+                    const tab_text = dvui.themeGet().color(.window, .text);
+                    var ghost_close: dvui.ButtonWidget = undefined;
+                    ghost_close.init(@src(), .{ .draw_focus = false }, pixi.dvui.windowHeaderCloseButtonOptions(.{
+                        .expand = .none,
+                        .min_size_content = .{ .w = close_inner, .h = close_inner },
+                        .id_extra = i *% 16 + 3,
+                        .style = .window,
+                        .background = false,
+                        .box_shadow = null,
+                        .border = .all(0),
+                        .color_fill = .transparent,
+                        .color_fill_hover = .transparent,
+                        .color_fill_press = .transparent,
+                        .ninepatch_fill = &dvui.Ninepatch.none,
+                        .ninepatch_hover = &dvui.Ninepatch.none,
+                        .ninepatch_press = &dvui.Ninepatch.none,
+                    }));
+                    defer ghost_close.deinit();
+
+                    ghost_close.processEvents();
+                    // Invisible hit target only — `drawBackground` would run theme ninepatch.
+
+                    dvui.icon(@src(), "close", icons.tvg.lucide.x, .{
+                        .stroke_color = tab_text,
+                        .fill_color = tab_text,
+                    }, .{
+                        .expand = .ratio,
+                        .gravity_x = 0.5,
                         .gravity_y = 0.5,
-                        .padding = dvui.Rect.all(0),
-                        .corner_radius = dvui.Rect.all(1000),
-                        .style = .err,
-                        .expand = .both,
-                    })) {
+                        .id_extra = i *% 16 + 4,
+                        .background = false,
+                        .border = .all(0),
+                        .box_shadow = null,
+                        .ninepatch_fill = &dvui.Ninepatch.none,
+                        .ninepatch_hover = &dvui.Ninepatch.none,
+                        .ninepatch_press = &dvui.Ninepatch.none,
+                    });
+
+                    if (ghost_close.clicked()) {
                         pixi.editor.closeFileID(file.id) catch |err| {
                             dvui.log.err("closeFile: {d} failed: {s}", .{ i, @errorName(err) });
                         };
@@ -332,9 +395,10 @@ fn drawTabs(self: *Workspace) void {
                     dvui.icon(@src(), "dirty_icon", icons.tvg.lucide.@"circle-small", .{
                         .stroke_color = dvui.themeGet().color(.window, .text),
                     }, .{
-                        .expand = .both,
+                        .gravity_x = 0.5,
                         .gravity_y = 0.5,
                         .padding = dvui.Rect.all(2),
+                        .id_extra = i *% 16 + 0,
                     });
                 }
 
