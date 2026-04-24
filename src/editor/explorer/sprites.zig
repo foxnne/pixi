@@ -871,7 +871,7 @@ pub fn drawAnimations(self: *Sprites) !void {
             var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .both,
                 .background = true,
-                .color_fill = if (selected or row_highlight)
+                .color_fill = if ((selected or row_highlight) and !branch.floating())
                     ctrl_hover
                 else
                     .transparent,
@@ -1641,7 +1641,7 @@ pub fn drawFrames(self: *Sprites) !void {
                 var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                     .expand = .both,
                     .background = true,
-                    .color_fill = if (sprite_selected or row_highlight)
+                    .color_fill = if ((sprite_selected or row_highlight) and !branch.floating())
                         ctrl_hover
                     else
                         .transparent,

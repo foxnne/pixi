@@ -445,13 +445,9 @@ pub const Branch = struct {
                         .corner_radius = dvui.Rect.all(8),
                         .color_fill = dvui.themeGet().color(.content, .fill).opacity(0.9),
                         .box_shadow = .{
-                            .fade = 6,
-                            .corner_radius = dvui.Rect.all(1000000),
-                            .alpha = 0.2,
-                            .offset = .{
-                                .x = 2,
-                                .y = 2,
-                            },
+                            .fade = 8,
+                            .corner_radius = dvui.Rect.all(8),
+                            .alpha = 0.25,
                             .color = .black,
                         },
                     },
