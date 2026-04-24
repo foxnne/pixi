@@ -107,6 +107,14 @@ pub fn draw(explorer: *Explorer) !dvui.App.Result {
         .background = false,
     });
 
+    if (explorer.pane != .files) {
+        pixi.editor.file_tree_data_id = null;
+        if (pixi.editor.tab_drag_from_tree_path) |p| {
+            pixi.app.allocator.free(p);
+            pixi.editor.tab_drag_from_tree_path = null;
+        }
+    }
+
     switch (explorer.pane) {
         .files => try files.draw(),
         .settings => try settings.draw(),

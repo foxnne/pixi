@@ -59,7 +59,8 @@ pub const Extension = enum {
 };
 
 pub fn draw() !void {
-    var tree = pixi.dvui.TreeWidget.tree(@src(), .{ .enable_reordering = true }, .{ .background = false, .expand = .both });
+    // `tab_drag` matches workspace tab strips so file rows can drop on the canvas like tabs (DVUI reorder_tree cross-widget pattern).
+    var tree = pixi.dvui.TreeWidget.tree(@src(), .{ .enable_reordering = true, .drag_name = "tab_drag" }, .{ .background = false, .expand = .both });
     defer tree.deinit();
 
     // Same as tools pane header: first frame after open (or after Files wasn't drawn last frame)
@@ -78,6 +79,7 @@ pub fn draw() !void {
     if (pixi.editor.folder) |path| {
         try drawFiles(path, tree);
     } else {
+        pixi.editor.file_tree_data_id = null;
         dvui.labelNoFmt(
             @src(),
             "Open a project folder to begin.",
@@ -95,6 +97,7 @@ pub fn draw() !void {
 
 pub fn drawFiles(path: []const u8, tree: *pixi.dvui.TreeWidget) !void {
     const unique_id = dvui.parentGet().extendId(@src(), 0);
+    pixi.editor.file_tree_data_id = unique_id;
 
     var filter_hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal });
     dvui.icon(
@@ -225,7 +228,7 @@ fn lessThan(_: void, lhs: std.fs.Dir.Entry, rhs: std.fs.Dir.Entry) bool {
 }
 
 pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind: std.fs.Dir.Entry.Kind, full_path: []const u8) !void {
-    const padding = dvui.Rect.all(2);
+    const padding = dvui.Rect.all(3);
     const font = dvui.Font.theme(.body);
 
     const selected: bool = isFileSelected(id_extra);
@@ -322,32 +325,14 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
                 }
             }
         }
-    } else if (selected) {
-        var name_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-            .expand = .none,
-            .background = false,
-            .gravity_y = 0.5,
-            .padding = padding,
-        });
-        defer name_box.deinit();
-        if (dvui.labelClick(@src(), "{s}", .{label}, .{}, .{
-            .gravity_y = 0.5,
-            .padding = dvui.Rect.all(0),
-            .id_extra = id_extra,
-            .color_text = color,
-            .font = font,
-        })) {
-            const lr = name_box.data().borderRectScale().r;
-            if (pointerReleaseInRectWithoutSelectionModifier(lr)) {
-                edit_id = id_extra;
-            }
-        }
     } else {
         dvui.label(@src(), "{s}", .{label}, .{
             .color_text = color,
             .padding = padding,
+            .margin = dvui.Rect.all(0),
             .id_extra = id_extra,
             .font = font,
+            .gravity_y = 0.5,
         });
     }
 }
@@ -493,6 +478,17 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                 if (branch.floating()) {
                     if (dvui.dataGetSlice(null, inner_unique_id, "removed_path", []u8) == null)
                         dvui.dataSetSlice(null, inner_unique_id, "removed_path", abs_path);
+
+                    if (entry.kind == .file and tree.id_branch == inner_id_extra.*) {
+                        if (pixi.editor.tab_drag_from_tree_path) |old| {
+                            if (!std.mem.eql(u8, old, abs_path)) {
+                                pixi.app.allocator.free(old);
+                                pixi.editor.tab_drag_from_tree_path = pixi.app.allocator.dupe(u8, abs_path) catch null;
+                            }
+                        } else {
+                            pixi.editor.tab_drag_from_tree_path = pixi.app.allocator.dupe(u8, abs_path) catch null;
+                        }
+                    }
                 }
 
                 if (branch.insertBefore()) {
