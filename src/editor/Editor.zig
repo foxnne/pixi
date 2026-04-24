@@ -6,6 +6,15 @@ const known_folders = @import("known-folders");
 const objc = @import("objc");
 const sdl3 = @import("backend").c;
 
+const cozette_ttf = assets.files.fonts.@"CozetteVector.ttf";
+const cozette_bold_ttf = assets.files.fonts.@"CozetteVectorBold.ttf";
+
+const comfortaa_ttf = assets.files.fonts.@"Comfortaa-Regular.ttf";
+const comfortaa_bold_ttf = assets.files.fonts.@"Comfortaa-Bold.ttf";
+
+const noto_sans_ttf = assets.files.fonts.@"NotoSans-Light.ttf";
+const noto_sans_bold_ttf = assets.files.fonts.@"NotoSans-Bold.ttf";
+
 const pixi = @import("../pixi.zig");
 const dvui = @import("dvui");
 
@@ -88,6 +97,38 @@ pub const SpriteClipboard = struct {
     offset: dvui.Point,
 };
 
+const embedded_fonts: []const dvui.Font.Source = &.{
+    .{
+        .family = dvui.Font.array("CozetteVector"),
+        .bytes = cozette_ttf,
+    },
+    .{
+        .family = dvui.Font.array("CozetteVector"),
+        .bytes = cozette_bold_ttf,
+        .weight = .bold,
+    },
+
+    .{
+        .family = dvui.Font.array("Comfortaa"),
+        .bytes = comfortaa_ttf,
+    },
+    .{
+        .family = dvui.Font.array("Comfortaa"),
+        .bytes = comfortaa_bold_ttf,
+        .weight = .bold,
+    },
+
+    .{
+        .family = dvui.Font.array("NotoSans"),
+        .bytes = noto_sans_ttf,
+    },
+    .{
+        .family = dvui.Font.array("NotoSans"),
+        .bytes = noto_sans_bold_ttf,
+        .weight = .bold,
+    },
+};
+
 pub fn init(
     app: *App,
 ) !Editor {
@@ -98,6 +139,7 @@ pub fn init(
     const palette_folder = std.fs.path.join(pixi.app.allocator, &.{ config_folder, "Palettes" }) catch config_folder;
 
     var pixi_dark = dvui.themeGet();
+    pixi_dark.embedded_fonts = embedded_fonts;
 
     pixi_dark.window = .{
         .fill = .{ .r = 28, .g = 29, .b = 36, .a = 255 },
@@ -128,9 +170,9 @@ pub fn init(
 
     pixi_dark.dark = true;
     pixi_dark.name = "Pixi Dark";
-    pixi_dark.font_body = .find(.{ .family = "Vera Sans", .size = 8 });
-    pixi_dark.font_title = .find(.{ .family = "Vera Sans", .size = 10, .weight = .bold });
-    pixi_dark.font_heading = .find(.{ .family = "Vera Sans", .size = 8, .style = .italic });
+    pixi_dark.font_body = .find(.{ .family = "Comfortaa", .size = 8, .weight = .bold });
+    pixi_dark.font_title = .find(.{ .family = "NotoSans", .size = 10, .weight = .bold });
+    pixi_dark.font_heading = .find(.{ .family = "NotoSans", .size = 8, .weight = .bold });
     pixi_dark.font_mono = .find(.{ .family = "CozetteVector", .size = 10 });
 
     dvui.themeSet(pixi_dark);
