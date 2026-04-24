@@ -196,10 +196,12 @@ pub fn animationDialog(id: dvui.Id) anyerror!bool {
 
     exportScaleSlider(max_scale);
 
-    if (pixi.editor.activeFile()) |file| {
-        const column_width: u32 = @intFromFloat(@as(f32, @floatFromInt(file.column_width)) * scale);
-        const row_height: u32 = @intFromFloat(@as(f32, @floatFromInt(file.row_height)) * scale);
-        exportDimensionsLabelForExport(column_width, row_height);
+    if (preview_sprite) |_| {
+        if (pixi.editor.activeFile()) |file| {
+            const column_width: u32 = @intFromFloat(@as(f32, @floatFromInt(file.column_width)) * scale);
+            const row_height: u32 = @intFromFloat(@as(f32, @floatFromInt(file.row_height)) * scale);
+            exportDimensionsLabelForExport(column_width, row_height);
+        }
     }
 
     return preview_sprite != null;
@@ -372,22 +374,10 @@ fn renderExportPreviewSprite(file: *pixi.Internal.File, sprite_index: usize) voi
             .h = sprite_rect.h / @as(f32, @floatFromInt(file.height())),
         };
 
-        {
-            var path = dvui.Path.Builder.init(dvui.currentWindow().arena());
-            defer path.deinit();
-
-            path.addRect(box.data().rectScale().r, .all(0));
-
-            box.data().rectScale().r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
-
-            const alpha_triangles = pixi.dvui.pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{
-                .subdivisions = 8,
-                .color_mod = dvui.themeGet().color(.control, .fill).lighten(4.0).opacity(0.5),
-            }) catch unreachable;
-            dvui.renderTriangles(alpha_triangles, file.editor.checkerboard_tile.getTexture() catch null) catch {
-                dvui.log.err("Failed to render triangles", .{});
-            };
-        }
+        // Same tiled checker + tone as layer/all. Sprite box natural space is (0,0)–(sw×scale,sh×scale)
+        // (see `min_size_content`), not file coordinates—geometry must be local, UVs use file `sprite_rect`.
+        const local_natural = dvui.Rect{ .x = 0, .y = 0, .w = sprite_rect.w * scale, .h = sprite_rect.h * scale };
+        drawCheckerboardTiled(file, sprite_rect, local_natural, box.data().rectScale());
 
         pixi.render.renderLayers(.{
             .file = file,
@@ -422,6 +412,44 @@ fn exportDimensionsLabelForExport(column_w: u32, row_h: u32) void {
 }
 
 const ExportFullPreviewKind = enum { layer, composite };
+
+/// `uv_file` is the region in file pixel coordinates; UVs tile by column/row (same as
+/// `FileWidget.drawCheckerboardCellsBatched` for `transparency_effect == .none`).
+/// `geometry_natural` is the rect in the widget’s natural space used for `rectToPhysical` (matches
+/// full file for layer/all, or `0,0,sw×scale,sh×scale` for the sprite export box).
+fn drawCheckerboardTiled(
+    file: *pixi.Internal.File,
+    uv_file: dvui.Rect,
+    geometry_natural: dvui.Rect,
+    rs_box: dvui.RectScale,
+) void {
+    const col_w = @as(f32, @floatFromInt(file.column_width));
+    const row_h = @as(f32, @floatFromInt(file.row_height));
+    if (col_w <= 0 or row_h <= 0) return;
+    const r = rs_box.rectToPhysical(geometry_natural);
+    const tl = r.topLeft();
+    const tr = r.topRight();
+    const br = r.bottomRight();
+    const bl = r.bottomLeft();
+    const uv_x0 = uv_file.x / col_w;
+    const uv_y0 = uv_file.y / row_h;
+    const uv_x1 = (uv_file.x + uv_file.w) / col_w;
+    const uv_y1 = (uv_file.y + uv_file.h) / row_h;
+    const tone = dvui.themeGet().color(.content, .fill).lighten(6.0).opacity(0.5).opacity(dvui.currentWindow().alpha);
+    const pma = dvui.Color.PMA.fromColor(tone);
+    const arena = dvui.currentWindow().arena();
+    var builder = dvui.Triangles.Builder.init(arena, 4, 6) catch return;
+    defer builder.deinit(arena);
+    builder.appendVertex(.{ .pos = tl, .col = pma, .uv = .{ uv_x0, uv_y0 } });
+    builder.appendVertex(.{ .pos = tr, .col = pma, .uv = .{ uv_x1, uv_y0 } });
+    builder.appendVertex(.{ .pos = br, .col = pma, .uv = .{ uv_x1, uv_y1 } });
+    builder.appendVertex(.{ .pos = bl, .col = pma, .uv = .{ uv_x0, uv_y1 } });
+    builder.appendTriangles(&.{ 1, 0, 3, 1, 3, 2 });
+    const triangles = builder.build();
+    dvui.renderTriangles(triangles, file.editor.checkerboard_tile.getTexture() catch null) catch {
+        dvui.log.err("Failed to render export preview checkerboard", .{});
+    };
+}
 
 /// Full-canvas preview at 1:1 logical pixels: checkerboard + either the selected layer only or the
 /// flattened composite (all visible layers). One scroll + box `call site for stable widget ids.
@@ -464,22 +492,10 @@ fn renderExportPreview(file: *pixi.Internal.File, kind: ExportFullPreviewKind) v
         });
         defer box.deinit();
 
-        {
-            var path = dvui.Path.Builder.init(dvui.currentWindow().arena());
-            defer path.deinit();
-
-            path.addRect(box.data().rectScale().r, .all(0));
-
-            box.data().rectScale().r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.0 });
-
-            const alpha_triangles = pixi.dvui.pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{
-                .subdivisions = 8,
-                .color_mod = dvui.themeGet().color(.control, .fill).lighten(4.0).opacity(1.0),
-            }) catch unreachable;
-            dvui.renderTriangles(alpha_triangles, file.editor.checkerboard_tile.getTexture() catch null) catch {
-                dvui.log.err("Failed to render checker", .{});
-            };
-        }
+        // Tiled cell UVs over the full image (same as `FileWidget.drawCheckerboardCellsBatched` for
+        // `transparency_effect == .none` — not one stretched cell across the whole preview).
+        const full_r = dvui.Rect{ .x = 0, .y = 0, .w = @floatFromInt(w), .h = @floatFromInt(h) };
+        drawCheckerboardTiled(file, full_r, full_r, box.data().rectScale());
 
         const full_uv = dvui.Rect{ .x = 0, .y = 0, .w = 1, .h = 1 };
         const rs = box.data().rectScale();
