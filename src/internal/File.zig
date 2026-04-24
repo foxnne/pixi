@@ -1313,6 +1313,19 @@ pub fn spriteExportName(file: *File, allocator: std.mem.Allocator, sprite_index:
     return try std.fmt.allocPrint(allocator, "{s}_{s}", .{ file_stem, grid });
 }
 
+/// Default base filename (no extension) for exporting the full selected layer only.
+pub fn layerExportBaseName(file: *File, allocator: std.mem.Allocator) ![]const u8 {
+    const file_stem = std.fs.path.stem(std.fs.path.basename(file.path));
+    const lname = file.layers.items(.name)[file.selected_layer_index];
+    return try std.fmt.allocPrint(allocator, "{s}_{s}", .{ file_stem, lname });
+}
+
+/// Default base filename (no extension) for exporting the flattened (all visible layers) image.
+pub fn allExportBaseName(file: *File, allocator: std.mem.Allocator) ![]const u8 {
+    const file_stem = std.fs.path.stem(std.fs.path.basename(file.path));
+    return try std.fmt.allocPrint(allocator, "{s}_all", .{file_stem});
+}
+
 pub fn fmtColumn(_: *File, allocator: std.mem.Allocator, column: usize) ![]const u8 {
     // Excel-style: 0 -> A, 1 -> B, ... 25 -> Z, 26 -> AA, 27 -> AB, etc.
     var temp: [10]u8 = undefined; // Enough for absurdly large columns (> 1 billion)

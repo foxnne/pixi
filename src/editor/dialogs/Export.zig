@@ -22,6 +22,11 @@ pub var scroll_info: dvui.ScrollInfo = .{
     .vertical = .auto,
 };
 
+pub var scroll_info_full: dvui.ScrollInfo = .{
+    .horizontal = .auto,
+    .vertical = .auto,
+};
+
 pub const max_size: [2]u32 = .{ 4096, 4096 };
 pub const min_size: [2]u32 = .{ 1, 1 };
 
@@ -106,6 +111,8 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
 
             if (button.clicked()) {
                 mode = @enumFromInt(i);
+                // Second layout pass after the scroll+preview id stabilizes; avoids one blank frame.
+                dvui.currentWindow().extra_frames_needed = 2;
             }
         }
     }
@@ -126,92 +133,25 @@ pub fn singleDialog(_: dvui.Id) anyerror!bool {
     var valid: bool = false;
 
     if (pixi.editor.activeFile()) |file| {
-        if (file.editor.selected_sprites.findFirstSet()) |sprite_index| {
+        if (file.editor.selected_sprites.findFirstSet() != null) {
             max_scale = @min(@divTrunc(max_gif_size[0], @as(f32, @floatFromInt(file.column_width))), @divTrunc(max_gif_size[1], @as(f32, @floatFromInt(file.row_height))));
-
-            const sprite_rect = file.spriteRect(sprite_index);
-            const max_size_content: dvui.Size = .{ .w = (dvui.currentWindow().rect_pixels.w / dvui.currentWindow().natural_scale) / 2, .h = (dvui.currentWindow().rect_pixels.h / dvui.currentWindow().natural_scale) / 2.0 };
-            const min_size_content: dvui.Size = sprite_rect.justSize().scale(scale, dvui.Rect).size();
-
-            var scroll_area = dvui.scrollArea(@src(), .{
-                .scroll_info = &scroll_info,
-                .horizontal_bar = .auto_overlay,
-                .vertical_bar = .auto_overlay,
-            }, .{
-                .background = false,
-                .expand = .both,
-                .max_size_content = .{ .w = max_size_content.w, .h = max_size_content.h },
-            });
-            defer scroll_area.deinit();
-
-            {
-                var box = dvui.box(@src(), .{
-                    .dir = .horizontal,
-                }, .{
-                    .expand = .none,
-                    .min_size_content = min_size_content,
-                    .gravity_x = 0.5,
-                });
-                defer box.deinit();
-
-                const uv = dvui.Rect{
-                    .x = sprite_rect.x / @as(f32, @floatFromInt(file.width())),
-                    .y = sprite_rect.y / @as(f32, @floatFromInt(file.height())),
-                    .w = sprite_rect.w / @as(f32, @floatFromInt(file.width())),
-                    .h = sprite_rect.h / @as(f32, @floatFromInt(file.height())),
-                };
-
-                {
-                    var path = dvui.Path.Builder.init(dvui.currentWindow().arena());
-                    defer path.deinit();
-
-                    path.addRect(box.data().rectScale().r, .all(0));
-
-                    box.data().rectScale().r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
-
-                    const alpha_triangles = pixi.dvui.pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{
-                        .subdivisions = 8,
-                        .color_mod = dvui.themeGet().color(.control, .fill).lighten(4.0).opacity(0.5),
-                    }) catch unreachable;
-                    dvui.renderTriangles(alpha_triangles, file.editor.checkerboard_tile.getTexture() catch null) catch {
-                        dvui.log.err("Failed to render triangles", .{});
-                    };
-                }
-
-                pixi.render.renderLayers(.{
-                    .file = file,
-                    .rs = box.data().rectScale(),
-                    .uv = uv,
-                }) catch {
-                    dvui.log.err("Failed to render layers", .{});
-                };
-            }
-
             valid = true;
         }
     }
 
-    if (dvui.sliderEntry(@src(), "Scale: {d}", .{ .value = &scale, .min = 1, .max = max_scale, .interval = 1 }, .{
-        .expand = .horizontal,
-        .box_shadow = .{
-            .color = .black,
-            .offset = .{ .x = 0.0, .y = 3 },
-            .fade = 5.0,
-            .alpha = 0.2,
-            .corner_radius = .all(100000),
-        },
-        .color_fill = dvui.themeGet().color(.window, .fill).lighten(-4),
-        .color_fill_hover = dvui.themeGet().color(.window, .fill).lighten(2),
-        .corner_radius = .all(100000),
-        .margin = .all(6),
-    })) dvui.currentWindow().extra_frames_needed = 2;
+    if (pixi.editor.activeFile()) |file| {
+        if (file.editor.selected_sprites.findFirstSet()) |sprite_index| {
+            renderExportPreviewSprite(file, sprite_index);
+        }
+    }
+
+    exportScaleSlider(max_scale);
 
     if (pixi.editor.activeFile()) |file| {
         if (file.editor.selected_sprites.findFirstSet() != null) {
-            const column_width = @as(f32, @floatFromInt(file.column_width)) * scale;
-            const row_height = @as(f32, @floatFromInt(file.row_height)) * scale;
-            const entry_font = dvui.Font.theme(.mono).larger(-2);
-            Dialogs.drawDimensionsLabel(@src(), @intFromFloat(column_width), @intFromFloat(row_height), entry_font, "px", .{ .gravity_x = 0.5 });
+            const column_width: u32 = @intFromFloat(@as(f32, @floatFromInt(file.column_width)) * scale);
+            const row_height: u32 = @intFromFloat(@as(f32, @floatFromInt(file.row_height)) * scale);
+            exportDimensionsLabelForExport(column_width, row_height);
         }
     }
 
@@ -221,10 +161,13 @@ pub fn singleDialog(_: dvui.Id) anyerror!bool {
 pub fn animationDialog(id: dvui.Id) anyerror!bool {
     const max_gif_size: [2]f32 = .{ 1024, 1024 };
     var max_scale: f32 = 16.0;
+    var preview_sprite: ?usize = null;
 
     if (pixi.editor.activeFile()) |file| {
-        max_scale = @min(@divTrunc(max_gif_size[0], @as(f32, @floatFromInt(file.column_width))), @divTrunc(max_gif_size[1], @as(f32, @floatFromInt(file.row_height))));
-
+        max_scale = @min(
+            @divTrunc(max_gif_size[0], @as(f32, @floatFromInt(file.column_width))),
+            @divTrunc(max_gif_size[1], @as(f32, @floatFromInt(file.row_height))),
+        );
         if (file.selected_animation_index) |animation_index| {
             const anim = file.animations.get(animation_index);
             if (anim.frames.len > 0) {
@@ -235,109 +178,50 @@ pub fn animationDialog(id: dvui.Id) anyerror!bool {
                         anim_frame_index += 1;
                     }
                     const millis_per_frame = anim.frames[anim_frame_index].ms;
-
                     dvui.timer(id, @intCast(millis_per_frame * 1000));
                 }
-
                 if (anim_frame_index >= anim.frames.len) {
                     anim_frame_index = 0;
                 }
-
-                const sprite_index = anim.frames[anim_frame_index].sprite_index;
-
-                const sprite_rect = file.spriteRect(sprite_index);
-                const max_size_content: dvui.Size = .{ .w = (dvui.currentWindow().rect_pixels.w / dvui.currentWindow().natural_scale) / 2, .h = (dvui.currentWindow().rect_pixels.h / dvui.currentWindow().natural_scale) / 2.0 };
-                const min_size_content: dvui.Size = sprite_rect.justSize().scale(scale, dvui.Rect).size();
-
-                var scroll_area = dvui.scrollArea(@src(), .{
-                    .scroll_info = &scroll_info,
-                    .horizontal_bar = .auto_overlay,
-                    .vertical_bar = .auto_overlay,
-                }, .{
-                    .background = false,
-                    .expand = .both,
-                    .max_size_content = .{ .w = max_size_content.w, .h = max_size_content.h },
-                });
-                defer scroll_area.deinit();
-
-                {
-                    var box = dvui.box(@src(), .{
-                        .dir = .horizontal,
-                    }, .{
-                        .expand = .none,
-                        .min_size_content = min_size_content,
-                        .gravity_x = 0.5,
-                    });
-                    defer box.deinit();
-
-                    const uv = dvui.Rect{
-                        .x = sprite_rect.x / @as(f32, @floatFromInt(file.width())),
-                        .y = sprite_rect.y / @as(f32, @floatFromInt(file.height())),
-                        .w = sprite_rect.w / @as(f32, @floatFromInt(file.width())),
-                        .h = sprite_rect.h / @as(f32, @floatFromInt(file.height())),
-                    };
-
-                    {
-                        var path = dvui.Path.Builder.init(dvui.currentWindow().arena());
-                        defer path.deinit();
-
-                        path.addRect(box.data().rectScale().r, .all(0));
-
-                        box.data().rectScale().r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
-
-                        const alpha_triangles = pixi.dvui.pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{
-                            .subdivisions = 8,
-                            .color_mod = dvui.themeGet().color(.control, .fill).lighten(4.0).opacity(0.5),
-                        }) catch unreachable;
-                        dvui.renderTriangles(alpha_triangles, file.editor.checkerboard_tile.getTexture() catch null) catch {
-                            dvui.log.err("Failed to render triangles", .{});
-                        };
-                    }
-
-                    pixi.render.renderLayers(.{
-                        .file = file,
-                        .rs = box.data().rectScale(),
-                        .uv = uv,
-                    }) catch {
-                        dvui.log.err("Failed to render layers", .{});
-                    };
-                }
+                preview_sprite = anim.frames[anim_frame_index].sprite_index;
             }
         }
     }
 
-    if (dvui.sliderEntry(@src(), "Scale: {d}", .{ .value = &scale, .min = 1, .max = max_scale, .interval = 1 }, .{
-        .expand = .horizontal,
-        .box_shadow = .{
-            .color = .black,
-            .offset = .{ .x = 0.0, .y = 3 },
-            .fade = 5.0,
-            .alpha = 0.2,
-            .corner_radius = .all(100000),
-        },
-        .color_fill = dvui.themeGet().color(.window, .fill).lighten(-4),
-        .color_fill_hover = dvui.themeGet().color(.window, .fill).lighten(2),
-        .corner_radius = .all(100000),
-        .margin = .all(6),
-    })) dvui.currentWindow().extra_frames_needed = 2;
+    if (pixi.editor.activeFile()) |file| {
+        if (preview_sprite) |sprite_index| {
+            renderExportPreviewSprite(file, sprite_index);
+        }
+    }
+
+    exportScaleSlider(max_scale);
 
     if (pixi.editor.activeFile()) |file| {
-        const column_width = @as(f32, @floatFromInt(file.column_width)) * scale;
-        const row_height = @as(f32, @floatFromInt(file.row_height)) * scale;
-
-        const entry_font = dvui.Font.theme(.mono).larger(-2);
-
-        Dialogs.drawDimensionsLabel(@src(), @intFromFloat(column_width), @intFromFloat(row_height), entry_font, "px", .{ .gravity_x = 0.5 });
+        const column_width: u32 = @intFromFloat(@as(f32, @floatFromInt(file.column_width)) * scale);
+        const row_height: u32 = @intFromFloat(@as(f32, @floatFromInt(file.row_height)) * scale);
+        exportDimensionsLabelForExport(column_width, row_height);
     }
 
     return true;
 }
 
 pub fn layerDialog(_: dvui.Id) anyerror!bool {
+    if (pixi.editor.activeFile()) |file| {
+        renderExportPreview(file, .layer);
+    }
+    if (pixi.editor.activeFile()) |file| {
+        exportDimensionsLabelForExport(file.width(), file.height());
+    }
     return true;
 }
 
 pub fn allDialog(_: dvui.Id) anyerror!bool {
+    if (pixi.editor.activeFile()) |file| {
+        renderExportPreview(file, .composite);
+    }
+    if (pixi.editor.activeFile()) |file| {
+        exportDimensionsLabelForExport(file.width(), file.height());
+    }
     return true;
 }
 
@@ -394,11 +278,242 @@ pub fn callAfter(_: dvui.Id, response: dvui.enums.DialogResponse) anyerror!void 
                         null,
                     );
                 },
-                else => {},
+                .layer => {
+                    const file = pixi.editor.activeFile() orelse return;
+                    const base = file.layerExportBaseName(pixi.app.allocator) catch {
+                        dvui.log.err("Failed to allocate default export name", .{});
+                        return;
+                    };
+                    defer pixi.app.allocator.free(base);
+
+                    const default = std.fmt.allocPrintSentinel(pixi.app.allocator, "{s}.png", .{base}, 0) catch {
+                        dvui.log.err("Failed to allocate filename", .{});
+                        return;
+                    };
+                    defer pixi.app.allocator.free(default);
+
+                    pixi.backend.showSaveFileDialog(
+                        exportLayerCallback,
+                        &[_]sdl3.SDL_DialogFileFilter{
+                            .{ .name = "PNG", .pattern = "png" },
+                            .{ .name = "JPEG", .pattern = "jpg;jpeg" },
+                        },
+                        default,
+                        null,
+                    );
+                },
+                .all => {
+                    const file = pixi.editor.activeFile() orelse return;
+                    const base = file.allExportBaseName(pixi.app.allocator) catch {
+                        dvui.log.err("Failed to allocate default export name", .{});
+                        return;
+                    };
+                    defer pixi.app.allocator.free(base);
+
+                    const default = std.fmt.allocPrintSentinel(pixi.app.allocator, "{s}.png", .{base}, 0) catch {
+                        dvui.log.err("Failed to allocate filename", .{});
+                        return;
+                    };
+                    defer pixi.app.allocator.free(default);
+
+                    pixi.backend.showSaveFileDialog(
+                        exportAllCallback,
+                        &[_]sdl3.SDL_DialogFileFilter{
+                            .{ .name = "PNG", .pattern = "png" },
+                            .{ .name = "JPEG", .pattern = "jpg;jpeg" },
+                        },
+                        default,
+                        null,
+                    );
+                },
             }
         },
         .cancel => {},
         else => {},
+    }
+}
+
+/// One call site for the export preview scroll+tile so widget ids (and first-frame layout) stay
+/// stable when switching between Single and Animation. Otherwise `renderLayers` early-outs for
+/// one frame with `content_rs.s == 0` on a fresh scroll id.
+fn renderExportPreviewSprite(file: *pixi.Internal.File, sprite_index: usize) void {
+    const sprite_rect = file.spriteRect(sprite_index);
+    const max_size_content: dvui.Size = .{
+        .w = (dvui.currentWindow().rect_pixels.w / dvui.currentWindow().natural_scale) / 2,
+        .h = (dvui.currentWindow().rect_pixels.h / dvui.currentWindow().natural_scale) / 2.0,
+    };
+    const min_size_content: dvui.Size = sprite_rect.justSize().scale(scale, dvui.Rect).size();
+
+    var scroll_area = dvui.scrollArea(@src(), .{
+        .scroll_info = &scroll_info,
+        .horizontal_bar = .auto_overlay,
+        .vertical_bar = .auto_overlay,
+    }, .{
+        .background = false,
+        .expand = .both,
+        .max_size_content = .{ .w = max_size_content.w, .h = max_size_content.h },
+    });
+    defer scroll_area.deinit();
+
+    {
+        var box = dvui.box(@src(), .{
+            .dir = .horizontal,
+        }, .{
+            .expand = .none,
+            .min_size_content = min_size_content,
+            .gravity_x = 0.5,
+        });
+        defer box.deinit();
+
+        const uv = dvui.Rect{
+            .x = sprite_rect.x / @as(f32, @floatFromInt(file.width())),
+            .y = sprite_rect.y / @as(f32, @floatFromInt(file.height())),
+            .w = sprite_rect.w / @as(f32, @floatFromInt(file.width())),
+            .h = sprite_rect.h / @as(f32, @floatFromInt(file.height())),
+        };
+
+        {
+            var path = dvui.Path.Builder.init(dvui.currentWindow().arena());
+            defer path.deinit();
+
+            path.addRect(box.data().rectScale().r, .all(0));
+
+            box.data().rectScale().r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.5 });
+
+            const alpha_triangles = pixi.dvui.pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{
+                .subdivisions = 8,
+                .color_mod = dvui.themeGet().color(.control, .fill).lighten(4.0).opacity(0.5),
+            }) catch unreachable;
+            dvui.renderTriangles(alpha_triangles, file.editor.checkerboard_tile.getTexture() catch null) catch {
+                dvui.log.err("Failed to render triangles", .{});
+            };
+        }
+
+        pixi.render.renderLayers(.{
+            .file = file,
+            .rs = box.data().rectScale(),
+            .uv = uv,
+        }) catch {
+            dvui.log.err("Failed to render layers", .{});
+        };
+    }
+}
+
+fn exportScaleSlider(max_scale_val: f32) void {
+    if (dvui.sliderEntry(@src(), "Scale: {d}", .{ .value = &scale, .min = 1, .max = max_scale_val, .interval = 1 }, .{
+        .expand = .horizontal,
+        .box_shadow = .{
+            .color = .black,
+            .offset = .{ .x = 0.0, .y = 3 },
+            .fade = 5.0,
+            .alpha = 0.2,
+            .corner_radius = .all(100000),
+        },
+        .color_fill = dvui.themeGet().color(.window, .fill).lighten(-4),
+        .color_fill_hover = dvui.themeGet().color(.window, .fill).lighten(2),
+        .corner_radius = .all(100000),
+        .margin = .all(6),
+    })) dvui.currentWindow().extra_frames_needed = 2;
+}
+
+fn exportDimensionsLabelForExport(column_w: u32, row_h: u32) void {
+    const entry_font = dvui.Font.theme(.mono).larger(-2);
+    Dialogs.drawDimensionsLabel(@src(), column_w, row_h, entry_font, "px", .{ .gravity_x = 0.5 });
+}
+
+const ExportFullPreviewKind = enum { layer, composite };
+
+/// Full-canvas preview at 1:1 logical pixels: checkerboard + either the selected layer only or the
+/// flattened composite (all visible layers). One scroll + box `call site for stable widget ids.
+fn renderExportPreview(file: *pixi.Internal.File, kind: ExportFullPreviewKind) void {
+    const w = file.width();
+    const h = file.height();
+    if (w == 0 or h == 0) return;
+
+    if (kind == .composite) {
+        pixi.render.syncLayerComposite(file) catch {
+            dvui.log.err("Export preview: failed to build layer composite", .{});
+            return;
+        };
+    }
+
+    const max_size_content: dvui.Size = .{
+        .w = (dvui.currentWindow().rect_pixels.w / dvui.currentWindow().natural_scale) / 2,
+        .h = (dvui.currentWindow().rect_pixels.h / dvui.currentWindow().natural_scale) / 2.0,
+    };
+    const min_size_content: dvui.Size = .{ .w = @floatFromInt(w), .h = @floatFromInt(h) };
+
+    var scroll_area = dvui.scrollArea(@src(), .{
+        .scroll_info = &scroll_info_full,
+        .horizontal_bar = .auto_overlay,
+        .vertical_bar = .auto_overlay,
+    }, .{
+        .background = false,
+        .expand = .both,
+        .max_size_content = .{ .w = max_size_content.w, .h = max_size_content.h },
+    });
+    defer scroll_area.deinit();
+
+    {
+        var box = dvui.box(@src(), .{
+            .dir = .horizontal,
+        }, .{
+            .expand = .none,
+            .min_size_content = min_size_content,
+            .gravity_x = 0.5,
+        });
+        defer box.deinit();
+
+        {
+            var path = dvui.Path.Builder.init(dvui.currentWindow().arena());
+            defer path.deinit();
+
+            path.addRect(box.data().rectScale().r, .all(0));
+
+            box.data().rectScale().r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill), .fade = 1.0 });
+
+            const alpha_triangles = pixi.dvui.pathToSubdividedQuad(path.build(), dvui.currentWindow().arena(), .{
+                .subdivisions = 8,
+                .color_mod = dvui.themeGet().color(.control, .fill).lighten(4.0).opacity(1.0),
+            }) catch unreachable;
+            dvui.renderTriangles(alpha_triangles, file.editor.checkerboard_tile.getTexture() catch null) catch {
+                dvui.log.err("Failed to render checker", .{});
+            };
+        }
+
+        const full_uv = dvui.Rect{ .x = 0, .y = 0, .w = 1, .h = 1 };
+        const rs = box.data().rectScale();
+
+        var path_tris: dvui.Path.Builder = .init(pixi.app.allocator);
+        defer path_tris.deinit();
+        path_tris.addRect(rs.r, .all(0));
+        var tris = path_tris.build().fillConvexTriangles(pixi.app.allocator, .{ .color = .white, .fade = 0.0 }) catch {
+            return;
+        };
+        defer tris.deinit(pixi.app.allocator);
+        tris.uvFromRectuv(rs.r, full_uv);
+
+        switch (kind) {
+            .layer => {
+                const layer = file.layers.get(file.selected_layer_index);
+                if (layer.visible) {
+                    if (layer.source.getTexture() catch null) |tex| {
+                        dvui.renderTriangles(tris, tex) catch {
+                            dvui.log.err("Failed to render layer for export preview", .{});
+                        };
+                    }
+                }
+            },
+            .composite => {
+                if (file.editor.layer_composite_target) |ct| {
+                    if (dvui.Texture.fromTargetTemp(ct) catch null) |ctex| {
+                        dvui.renderTriangles(tris, ctex) catch {
+                            dvui.log.err("Failed to draw composite for export preview", .{});
+                        };
+                    }
+                }
+            },
+        }
     }
 }
 
@@ -440,6 +555,26 @@ pub fn exportCurrentSpriteCallback(paths: ?[][:0]const u8) void {
     if (paths) |paths_| {
         for (paths_) |path| {
             exportCurrentSprite(path) catch |err| {
+                dvui.log.err("Failed to save image: {any}", .{err});
+            };
+        }
+    }
+}
+
+pub fn exportLayerCallback(paths: ?[][:0]const u8) void {
+    if (paths) |paths_| {
+        for (paths_) |path| {
+            exportLayerToPath(path) catch |err| {
+                dvui.log.err("Failed to save layer: {any}", .{err});
+            };
+        }
+    }
+}
+
+pub fn exportAllCallback(paths: ?[][:0]const u8) void {
+    if (paths) |paths_| {
+        for (paths_) |path| {
+            exportAllToPath(path) catch |err| {
                 dvui.log.err("Failed to save image: {any}", .{err});
             };
         }
@@ -513,6 +648,68 @@ pub fn exportCurrentSprite(path: []const u8) anyerror!void {
         } else {
             try pixi.image.writeToJpgPpi(src, path, 0);
         }
+    }
+}
+
+pub fn exportLayerToPath(path: []const u8) anyerror!void {
+    const ext = std.fs.path.extension(path);
+    const is_png = std.mem.eql(u8, ext, ".png");
+    const is_jpg = std.mem.eql(u8, ext, ".jpg") or std.mem.eql(u8, ext, ".jpeg");
+    if (!is_png and !is_jpg) {
+        dvui.log.err("Export: File must be .png, .jpg, or .jpeg, got {s}", .{ext});
+        return error.InvalidExtension;
+    }
+
+    const file = pixi.editor.activeFile() orelse {
+        dvui.log.err("Export: No active file", .{});
+        return error.NoActiveFile;
+    };
+
+    const layer = file.layers.get(file.selected_layer_index);
+    const src = layer.source;
+    if (is_png) {
+        try pixi.image.writeToPngResolution(src, path, 0);
+    } else {
+        try pixi.image.writeToJpgPpi(src, path, 0);
+    }
+}
+
+pub fn exportAllToPath(path: []const u8) anyerror!void {
+    const ext = std.fs.path.extension(path);
+    const is_png = std.mem.eql(u8, ext, ".png");
+    const is_jpg = std.mem.eql(u8, ext, ".jpg") or std.mem.eql(u8, ext, ".jpeg");
+    if (!is_png and !is_jpg) {
+        dvui.log.err("Export: File must be .png, .jpg, or .jpeg, got {s}", .{ext});
+        return error.InvalidExtension;
+    }
+
+    const file = pixi.editor.activeFile() orelse {
+        dvui.log.err("Export: No active file", .{});
+        return error.NoActiveFile;
+    };
+
+    const w = file.width();
+    const h = file.height();
+    if (w == 0 or h == 0) return error.InvalidImageSize;
+
+    try pixi.render.syncLayerComposite(file);
+    const target = file.editor.layer_composite_target orelse {
+        return error.NoLayerComposite;
+    };
+
+    const pma_read: []dvui.Color.PMA = try dvui.Texture.readTarget(pixi.app.allocator, target);
+    defer {
+        const byte_len = pma_read.len * @sizeOf(dvui.Color.PMA);
+        pixi.app.allocator.free(@as([*]u8, @ptrCast(pma_read.ptr))[0..byte_len]);
+    }
+
+    var tmp_layer: pixi.Internal.Layer = try .fromPixelsPMA(0, "export", pma_read, w, h, .ptr);
+    defer tmp_layer.deinit();
+
+    if (is_png) {
+        try pixi.image.writeToPngResolution(tmp_layer.source, path, 0);
+    } else {
+        try pixi.image.writeToJpgPpi(tmp_layer.source, path, 0);
     }
 }
 
