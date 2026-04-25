@@ -413,10 +413,42 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         );
         defer overall_box.deinit();
 
-        if (!pixi.backend.isMaximized(dvui.currentWindow())) {
-            var animation = dvui.animate(@src(), .{ .duration = 400_000, .kind = .vertical, .easing = dvui.easing.outBack }, .{});
-            defer animation.deinit();
+        // Non-macOS: a thin strip below the top edge so the in-window title row (menu, etc.) is not flush
+        // against the window border (complements the system caption area on Windows 11).
+        if (builtin.os.tag != .macos) {
+            var top_inset = dvui.box(
+                @src(),
+                .{ .dir = .horizontal },
+                .{
+                    .expand = .horizontal,
+                    .background = false,
+                    .min_size_content = .{ .w = 1, .h = pixi.editor.settings.titlebar_top_buffer },
+                    .max_size_content = .{ .w = std.math.floatMax(f32), .h = pixi.editor.settings.titlebar_top_buffer },
+                },
+            );
+            defer top_inset.deinit();
+        }
 
+        // Title bar handling:
+        //  - macOS (not maximized): render an empty horizontal strip so AppKit's traffic lights have visual
+        //    breathing room at the top-left. AppKit handles dragging natively.
+        //  - Windows: the main UI (sidebar, menu) starts below `titlebar_top_buffer`. A floating overlay
+        //    at the top-right corner (y=0) hosts the min/max/close buttons; a drag rect is pushed across the top so
+        //    empty space (gaps between widgets) drags the window. Menu items and sidebar buttons push
+        //    themselves as interactive rects so clicks on them still reach DVUI.
+        if (builtin.os.tag == .windows) {
+            pixi.backend.resetTitleBarHints();
+
+            const window_rect_natural = dvui.windowRect();
+            const scale = dvui.windowNaturalScale();
+            const title_strip_h = pixi.editor.settings.titlebar_top_buffer + pixi.editor.settings.titlebar_height;
+            pixi.backend.pushTitleBarDragRect(.{
+                .x = 0,
+                .y = 0,
+                .w = window_rect_natural.w * scale,
+                .h = title_strip_h * scale,
+            });
+        } else if (builtin.os.tag == .macos and !pixi.backend.isMaximized(dvui.currentWindow())) {
             var titlebar_box = dvui.box(
                 @src(),
                 .{ .dir = .horizontal },
@@ -424,11 +456,93 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                     .expand = .horizontal,
                     .background = false,
                     .min_size_content = .{ .w = 1, .h = pixi.editor.settings.titlebar_height },
+                    .max_size_content = .{ .w = std.math.floatMax(f32), .h = pixi.editor.settings.titlebar_height },
                 },
             );
             defer titlebar_box.deinit();
-            // On Windows the caption buttons are handled natively (hit-test returns HTMINBUTTON/HTMAXBUTTON/HTCLOSE) so we don't draw our own; just a spacer so the title bar is draggable.
-            _ = dvui.spacer(@src(), .{ .expand = .horizontal });
+        }
+
+        // Windows-only top-right overlay: minimize / maximize / close. Lives in a FloatingWidget
+        // (a subwindow) so it doesn't take any space in the vertical overall_box layout — the main
+        // UI below fills the entire window. Caption-button rects are pushed to the backend so
+        // WM_NCHITTEST returns HTMINBUTTON/HTMAXBUTTON/HTCLOSE for them (snap-layouts + click).
+        if (builtin.os.tag == .windows) {
+            const button_w: f32 = 46;
+            const button_h = pixi.editor.settings.titlebar_height;
+            const overlay_w: f32 = button_w * 3;
+            const win_rect = dvui.windowRect();
+
+            var fw: dvui.FloatingWidget = undefined;
+            fw.init(@src(), .{ .mouse_events = true }, .{
+                .rect = .{ .x = win_rect.w - overlay_w, .y = 0, .w = overlay_w, .h = button_h },
+            });
+            defer fw.deinit();
+
+            var row = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .both });
+            defer row.deinit();
+
+            const hovered = pixi.backend.getHoveredTitleBarButton();
+            const stroke = dvui.themeGet().color(.control, .text);
+            const hover_fill = dvui.themeGet().color(.control, .fill_hover).lighten(if (dvui.themeGet().dark) 3 else -3);
+            const close_hover_fill = dvui.Color{ .r = 232, .g = 17, .b = 35, .a = 255 };
+            const close_hover_stroke = dvui.Color{ .r = 255, .g = 255, .b = 255, .a = 255 };
+
+            // minimize
+            {
+                const is_hover = hovered == .minimize;
+                var b = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                    .min_size_content = .{ .w = button_w, .h = button_h },
+                    .expand = .vertical,
+                    .background = is_hover,
+                    .color_fill = hover_fill,
+                });
+                defer b.deinit();
+                pixi.backend.setTitleBarCaptionButtonRect(.minimize, b.data().rectScale().r);
+                dvui.icon(@src(), "win_min", icons.tvg.feather.minus, .{ .stroke_color = stroke }, .{
+                    .expand = .ratio,
+                    .padding = .all(7),
+                    .margin = .all(0),
+                    .gravity_x = 0.5,
+                });
+            }
+            // maximize / restore
+            {
+                const is_hover = hovered == .maximize;
+                var b = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                    .min_size_content = .{ .w = button_w, .h = button_h },
+                    .expand = .vertical,
+                    .background = is_hover,
+                    .color_fill = hover_fill,
+                });
+                defer b.deinit();
+                pixi.backend.setTitleBarCaptionButtonRect(.maximize, b.data().rectScale().r);
+                dvui.icon(@src(), "win_max", icons.tvg.lucide.square, .{ .stroke_color = stroke }, .{
+                    .expand = .ratio,
+                    .padding = .all(9),
+                    .margin = .all(0),
+                    .gravity_x = 0.5,
+                });
+            }
+            // close
+            {
+                const is_hover = hovered == .close;
+                var b = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                    .min_size_content = .{ .w = button_w, .h = button_h },
+                    .expand = .vertical,
+                    .background = is_hover,
+                    .color_fill = close_hover_fill.opacity(0.5),
+                });
+                defer b.deinit();
+                pixi.backend.setTitleBarCaptionButtonRect(.close, b.data().rectScale().r);
+                dvui.icon(@src(), "win_close", icons.tvg.heroicons.outline.@"x-mark", .{
+                    .stroke_color = if (is_hover) close_hover_stroke else stroke,
+                }, .{
+                    .expand = .ratio,
+                    .padding = .all(5),
+                    .margin = .all(0),
+                    .gravity_x = 0.5,
+                });
+            }
         }
 
         var base_box = dvui.box(
