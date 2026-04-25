@@ -144,9 +144,9 @@ fn wrapContentViewWithVibrancy(window: objc.Object) void {
 // Window button for custom-drawn caption (Windows 11-style: app draws the buttons, backend hit-tests them).
 pub const TitleBarButton = enum { minimize, maximize, close };
 
-// Hints the app provides each frame describing which on-screen rectangles in its custom title bar should
-// be treated as caption buttons (snap-layouts + syscommand), interactive DVUI widgets (HTCLIENT — DVUI
-// gets the event), or drag regions (HTCAPTION). Hit-test priority within the title bar:
+// Title bar hint state describes which on-screen rectangles in the app's custom title bar should be
+// treated as caption buttons (snap-layouts + syscommand), interactive DVUI widgets (HTCLIENT — DVUI gets
+// the event), or drag regions (HTCAPTION). Hit-test priority within the title bar:
 //   1. caption buttons (min/max/close)
 //   2. interactive_rects → HTCLIENT (DVUI menu items, in-titlebar buttons, etc.)
 //   3. drag_rects → HTCAPTION (window drag)
@@ -155,14 +155,12 @@ pub const TitleBarButton = enum { minimize, maximize, close };
 //
 // Rects are in physical pixel coordinates relative to the window client origin — i.e. dvui.Rect.Physical
 // from a widget's rectScale(). Because we return 0 from WM_NCCALCSIZE, client origin == window origin.
-pub const TitleBarHints = struct {
-    drag_rects: []const dvui.Rect.Physical = &.{},
-    interactive_rects: []const dvui.Rect.Physical = &.{},
-    minimize_rect: ?dvui.Rect.Physical = null,
-    maximize_rect: ?dvui.Rect.Physical = null,
-    close_rect: ?dvui.Rect.Physical = null,
-};
-
+//
+// Build the hints each frame with this push-based API:
+//   resetTitleBarHints();                        // once at frame start
+//   pushTitleBarDragRect(top_strip_rect);
+//   pushTitleBarInteractiveRect(menu_item_rect); // from anywhere during draw
+//   setTitleBarCaptionButtonRect(.close, rect);
 const max_drag_rects = 16;
 const max_interactive_rects = 32;
 var titlebar_state: struct {
@@ -177,19 +175,43 @@ var titlebar_state: struct {
     hover_tracking: bool = false,
 } = .{};
 
-/// Called once per frame by the app to describe the layout of its custom title bar. Windows only; no-op
-/// elsewhere. Rects must be in physical pixels (dvui.Rect.Physical) relative to the window origin.
-pub fn setTitleBarHints(hints: TitleBarHints) void {
+/// Clears all per-frame title bar hints. Call at the start of each frame before any widgets push their rects.
+pub fn resetTitleBarHints() void {
     if (builtin.os.tag != .windows) return;
-    const drag_count = @min(hints.drag_rects.len, max_drag_rects);
-    for (hints.drag_rects[0..drag_count], 0..) |r, i| titlebar_state.drag_rects[i] = r;
-    titlebar_state.drag_count = drag_count;
-    const interactive_count = @min(hints.interactive_rects.len, max_interactive_rects);
-    for (hints.interactive_rects[0..interactive_count], 0..) |r, i| titlebar_state.interactive_rects[i] = r;
-    titlebar_state.interactive_count = interactive_count;
-    titlebar_state.minimize_rect = hints.minimize_rect;
-    titlebar_state.maximize_rect = hints.maximize_rect;
-    titlebar_state.close_rect = hints.close_rect;
+    titlebar_state.drag_count = 0;
+    titlebar_state.interactive_count = 0;
+    titlebar_state.minimize_rect = null;
+    titlebar_state.maximize_rect = null;
+    titlebar_state.close_rect = null;
+}
+
+/// Registers a rect that should drag the window (HTCAPTION). Called once or twice per frame, typically
+/// for the strip across the top of the window. Silently drops rects past the internal limit.
+pub fn pushTitleBarDragRect(rect: dvui.Rect.Physical) void {
+    if (builtin.os.tag != .windows) return;
+    if (titlebar_state.drag_count >= max_drag_rects) return;
+    titlebar_state.drag_rects[titlebar_state.drag_count] = rect;
+    titlebar_state.drag_count += 1;
+}
+
+/// Registers a rect that DVUI should receive clicks for (HTCLIENT). Use for any interactive widget
+/// drawn inside the title bar so it overrides the surrounding drag region. Silently drops past limit.
+pub fn pushTitleBarInteractiveRect(rect: dvui.Rect.Physical) void {
+    if (builtin.os.tag != .windows) return;
+    if (titlebar_state.interactive_count >= max_interactive_rects) return;
+    titlebar_state.interactive_rects[titlebar_state.interactive_count] = rect;
+    titlebar_state.interactive_count += 1;
+}
+
+/// Registers the rect of one of our app-drawn caption buttons. The backend's WM_NCHITTEST returns the
+/// matching HT code so Win11 snap-layouts appear over the maximize button and clicks invoke the action.
+pub fn setTitleBarCaptionButtonRect(button: TitleBarButton, rect: dvui.Rect.Physical) void {
+    if (builtin.os.tag != .windows) return;
+    switch (button) {
+        .minimize => titlebar_state.minimize_rect = rect,
+        .maximize => titlebar_state.maximize_rect = rect,
+        .close => titlebar_state.close_rect = rect,
+    }
 }
 
 /// Returns which caption button (if any) the cursor is currently hovered over, based on WM_NCMOUSEMOVE
@@ -832,7 +854,10 @@ pub fn showSaveFileDialog(cb: *const fn (?[][:0]const u8) void, filters: []const
         }
     };
     defer pixi.app.allocator.free(default);
-    sdl3.SDL_ShowSaveFileDialog(GenericSaveDialogCallback, @ptrCast(@alignCast(@constCast(cb))), dvui.currentWindow().backend.impl.window, filters.ptr, @intCast(filters.len), default);
+    // Do not use our borderless/custom-frame main window as the dialog parent on Windows: the shell
+    // may inherit extended style and the picker loses normal frame/close affordances.
+    const parent: ?*sdl3.SDL_Window = if (builtin.os.tag == .windows) null else dvui.currentWindow().backend.impl.window;
+    sdl3.SDL_ShowSaveFileDialog(GenericSaveDialogCallback, @ptrCast(@alignCast(@constCast(cb))), parent, filters.ptr, @intCast(filters.len), default);
 }
 
 pub fn showOpenFileDialog(cb: *const fn (?[][:0]const u8) void, filters: []const sdl3.SDL_DialogFileFilter, default_filename: []const u8, default_folder: ?[]const u8) void {
@@ -846,7 +871,8 @@ pub fn showOpenFileDialog(cb: *const fn (?[][:0]const u8) void, filters: []const
         }
     };
     defer pixi.app.allocator.free(default);
-    sdl3.SDL_ShowOpenFileDialog(GenericOpenDialogCallback, @ptrCast(@alignCast(@constCast(cb))), dvui.currentWindow().backend.impl.window, filters.ptr, @intCast(filters.len), default.ptr, true);
+    const parent: ?*sdl3.SDL_Window = if (builtin.os.tag == .windows) null else dvui.currentWindow().backend.impl.window;
+    sdl3.SDL_ShowOpenFileDialog(GenericOpenDialogCallback, @ptrCast(@alignCast(@constCast(cb))), parent, filters.ptr, @intCast(filters.len), default.ptr, true);
 }
 
 pub fn showOpenFolderDialog(cb: *const fn (?[][:0]const u8) void, default_folder: ?[]const u8) void {
@@ -862,7 +888,8 @@ pub fn showOpenFolderDialog(cb: *const fn (?[][:0]const u8) void, default_folder
         }
     };
     defer pixi.app.allocator.free(default);
-    sdl3.SDL_ShowOpenFolderDialog(GenericOpenDialogCallback, @ptrCast(@alignCast(@constCast(cb))), dvui.currentWindow().backend.impl.window, default.ptr, false);
+    const parent: ?*sdl3.SDL_Window = if (builtin.os.tag == .windows) null else dvui.currentWindow().backend.impl.window;
+    sdl3.SDL_ShowOpenFolderDialog(GenericOpenDialogCallback, @ptrCast(@alignCast(@constCast(cb))), parent, default.ptr, false);
 }
 
 fn GenericSaveDialogCallback(cb: ?*anyopaque, files: [*c]const [*c]const u8, _: c_int) callconv(.c) void {
