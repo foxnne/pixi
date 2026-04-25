@@ -425,7 +425,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                     //.color_fill_hover = .fill,
                     .color_fill_hover = dvui.themeGet().color(.control, .fill).opacity(0.5),
                     .color_fill_press = dvui.themeGet().color(.control, .fill_press),
-                    .color_fill = if (selected) dvui.themeGet().color(.control, .fill).opacity(0.5) else .transparent,
+                    .color_fill = if (selected and tree.drag_point == null) dvui.themeGet().color(.control, .fill).opacity(0.5) else .transparent,
                     .padding = dvui.Rect.all(1),
                 });
                 defer branch.deinit();

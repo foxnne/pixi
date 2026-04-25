@@ -340,6 +340,43 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
     }
 }
 
+/// Margin on the circular close control in `windowHeader`. Keep in sync with title label padding in `windowHeader`.
+pub const window_header_close_margin = dvui.Rect.all(6);
+
+/// Sum of top + bottom padding on the `windowHeader` title label (`.padding` `.y` + `.h`).
+pub const window_header_title_vertical_pad: f32 = 8.0;
+
+/// Inner width/height of the red close circle (dialog header + workspace tabs).
+/// Blends the full title-row target (tab-style) with cap-height (what a ratio-only overlay close tended to land on) so both match.
+pub fn windowHeaderCloseInnerSide() f32 {
+    const fh = dvui.themeGet().font_heading;
+    const row = fh.lineHeight() + window_header_title_vertical_pad;
+    const m = window_header_close_margin.y + window_header_close_margin.h;
+    const row_inner = @max(6.0, row - m);
+    const cap_inner = @max(6.0, fh.textHeight());
+    return (row_inner + cap_inner) * 0.5;
+}
+
+/// Base `Options` for the dialog header close button. Tabs pass `.override(.{ .expand = .none, .min_size_content = …, .id_extra = … })`.
+pub fn windowHeaderCloseButtonOptions(over: dvui.Options) dvui.Options {
+    const base: dvui.Options = .{
+        .font = .theme(.heading),
+        .corner_radius = dvui.Rect.all(1000),
+        .padding = dvui.Rect.all(0),
+        .margin = window_header_close_margin,
+        .gravity_y = 0.5,
+        .expand = .ratio,
+        .style = .err,
+        .box_shadow = .{
+            .color = .black,
+            .alpha = 0.25,
+            .offset = .{ .x = -2, .y = 2 },
+            .fade = 4,
+        },
+    };
+    return base.override(over);
+}
+
 pub fn windowHeader(str: []const u8, right_str: []const u8, openflag: ?*bool) dvui.Rect.Physical {
     var over = dvui.overlay(@src(), .{
         .expand = .horizontal,
@@ -357,24 +394,11 @@ pub fn windowHeader(str: []const u8, right_str: []const u8, openflag: ?*bool) dv
     });
 
     if (openflag) |of| {
-        const opts: dvui.Options = .{
-            .font = .theme(.heading),
-            .corner_radius = dvui.Rect.all(1000),
-            .padding = dvui.Rect.all(0),
-            .margin = dvui.Rect.all(6),
-            .gravity_y = 0.5,
-            .expand = .ratio,
-            .style = .err,
-            .box_shadow = .{
-                .color = .black,
-                .alpha = 0.25,
-                .offset = .{ .x = -2, .y = 2 },
-                .fade = 4,
-            },
-        };
-
+        const close_side = windowHeaderCloseInnerSide();
         var button: dvui.ButtonWidget = undefined;
-        button.init(@src(), .{}, opts);
+        button.init(@src(), .{}, windowHeaderCloseButtonOptions(.{
+            .min_size_content = .{ .w = close_side, .h = close_side },
+        }));
         defer button.deinit();
 
         button.processEvents();
