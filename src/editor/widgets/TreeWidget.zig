@@ -235,7 +235,9 @@ pub fn dragStart(self: *TreeWidget, branch_id: usize, p: dvui.Point.Physical, ro
     dvui.dataRemove(null, self.wd.id, "_drag_branch_ids");
     dvui.captureMouse(self.data(), 0);
     if (self.init_options.drag_name) |dn| {
-        dvui.dragStart(p, .{ .name = dn });
+        // `dragStart` overwrites the whole `Dragging` options; keep `dragPreStart`'s offset so the
+        // floating row stays anchored to the grab point (files tree uses a named "tab" drag here).
+        dvui.dragStart(p, .{ .name = dn, .offset = dvui.dragOffset() });
         dvui.captureMouse(null, 0);
     }
 }
@@ -263,7 +265,7 @@ pub fn dragStartMulti(
     }
     dvui.captureMouse(self.data(), 0);
     if (self.init_options.drag_name) |dn| {
-        dvui.dragStart(p, .{ .name = dn });
+        dvui.dragStart(p, .{ .name = dn, .offset = dvui.dragOffset() });
         dvui.captureMouse(null, 0);
     }
 }
@@ -465,10 +467,10 @@ pub const Branch = struct {
                 if (rs.r.contains(dp)) {
                     if (!self.expanded) {
                         // Auto-expand after timer so hover over closed folder opens it.
-                        // Also update init_options.expanded so the expander animation logic
-                        // agrees with the current state and doesn't immediately collapse.
+                        // Set only `init_options.expanded` so `self.expanded` stays false until
+                        // `expander()` runs: that keeps `init_options.expanded != self.expanded` and
+                        // replays the same open animation as a click.
                         if (dvui.timerDone(self.data().id)) {
-                            self.expanded = true;
                             self.init_options.expanded = true;
                         } else {
                             _ = dvui.timer(self.data().id, 500_000);
@@ -491,6 +493,20 @@ pub const Branch = struct {
         self.button.init(@src(), .{ .draw_focus = false }, wrapInner(self.options).override(.{ .expand = self.options.expand }));
         if (self.init_options.process_events) {
             self.button.processEvents();
+        }
+        // `dvui.clicked` (ButtonWidget) uses `dragPreStart(., .{})` on press, then marks the event
+        // handled — so the loop below never sees the press. Re-apply with a grab offset for this row.
+        if (self.init_options.process_events and self.tree.init_options.enable_reordering) {
+            for (dvui.events()) |*e| {
+                if (e.evt != .mouse) continue;
+                const me = e.evt.mouse;
+                if (me.action != .press or !me.button.pointer()) continue;
+                if (!dvui.captured(self.button.data().id)) continue;
+                const cw = dvui.currentWindow();
+                if (cw.dragging.state != .none) dvui.dragEnd();
+                const tl = self.button.data().rectScale().r.topLeft();
+                dvui.dragPreStart(me.p, .{ .offset = tl.diff(me.p) });
+            }
         }
         self.button.drawBackground();
         self.button.drawFocus();
@@ -547,6 +563,17 @@ pub const Branch = struct {
             switch (e.evt) {
                 .mouse => |me| {
                     if (!self.tree.init_options.enable_reordering) continue;
+                    if (me.action == .press and me.button.pointer()) {
+                        // `process_events == true`: offset is set above, after `button.processEvents` (the
+                        // event is already handled, so this branch is not reached for press).
+                        if (!self.init_options.process_events) {
+                            const cw = dvui.currentWindow();
+                            if (cw.dragging.state != .none) dvui.dragEnd();
+                            const tl = self.button.data().rectScale().r.topLeft();
+                            dvui.dragPreStart(me.p, .{ .offset = tl.diff(me.p) });
+                        }
+                        continue;
+                    }
                     if (me.action == .motion) {
                         if (dvui.captured(self.button.data().id)) {
                             e.handle(@src(), self.button.data());
