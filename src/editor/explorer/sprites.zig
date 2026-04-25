@@ -871,7 +871,9 @@ pub fn drawAnimations(self: *Sprites) !void {
             var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                 .expand = .both,
                 .background = true,
-                .color_fill = if ((selected or row_highlight) and !branch.floating())
+                .color_fill = if (branch.floating())
+                    .transparent
+                else if (selected or row_highlight)
                     ctrl_hover
                 else
                     .transparent,
@@ -879,13 +881,6 @@ pub fn drawAnimations(self: *Sprites) !void {
                 .margin = .all(0),
                 .padding = dvui.Rect.all(5),
                 .corner_radius = dvui.Rect.all(8),
-                .box_shadow = if (branch.floating()) .{
-                    .color = .black,
-                    .offset = .{ .x = -2.0, .y = 2.0 },
-                    .fade = 6.0,
-                    .alpha = 0.25,
-                    .corner_radius = dvui.Rect.all(8),
-                } else null,
             });
             defer hbox.deinit();
 
@@ -1641,7 +1636,9 @@ pub fn drawFrames(self: *Sprites) !void {
                 var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
                     .expand = .both,
                     .background = true,
-                    .color_fill = if ((sprite_selected or row_highlight) and !branch.floating())
+                    .color_fill = if (branch.floating())
+                        .transparent
+                    else if ((sprite_selected or row_highlight))
                         ctrl_hover
                     else
                         .transparent,
@@ -1649,13 +1646,6 @@ pub fn drawFrames(self: *Sprites) !void {
                     .margin = dvui.Rect{},
                     .padding = .{ .x = 5, .y = 3, .w = 5, .h = 2 },
                     .corner_radius = dvui.Rect.all(8),
-                    .box_shadow = if (branch.floating()) .{
-                        .color = .black,
-                        .offset = .{ .x = -2.0, .y = 2.0 },
-                        .fade = 6.0,
-                        .alpha = 0.25,
-                        .corner_radius = dvui.Rect.all(8),
-                    } else null,
                 });
                 defer hbox.deinit();
 
@@ -1781,7 +1771,7 @@ pub fn drawFrames(self: *Sprites) !void {
         if (vertical_scroll > 0.0)
             pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .top, .{});
 
-        if (file.editor.sprites_scroll_info.virtual_size.h > file.editor.sprites_scroll_info.viewport.h and vertical_scroll < file.editor.animations_scroll_info.scrollMax(.vertical))
+        if (file.editor.sprites_scroll_info.virtual_size.h > file.editor.sprites_scroll_info.viewport.h and vertical_scroll < file.editor.sprites_scroll_info.scrollMax(.vertical))
             pixi.dvui.drawEdgeShadow(scroll_area.data().contentRectScale(), .bottom, .{});
     }
 }

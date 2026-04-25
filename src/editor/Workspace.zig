@@ -434,76 +434,212 @@ pub fn processTabsDrag(self: *Workspace) void {
     }
 }
 
-/// Responsible for handling the cross-widget drag of tabs between multiple workspaces or between tabs and workspaces
-pub fn processTabDrag(self: *Workspace, data: *dvui.WidgetData) void {
-    if (dvui.dragName("tab_drag")) {
-        for (dvui.events()) |*e| {
-            if (!dvui.eventMatch(e, .{ .id = data.id, .r = data.rectScale().r, .drag_name = "tab_drag" })) continue;
-
-            for (pixi.editor.workspaces.values()) |*workspace| {
-                if (workspace.tabs_drag_index) |drag_index| {
-                    var right_side = data.rectScale().r;
-                    right_side.w /= 2;
-                    right_side.x += right_side.w;
-
-                    if (right_side.contains(e.evt.mouse.p) and pixi.editor.workspaces.keys()[pixi.editor.workspaces.keys().len - 1] == self.grouping) {
-                        if (e.evt == .mouse and e.evt.mouse.action == .position) {
-                            right_side.fill(dvui.Rect.Physical.all(right_side.w / 8), .{
-                                .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
-                            });
-                        }
-
-                        if (e.evt == .mouse and e.evt.mouse.action == .release and e.evt.mouse.button.pointer()) {
-                            defer workspace.tabs_drag_index = null;
-                            // We dropped on the right side of the workspace, so we need to create a new workspace
-                            e.handle(@src(), data);
-                            dvui.dragEnd();
-                            dvui.refresh(null, @src(), data.id);
-
-                            var dragged_file = &pixi.editor.open_files.values()[drag_index];
-
-                            if (workspace.open_file_index == pixi.editor.open_files.getIndex(dragged_file.id)) {
-                                for (pixi.editor.open_files.values()) |f| {
-                                    if (f.editor.grouping == workspace.grouping and f.id != dragged_file.id) {
-                                        workspace.open_file_index = pixi.editor.open_files.getIndex(f.id) orelse 0;
-                                        break;
-                                    }
-                                }
-                            }
-                            dragged_file.editor.grouping = pixi.editor.newGroupingID();
-                            pixi.editor.open_workspace_grouping = dragged_file.editor.grouping;
-                        }
-                    } else if (data.rectScale().r.contains(e.evt.mouse.p)) {
-                        if (e.evt == .mouse and e.evt.mouse.action == .position) {
-                            data.rectScale().r.fill(dvui.Rect.Physical.all(data.rectScale().r.w / 8), .{
-                                .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
-                            });
-                        }
-
-                        if (e.evt == .mouse and e.evt.mouse.action == .release and e.evt.mouse.button.pointer()) {
-                            defer workspace.tabs_drag_index = null;
-                            // We dropped on the full workspace, so we need to move the file to this workspace
-                            e.handle(@src(), data);
-                            dvui.dragEnd();
-                            dvui.refresh(null, @src(), data.id);
-
-                            var dragged_file = &pixi.editor.open_files.values()[drag_index];
-
-                            if (workspace.open_file_index == pixi.editor.open_files.getIndex(dragged_file.id)) {
-                                for (pixi.editor.open_files.values()) |f| {
-                                    if (f.editor.grouping == workspace.grouping and f.id != dragged_file.id) {
-                                        workspace.open_file_index = pixi.editor.open_files.getIndex(f.id) orelse 0;
-                                        break;
-                                    }
-                                }
-                            }
-                            dragged_file.editor.grouping = self.grouping;
-                            pixi.editor.open_workspace_grouping = dragged_file.editor.grouping;
-                            self.open_file_index = pixi.editor.open_files.getIndex(dragged_file.id) orelse 0;
-                        }
+/// Repoint `open_file_index` on workspaces that were showing the dragged tab as active.
+fn repointWorkspacesAfterTabDrag(editor: *Editor, tab_bar_workspace: ?*Workspace, drag_index: usize) void {
+    const dragged_file = &editor.open_files.values()[drag_index];
+    if (tab_bar_workspace) |workspace| {
+        if (workspace.open_file_index == editor.open_files.getIndex(dragged_file.id)) {
+            for (editor.open_files.values()) |f| {
+                if (f.editor.grouping == workspace.grouping and f.id != dragged_file.id) {
+                    workspace.open_file_index = editor.open_files.getIndex(f.id) orelse 0;
+                    break;
+                }
+            }
+        }
+    } else {
+        for (editor.workspaces.values()) |*w| {
+            if (w.open_file_index == drag_index) {
+                for (editor.open_files.values()) |f| {
+                    if (f.editor.grouping == w.grouping and f.id != dragged_file.id) {
+                        w.open_file_index = editor.open_files.getIndex(f.id) orelse 0;
+                        break;
                     }
                 }
             }
+        }
+    }
+}
+
+const WorkspaceTabDragSrc = union(enum) {
+    tab_bar: struct { ws: *Workspace, index: usize },
+    tree_open: usize,
+    tree_closed: []const u8,
+    none,
+
+    fn resolve(editor: *Editor) WorkspaceTabDragSrc {
+        for (editor.workspaces.values()) |*w| {
+            if (w.tabs_drag_index) |i| return .{ .tab_bar = .{ .ws = w, .index = i } };
+        }
+        if (editor.tab_drag_from_tree_path) |p| {
+            if (editor.getFileFromPath(p)) |f| {
+                const idx = editor.open_files.getIndex(f.id) orelse return .none;
+                return .{ .tree_open = idx };
+            }
+            return .{ .tree_closed = p };
+        }
+        return .none;
+    }
+};
+
+/// Responsible for handling the cross-widget drag of tabs between multiple workspaces or between tabs and workspaces.
+/// Also handles the same `tab_drag` from the Files tree (see `files.zig` + DVUI reorder_tree cross-widget pattern).
+pub fn processTabDrag(self: *Workspace, data: *dvui.WidgetData) void {
+    if (!dvui.dragName("tab_drag")) {
+        pixi.editor.clearFileTreeTabDragDropState();
+        return;
+    }
+
+    const drag_src = WorkspaceTabDragSrc.resolve(pixi.editor);
+    switch (drag_src) {
+        .none => return,
+        else => {},
+    }
+
+    events_loop: for (dvui.events()) |*e| {
+        if (!dvui.eventMatch(e, .{ .id = data.id, .r = data.rectScale().r, .drag_name = "tab_drag" })) continue;
+
+        switch (drag_src) {
+            .none => unreachable,
+            .tab_bar => |tb| {
+                const workspace = tb.ws;
+                const drag_index = tb.index;
+
+                var right_side = data.rectScale().r;
+                right_side.w /= 2;
+                right_side.x += right_side.w;
+
+                if (right_side.contains(e.evt.mouse.p) and pixi.editor.workspaces.keys()[pixi.editor.workspaces.keys().len - 1] == self.grouping) {
+                    if (e.evt == .mouse and e.evt.mouse.action == .position) {
+                        right_side.fill(dvui.Rect.Physical.all(right_side.w / 8), .{
+                            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
+                        });
+                    }
+
+                    if (e.evt == .mouse and e.evt.mouse.action == .release and e.evt.mouse.button.pointer()) {
+                        defer workspace.tabs_drag_index = null;
+                        e.handle(@src(), data);
+                        dvui.dragEnd();
+                        dvui.refresh(null, @src(), data.id);
+                        pixi.editor.clearFileTreeTabDragDropState();
+
+                        repointWorkspacesAfterTabDrag(pixi.editor, workspace, drag_index);
+                        var dragged_file = &pixi.editor.open_files.values()[drag_index];
+                        dragged_file.editor.grouping = pixi.editor.newGroupingID();
+                        pixi.editor.open_workspace_grouping = dragged_file.editor.grouping;
+                    }
+                } else if (data.rectScale().r.contains(e.evt.mouse.p)) {
+                    if (e.evt == .mouse and e.evt.mouse.action == .position) {
+                        data.rectScale().r.fill(dvui.Rect.Physical.all(data.rectScale().r.w / 8), .{
+                            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
+                        });
+                    }
+
+                    if (e.evt == .mouse and e.evt.mouse.action == .release and e.evt.mouse.button.pointer()) {
+                        defer workspace.tabs_drag_index = null;
+                        e.handle(@src(), data);
+                        dvui.dragEnd();
+                        dvui.refresh(null, @src(), data.id);
+                        pixi.editor.clearFileTreeTabDragDropState();
+
+                        repointWorkspacesAfterTabDrag(pixi.editor, workspace, drag_index);
+                        var dragged_file = &pixi.editor.open_files.values()[drag_index];
+                        dragged_file.editor.grouping = self.grouping;
+                        pixi.editor.open_workspace_grouping = dragged_file.editor.grouping;
+                        self.open_file_index = pixi.editor.open_files.getIndex(dragged_file.id) orelse 0;
+                    }
+                }
+            },
+            .tree_open => |drag_index| {
+                var right_side = data.rectScale().r;
+                right_side.w /= 2;
+                right_side.x += right_side.w;
+
+                if (right_side.contains(e.evt.mouse.p) and pixi.editor.workspaces.keys()[pixi.editor.workspaces.keys().len - 1] == self.grouping) {
+                    if (e.evt == .mouse and e.evt.mouse.action == .position) {
+                        right_side.fill(dvui.Rect.Physical.all(right_side.w / 8), .{
+                            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
+                        });
+                    }
+
+                    if (e.evt == .mouse and e.evt.mouse.action == .release and e.evt.mouse.button.pointer()) {
+                        e.handle(@src(), data);
+                        dvui.dragEnd();
+                        dvui.refresh(null, @src(), data.id);
+                        pixi.editor.clearFileTreeTabDragDropState();
+
+                        repointWorkspacesAfterTabDrag(pixi.editor, null, drag_index);
+                        var dragged_file = &pixi.editor.open_files.values()[drag_index];
+                        dragged_file.editor.grouping = pixi.editor.newGroupingID();
+                        pixi.editor.open_workspace_grouping = dragged_file.editor.grouping;
+                    }
+                } else if (data.rectScale().r.contains(e.evt.mouse.p)) {
+                    if (e.evt == .mouse and e.evt.mouse.action == .position) {
+                        data.rectScale().r.fill(dvui.Rect.Physical.all(data.rectScale().r.w / 8), .{
+                            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
+                        });
+                    }
+
+                    if (e.evt == .mouse and e.evt.mouse.action == .release and e.evt.mouse.button.pointer()) {
+                        e.handle(@src(), data);
+                        dvui.dragEnd();
+                        dvui.refresh(null, @src(), data.id);
+                        pixi.editor.clearFileTreeTabDragDropState();
+
+                        repointWorkspacesAfterTabDrag(pixi.editor, null, drag_index);
+                        var dragged_file = &pixi.editor.open_files.values()[drag_index];
+                        dragged_file.editor.grouping = self.grouping;
+                        pixi.editor.open_workspace_grouping = dragged_file.editor.grouping;
+                        self.open_file_index = pixi.editor.open_files.getIndex(dragged_file.id) orelse 0;
+                    }
+                }
+            },
+            .tree_closed => |path| {
+                var right_side = data.rectScale().r;
+                right_side.w /= 2;
+                right_side.x += right_side.w;
+
+                if (right_side.contains(e.evt.mouse.p) and pixi.editor.workspaces.keys()[pixi.editor.workspaces.keys().len - 1] == self.grouping) {
+                    if (e.evt == .mouse and e.evt.mouse.action == .position) {
+                        right_side.fill(dvui.Rect.Physical.all(right_side.w / 8), .{
+                            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
+                        });
+                    }
+
+                    if (e.evt == .mouse and e.evt.mouse.action == .release and e.evt.mouse.button.pointer()) {
+                        e.handle(@src(), data);
+                        dvui.dragEnd();
+                        dvui.refresh(null, @src(), data.id);
+                        const new_g = pixi.editor.newGroupingID();
+                        const idx = pixi.editor.openOrFocusFileAtGrouping(path, new_g) catch {
+                            pixi.editor.clearFileTreeTabDragDropState();
+                            continue :events_loop;
+                        };
+                        repointWorkspacesAfterTabDrag(pixi.editor, null, idx);
+                        // Same as tab strip: new grouping may not have a workspace ptr yet this frame.
+                        pixi.editor.open_workspace_grouping = new_g;
+                        pixi.editor.clearFileTreeTabDragDropState();
+                    }
+                } else if (data.rectScale().r.contains(e.evt.mouse.p)) {
+                    if (e.evt == .mouse and e.evt.mouse.action == .position) {
+                        data.rectScale().r.fill(dvui.Rect.Physical.all(data.rectScale().r.w / 8), .{
+                            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.5),
+                        });
+                    }
+
+                    if (e.evt == .mouse and e.evt.mouse.action == .release and e.evt.mouse.button.pointer()) {
+                        e.handle(@src(), data);
+                        dvui.dragEnd();
+                        dvui.refresh(null, @src(), data.id);
+                        const idx = pixi.editor.openOrFocusFileAtGrouping(path, self.grouping) catch {
+                            pixi.editor.clearFileTreeTabDragDropState();
+                            continue :events_loop;
+                        };
+                        repointWorkspacesAfterTabDrag(pixi.editor, null, idx);
+                        self.open_file_index = idx;
+                        pixi.editor.clearFileTreeTabDragDropState();
+                    }
+                }
+            },
         }
     }
 }

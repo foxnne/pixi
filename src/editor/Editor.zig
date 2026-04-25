@@ -73,6 +73,11 @@ open_files: std.AutoArrayHashMap(u64, pixi.Internal.File) = undefined,
 // This will contain tabs for all open files with a matching grouping ID
 open_workspace_grouping: u64 = 0,
 
+/// Files tree cross-workspace drag (`tab_drag`): heap copy of absolute path. See `files.zig`.
+tab_drag_from_tree_path: ?[]u8 = null,
+/// `drawFiles` data id for `removed_path`; clear after drop on workspace canvas.
+file_tree_data_id: ?dvui.Id = null,
+
 tools: Tools,
 colors: Colors = .{},
 
@@ -1239,6 +1244,31 @@ pub fn saving(editor: *Editor) bool {
 /// Returns true if a new file was opened.
 /// The editor doesn't care what type of file is being opened,
 /// File.fromPath will handle the file type
+/// Open `path` if needed, set its grouping, focus it, and return its index in `open_files`.
+pub fn openOrFocusFileAtGrouping(editor: *Editor, path: []const u8, grouping: u64) !usize {
+    if (editor.getFileFromPath(path)) |file| {
+        const idx = editor.open_files.getIndex(file.id) orelse return error.Unexpected;
+        editor.open_files.values()[idx].editor.grouping = grouping;
+        editor.setActiveFile(idx);
+        return idx;
+    }
+    _ = try editor.openFilePath(path, grouping);
+    return editor.open_files.count() - 1;
+}
+
+/// After a workspace drop from the Files tree or when `tab_drag` ends; frees path and clears tree reorder stash.
+pub fn clearFileTreeTabDragDropState(editor: *Editor) void {
+    if (editor.tab_drag_from_tree_path) |p| {
+        pixi.app.allocator.free(p);
+        editor.tab_drag_from_tree_path = null;
+    }
+    if (editor.file_tree_data_id) |id| {
+        dvui.dataRemove(null, id, "removed_path");
+    }
+    // `file_tree_data_id` is reassigned each `drawFiles` frame; do not clear the id here so
+    // multiple workspace `processTabDrag` calls in one frame do not race.
+}
+
 pub fn openFilePath(editor: *Editor, path: []const u8, grouping: u64) !bool {
     for (editor.open_files.values(), 0..) |*file, i| {
         if (std.mem.eql(u8, file.path, path)) {
@@ -1884,6 +1914,11 @@ pub fn closeReference(editor: *Editor, index: usize) !void {
 }
 
 pub fn deinit(editor: *Editor) !void {
+    if (editor.tab_drag_from_tree_path) |p| {
+        pixi.app.allocator.free(p);
+        editor.tab_drag_from_tree_path = null;
+    }
+
     if (editor.pending_save_as_path) |p| {
         pixi.app.allocator.free(p);
         editor.pending_save_as_path = null;
