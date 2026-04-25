@@ -1355,7 +1355,7 @@ pub fn drawTransformDialog(self: *Workspace, canvas_vbox: *dvui.BoxWidget) void 
         dvui.labelNoFmt(@src(), "TRANSFORM", .{ .align_x = 0.5 }, .{
             .padding = dvui.Rect.all(4),
             .expand = .horizontal,
-            .font = dvui.Font.theme(.title).larger(-4.0).withWeight(.bold),
+            .font = dvui.Font.theme(.heading).withWeight(.bold),
         });
         _ = dvui.separator(@src(), .{ .expand = .horizontal });
 

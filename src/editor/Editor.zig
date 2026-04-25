@@ -184,8 +184,8 @@ pub fn init(
 
     pixi_dark.dark = true;
     pixi_dark.name = "Pixi Dark";
-    pixi_dark.font_body = .find(.{ .family = "Comfortaa", .size = 8, .weight = .bold });
-    pixi_dark.font_title = .find(.{ .family = "NotoSans", .size = 10, .weight = .bold });
+    pixi_dark.font_body = .find(.{ .family = "Comfortaa", .size = 9, .weight = .bold });
+    pixi_dark.font_title = .find(.{ .family = "NotoSans", .size = 9, .weight = .bold });
     pixi_dark.font_heading = .find(.{ .family = "NotoSans", .size = 8, .weight = .bold });
     pixi_dark.font_mono = .find(.{ .family = "CozetteVector", .size = 10 });
 
