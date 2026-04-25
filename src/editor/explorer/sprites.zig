@@ -690,7 +690,7 @@ pub fn drawAnimations(self: *Sprites) !void {
         .expand = .horizontal,
         .background = false,
     });
-    dvui.labelNoFmt(@src(), "ANIMATIONS", .{}, .{ .font = dvui.Font.theme(.title).larger(-3.0).withWeight(.bold) });
+    dvui.labelNoFmt(@src(), "ANIMATIONS", .{}, .{ .font = dvui.Font.theme(.heading) });
 
     self.drawAnimationControls() catch {};
 
@@ -1436,7 +1436,7 @@ pub fn drawFrames(self: *Sprites) !void {
             .expand = .none,
             .background = false,
         });
-        dvui.labelNoFmt(@src(), "FRAMES", .{}, .{ .font = dvui.Font.theme(.title).larger(-3.0).withWeight(.bold) });
+        dvui.labelNoFmt(@src(), "FRAMES", .{}, .{ .font = dvui.Font.theme(.heading) });
 
         self.drawFrameControls() catch {};
 

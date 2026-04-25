@@ -283,7 +283,7 @@ pub fn drawTooltip(_: Tools, tool: Tool, rect: dvui.Rect.Physical, id_extra: u64
             },
             true,
             .{
-                .font = dvui.Font.theme(.title).larger(-4.0),
+                .font = dvui.Font.theme(.heading),
             },
             .{
                 .font = dvui.Font.theme(.mono).larger(-2.0),
@@ -319,7 +319,7 @@ pub fn drawTooltip(_: Tools, tool: Tool, rect: dvui.Rect.Physical, id_extra: u64
                 var mode_box = dvui.groupBox(@src(), "SELECTION MODE", .{
                     .expand = .horizontal,
                     .margin = dvui.Rect.all(4),
-                    .font = dvui.Font.theme(.title).larger(-4.0),
+                    .font = dvui.Font.theme(.heading),
                 });
                 defer mode_box.deinit();
 
@@ -363,7 +363,7 @@ pub fn drawTooltip(_: Tools, tool: Tool, rect: dvui.Rect.Physical, id_extra: u64
                     };
 
                     dvui.labelNoFmt(@src(), cap, .{}, .{
-                        .font = dvui.Font.theme(.title).larger(-4.0),
+                        .font = dvui.Font.theme(.heading),
                         .gravity_x = 0.5,
                         .margin = dvui.Rect.rect(0, 0, 0, 6),
                         .id_extra = @intCast(id_extra * 10 + mi),

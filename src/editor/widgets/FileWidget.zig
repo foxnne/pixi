@@ -1194,7 +1194,7 @@ pub fn drawSpriteBubble(
     const center = bubble_rect.center();
 
     // Choose a font size that fits scaled to button size.
-    const font = dvui.Font.theme(.body).larger(-1.0);
+    const font = dvui.Font.theme(.body);
 
     const sprite_label = self.init_options.file.fmtSprite(dvui.currentWindow().arena(), sprite_index, .grid) catch {
         dvui.log.err("Failed to format sprite index", .{});

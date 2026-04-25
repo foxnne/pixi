@@ -182,7 +182,7 @@ pub fn drawFiles(path: []const u8, tree: *pixi.dvui.TreeWidget) !void {
 
     dvui.labelNoFmt(@src(), fmt_string, .{}, .{
         .color_fill = color,
-        .font = dvui.Font.theme(.title).larger(-3.0).withWeight(.bold),
+        .font = dvui.Font.theme(.heading),
         .gravity_y = 0.5,
     });
 
