@@ -368,23 +368,40 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         );
         defer overall_box.deinit();
 
+        // Non-macOS: a thin strip below the top edge so the in-window title row (menu, etc.) is not flush
+        // against the window border (complements the system caption area on Windows 11).
+        if (builtin.os.tag != .macos) {
+            var top_inset = dvui.box(
+                @src(),
+                .{ .dir = .horizontal },
+                .{
+                    .expand = .horizontal,
+                    .background = false,
+                    .min_size_content = .{ .w = 1, .h = pixi.editor.settings.titlebar_top_buffer },
+                    .max_size_content = .{ .w = std.math.floatMax(f32), .h = pixi.editor.settings.titlebar_top_buffer },
+                },
+            );
+            defer top_inset.deinit();
+        }
+
         // Title bar handling:
         //  - macOS (not maximized): render an empty horizontal strip so AppKit's traffic lights have visual
         //    breathing room at the top-left. AppKit handles dragging natively.
-        //  - Windows: don't reserve a strip — the main UI (sidebar, menu) draws all the way to y=0. A
-        //    floating overlay at top-right hosts the min/max/close buttons, and a drag rect is pushed
-        //    across the top so empty space (gaps between widgets) drags the window. Menu items and
-        //    sidebar buttons push themselves as interactive rects so clicks on them still reach DVUI.
+        //  - Windows: the main UI (sidebar, menu) starts below `titlebar_top_buffer`. A floating overlay
+        //    at the top-right corner (y=0) hosts the min/max/close buttons; a drag rect is pushed across the top so
+        //    empty space (gaps between widgets) drags the window. Menu items and sidebar buttons push
+        //    themselves as interactive rects so clicks on them still reach DVUI.
         if (builtin.os.tag == .windows) {
             pixi.backend.resetTitleBarHints();
 
             const window_rect_natural = dvui.windowRect();
             const scale = dvui.windowNaturalScale();
+            const title_strip_h = pixi.editor.settings.titlebar_top_buffer + pixi.editor.settings.titlebar_height;
             pixi.backend.pushTitleBarDragRect(.{
                 .x = 0,
                 .y = 0,
                 .w = window_rect_natural.w * scale,
-                .h = pixi.editor.settings.titlebar_height * scale,
+                .h = title_strip_h * scale,
             });
         } else if (builtin.os.tag == .macos and !pixi.backend.isMaximized(dvui.currentWindow())) {
             var titlebar_box = dvui.box(

@@ -66,7 +66,7 @@ fn drawOption(option: Pane, icon: []const u8, size: f32) !bool {
     // sit inside the strip — anything below is registered harmlessly (no overlap with drag rect).
     if (builtin.os.tag == .windows) {
         const r = bw.data().rectScale().r;
-        const strip_h = pixi.editor.settings.titlebar_height * dvui.windowNaturalScale();
+        const strip_h = (pixi.editor.settings.titlebar_top_buffer + pixi.editor.settings.titlebar_height) * dvui.windowNaturalScale();
         if (r.y < strip_h) pixi.backend.pushTitleBarInteractiveRect(r);
     }
 
