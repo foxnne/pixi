@@ -1852,11 +1852,24 @@ fn ensureFrameSelection(file: *pixi.Internal.File, anim_index: usize, anim_id: u
     std.sort.pdq(usize, file.editor.selected_frame_indices.items, {}, std.sort.asc(usize));
 
     if (file.editor.frame_selection_anchor) |a| {
+        var need_reanchor = false;
         if (a >= frames.len) {
-            file.editor.frame_selection_anchor = file.selected_animation_frame_index;
+            need_reanchor = true;
         } else {
             const spr = frames[a].sprite_index;
             if (spr >= file.editor.selected_sprites.capacity() or !file.editor.selected_sprites.isSet(spr)) {
+                need_reanchor = true;
+            }
+        }
+        if (need_reanchor) {
+            // While animation plays, `selected_animation_frame_index` is the playhead and must not
+            // be used to re-establish shift-range / TreeSelection "primary" when the user changes
+            // which frames are selected (e.g. canvas rect select).
+            if (file.editor.selected_frame_indices.items.len > 0) {
+                file.editor.frame_selection_anchor = file.editor.selected_frame_indices.items[0];
+            } else if (file.editor.playing) {
+                file.editor.frame_selection_anchor = null;
+            } else {
                 file.editor.frame_selection_anchor = file.selected_animation_frame_index;
             }
         }
@@ -1891,10 +1904,20 @@ fn applyFrameClick(
     var out = std.ArrayList(usize){};
     defer out.deinit(pixi.app.allocator);
 
+    // When anchor is null, shift-extend uses `primary_opt` as the range endpoint. During playback
+    // that index is the animated playhead, not the editor's last stable focus — use a selection
+    // bound instead.
+    const primary_for_tree: ?usize = if (mode == .extend and
+        file.editor.playing and
+        file.editor.frame_selection_anchor == null and
+        file.editor.selected_frame_indices.items.len > 0) blk: {
+        break :blk file.editor.selected_frame_indices.items[0];
+    } else file.selected_animation_frame_index;
+
     const res = try pixi.dvui.TreeSelection.applyClickUsize(
         pixi.app.allocator,
         prev_multi,
-        file.selected_animation_frame_index,
+        primary_for_tree,
         file.editor.frame_selection_anchor,
         clicked,
         mode,
@@ -1923,7 +1946,13 @@ fn narrowFrameSelectionTo(file: *pixi.Internal.File, anim_index: usize, anim_id:
 fn buildFrameMultiDragIds(file: *const pixi.Internal.File, animation_index: usize, hits: []const FrameRowHit, out: []usize) []usize {
     const frames = file.animations.get(animation_index).frames;
     var len: usize = 0;
-    const primary = file.selected_animation_frame_index;
+    const playhead = file.selected_animation_frame_index;
+    const primary: usize = if (file.editor.selected_frame_indices.items.len > 0) blk: {
+        for (file.editor.selected_frame_indices.items) |fi| {
+            if (fi == playhead) break :blk playhead;
+        }
+        break :blk file.editor.selected_frame_indices.items[0];
+    } else playhead;
     for (hits) |h| {
         if (h.frame_index == primary) {
             if (len < out.len) {
