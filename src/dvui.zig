@@ -70,7 +70,10 @@ pub const DialogOptions = struct {
     ok_label: []const u8 = "Ok",
     cancel_label: []const u8 = "Cancel",
     default: dvui.enums.DialogResponse = .ok,
-    max_size: dvui.Options.MaxSize = .{ .w = 400, .h = 200 },
+    /// When set, caps the floating window content (e.g. unsaved prompt). Omit for Export / New File so they can grow vertically.
+    max_size: ?dvui.Options.MaxSize = null,
+    /// When true, only the header and `displayFn` are shown; footer OK/Cancel are omitted (e.g. three custom actions).
+    hide_footer: bool = false,
 };
 
 pub fn defaultDialogDisplay(id: dvui.Id) anyerror!bool {
@@ -114,10 +117,24 @@ pub fn dialog(src: std.builtin.SourceLocation, opts: DialogOptions) dvui.IdMutex
     dvui.dataSet(opts.window, id, "_callafter", opts.callafterFn);
     dvui.dataSet(opts.window, id, "_displayFn", opts.displayFn);
     dvui.dataSet(opts.window, id, "_resizeable", opts.resizeable);
+    dvui.dataSet(opts.window, id, "_hide_footer", opts.hide_footer);
+    if (opts.max_size) |ms| {
+        dvui.dataSet(opts.window, id, "_max_size", ms);
+    }
     dvui.dataSet(opts.window, id, "_open", true);
-    //dvui.dataSet(opts.window, id, "_max_size", null);
 
     return id_mutex;
+}
+
+/// Shrink the current modal subwindow to a point to run the standard close animation. Call from dialog content (e.g. custom buttons).
+pub fn closeFloatingDialogAnchored() void {
+    const sub = dvui.currentWindow().subwindows.current() orelse return;
+    var close_rect = sub.rect_pixels;
+    close_rect.x = close_rect.center().x;
+    close_rect.y = close_rect.center().y;
+    close_rect.w = 1;
+    close_rect.h = 1;
+    dvui.dataSet(null, sub.id, "_close_rect", close_rect);
 }
 
 pub fn dialogWindow(id: dvui.Id) anyerror!void {
@@ -154,6 +171,7 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
     const displayFn = dvui.dataGet(null, id, "_displayFn", DisplayFn);
 
     const maxSize = dvui.dataGet(null, id, "_max_size", dvui.Options.MaxSize);
+    const hide_footer = dvui.dataGet(null, id, "_hide_footer", bool) orelse false;
 
     var win = pixi.dvui.floatingWindow(@src(), .{
         .modal = modal,
@@ -231,7 +249,7 @@ pub fn dialogWindow(id: dvui.Id) anyerror!void {
         }
     }
 
-    { // OK and Cancel buttons
+    if (!hide_footer) { // OK and Cancel buttons
         var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .gravity_x = 0.5 });
         defer hbox.deinit();
 

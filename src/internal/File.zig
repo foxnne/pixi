@@ -1201,6 +1201,8 @@ pub fn deinit(file: *File) void {
 }
 
 pub fn dirty(self: File) bool {
+    // Never-saved buffers use a path with no extension (e.g. `untitled-1`); treat as unsaved even at bookmark 0.
+    if (std.fs.path.extension(self.path).len == 0) return true;
     return self.history.bookmark != 0;
 }
 
