@@ -112,21 +112,90 @@ pub fn draw(self: *Workspace) !dvui.App.Result {
     return .ok;
 }
 
-fn drawProject(self: *Workspace) void {
-    var canvas_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both, .id_extra = self.grouping });
-    defer canvas_vbox.deinit();
+/// Same `@src()` for every call so DVUI sees one stable id when switching between `drawCanvas` and
+/// `drawProject` (avoids first-frame min-size / layout flash). Use `grouping` so multi-workspace panes stay distinct.
+fn workspaceMainCanvasVbox(content_color: dvui.Color, background: bool, grouping: u64) *dvui.BoxWidget {
+    return dvui.box(@src(), .{ .dir = .vertical }, .{
+        .expand = .both,
+        .background = background,
+        .color_fill = content_color,
+        .id_extra = grouping,
+    });
+}
 
-    if (pixi.packer.atlas) |*atlas| {
+/// Rounded “card” behind the project empty state and the homepage. Shared id base + `grouping` so
+/// switching project tab ↔ file pane (no open files) does not create a new widget each time.
+fn workspaceEmptyStateCard(content_color: dvui.Color, grouping: u64) *dvui.BoxWidget {
+    return dvui.box(@src(), .{ .dir = .horizontal }, .{
+        .expand = .both,
+        .background = true,
+        .color_fill = content_color,
+        .corner_radius = dvui.Rect.all(16),
+        .margin = .{ .y = 10 },
+        .id_extra = grouping,
+    });
+}
+
+fn drawProject(self: *Workspace) void {
+    var content_color = dvui.themeGet().color(.window, .fill);
+
+    switch (builtin.os.tag) {
+        .macos => {
+            content_color = if (!pixi.backend.isMaximized(dvui.currentWindow())) content_color.opacity(pixi.editor.settings.content_opacity) else content_color;
+        },
+        .windows => {
+            content_color = if (!pixi.backend.isMaximized(dvui.currentWindow())) content_color.opacity(pixi.editor.settings.content_opacity) else content_color;
+        },
+        else => {},
+    }
+
+    const show_packed_atlas = pixi.editor.folder != null and pixi.packer.atlas != null;
+
+    // Match `drawCanvas`: no outer fill when showing centered card (transparency shows through like homepage).
+    var canvas_vbox = workspaceMainCanvasVbox(content_color, show_packed_atlas, self.grouping);
+    defer {
+        dvui.toastsShow(canvas_vbox.data().id, canvas_vbox.data().contentRectScale().r.toNatural());
+        canvas_vbox.deinit();
+    }
+
+    if (show_packed_atlas) {
+        const atlas = &pixi.packer.atlas.?;
         var image_widget = pixi.dvui.ImageWidget.init(@src(), .{
             .source = atlas.source,
             .canvas = &atlas.canvas,
         }, .{
             .id_extra = self.grouping,
             .expand = .both,
+            .background = false,
+            .color_fill = .transparent,
         });
         defer image_widget.deinit();
 
         image_widget.processEvents();
+    } else {
+        var box = workspaceEmptyStateCard(content_color, self.grouping);
+        defer box.deinit();
+
+        const alpha = dvui.alpha(1.0);
+        dvui.alphaSet(1.0);
+        defer dvui.alphaSet(alpha);
+
+        const hint: []const u8 = if (pixi.editor.folder == null)
+            "Open a project folder, then pack to see the preview."
+        else
+            "Pack the project to see the preview.";
+
+        dvui.labelNoFmt(
+            @src(),
+            hint,
+            .{ .align_x = 0.5 },
+            .{
+                .gravity_x = 0.5,
+                .gravity_y = 0.5,
+                .color_text = dvui.themeGet().color(.control, .text),
+                .font = dvui.Font.theme(.body),
+            },
+        );
     }
 }
 
@@ -723,11 +792,7 @@ pub fn drawCanvas(self: *Workspace) !void {
 
     const has_files = pixi.editor.open_files.values().len > 0;
 
-    var canvas_vbox = dvui.box(@src(), .{ .dir = .vertical }, .{
-        .expand = .both,
-        .background = has_files,
-        .color_fill = content_color,
-    });
+    var canvas_vbox = workspaceMainCanvasVbox(content_color, has_files, self.grouping);
     defer {
         dvui.toastsShow(canvas_vbox.data().id, canvas_vbox.data().contentRectScale().r.toNatural());
         canvas_vbox.deinit();
@@ -774,13 +839,7 @@ pub fn drawCanvas(self: *Workspace) !void {
         defer file_widget.deinit();
         file_widget.processEvents();
     } else {
-        var box = dvui.box(@src(), .{ .dir = .horizontal }, .{
-            .expand = .both,
-            .background = true,
-            .color_fill = content_color,
-            .corner_radius = dvui.Rect.all(16),
-            .margin = .{ .y = 10 },
-        });
+        var box = workspaceEmptyStateCard(content_color, self.grouping);
         defer box.deinit();
 
         // Make sure alpha is 1 before we draw the homepage, as the logo hover animation breaks if alpha is not 1
