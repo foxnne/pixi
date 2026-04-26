@@ -2376,6 +2376,13 @@ pub fn fillPoint(file: *File, point: dvui.Point, layer: DrawLayer, fill_options:
     }
 
     active_layer.mask.setUnion(active_mask_before);
+
+    // Bucket fill leaves `active_layer.mask` in brush-tracking form (toggle+union) and does not
+    // change `ImageSource.hash()`. The selection overlay (`updateActiveLayerMask` →
+    // `setMaskFromTransparency`) must be rebuilt from actual pixels, not a stale cache.
+    if (layer == .selected) {
+        file.invalidateActiveLayerTransparencyMaskCache();
+    }
 }
 
 pub fn getLayer(self: *File, id: u64) ?Layer {
