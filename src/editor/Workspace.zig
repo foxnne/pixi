@@ -1002,6 +1002,9 @@ fn drawRulerContent(
         .horizontal => null,
     };
 
+    // Captured during iteration: the highlighted target slot (drop location) screen rect.
+    var target_rs_screen: ?dvui.RectScale = null;
+
     var index: usize = 0;
     while (index < count) : (index += 1) {
         var reorderable = reorder.reorderable(@src(), .{
@@ -1016,10 +1019,14 @@ fn drawRulerContent(
         });
         defer reorderable.deinit();
 
+        if (reorderable.targetRectScale()) |trs| {
+            target_rs_screen = trs;
+        }
+
         var button_color = if (reorder.drag_point != null) dvui.themeGet().color(.control, .fill).opacity(0.85) else dvui.themeGet().color(.window, .fill);
 
         if (pixi.dvui.hovered(reorderable.data())) {
-            button_color = dvui.themeGet().color(.control, .fill);
+            button_color = dvui.themeGet().color(.control, .fill_hover);
             dvui.cursorSet(.hand);
         }
 
@@ -1068,38 +1075,46 @@ fn drawRulerContent(
 
         {
             defer cell_box.deinit();
-            cell_box.drawBackground();
 
-            const label = switch (orientation) {
-                .horizontal => file.fmtColumn(dvui.currentWindow().arena(), @intCast(index)) catch {
-                    dvui.log.err("Failed to allocate label", .{});
-                    return;
-                },
-                .vertical => std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{index}) catch {
-                    dvui.log.err("Failed to allocate label", .{});
-                    return;
-                },
-            };
+            // The dragged item's cell_box is parented to the reorderable's floating widget
+            // (rendered at the mouse position). We collapse that floating widget to h/w = 0
+            // above, but `dvui.renderText` is not clipped by that, so the label would still
+            // appear at the cursor. Skip the visible cell rendering entirely while floating;
+            // the dragged label is drawn over the highlighted target slot below instead.
+            if (!reorderable.floating()) {
+                cell_box.drawBackground();
 
-            self.drawRulerLabel(.{
-                .font = font,
-                .label = label,
-                .rect = cell_box.data().rectScale().r,
-                .color = dvui.themeGet().color(.control, .text).opacity(0.5),
-                .mode = switch (orientation) {
-                    .horizontal => .horizontal,
-                    .vertical => .vertical,
-                },
-                .largest_label = if (orientation == .vertical) largest_row_index_label else null,
-                .ref_size_physical = vertical_row_layout_size_phys,
-            });
+                const label = switch (orientation) {
+                    .horizontal => file.fmtColumn(dvui.currentWindow().arena(), @intCast(index)) catch {
+                        dvui.log.err("Failed to allocate label", .{});
+                        return;
+                    },
+                    .vertical => std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{index}) catch {
+                        dvui.log.err("Failed to allocate label", .{});
+                        return;
+                    },
+                };
 
-            const cell_rect = cell_box.data().rectScale().r;
-            const cell_stroke_points = switch (orientation) {
-                .horizontal => .{ cell_rect.topLeft(), cell_rect.bottomLeft() },
-                .vertical => .{ cell_rect.topLeft(), cell_rect.topRight() },
-            };
-            dvui.Path.stroke(.{ .points = &cell_stroke_points }, .{ .color = ruler_stroke_color, .thickness = 2.0 });
+                self.drawRulerLabel(.{
+                    .font = font,
+                    .label = label,
+                    .rect = cell_box.data().rectScale().r,
+                    .color = dvui.themeGet().color(.control, .text).opacity(0.5),
+                    .mode = switch (orientation) {
+                        .horizontal => .horizontal,
+                        .vertical => .vertical,
+                    },
+                    .largest_label = if (orientation == .vertical) largest_row_index_label else null,
+                    .ref_size_physical = vertical_row_layout_size_phys,
+                });
+
+                const cell_rect = cell_box.data().rectScale().r;
+                const cell_stroke_points = switch (orientation) {
+                    .horizontal => .{ cell_rect.topLeft(), cell_rect.bottomLeft() },
+                    .vertical => .{ cell_rect.topLeft(), cell_rect.topRight() },
+                };
+                dvui.Path.stroke(.{ .points = &cell_stroke_points }, .{ .color = ruler_stroke_color, .thickness = 2.0 });
+            }
 
             loop: for (dvui.events()) |*e| {
                 if (!cell_box.matchEvent(e)) continue;
@@ -1154,10 +1169,101 @@ fn drawRulerContent(
         });
         defer reorderable.deinit();
 
+        if (reorderable.targetRectScale()) |trs| {
+            target_rs_screen = trs;
+        }
+
         if (reorderable.insertBefore()) {
             switch (orientation) {
                 .horizontal => self.columns_insert_before_index = final_slot_id,
                 .vertical => self.rows_insert_before_index = final_slot_id,
+            }
+        }
+    }
+
+    // Drag overlay: draw the dragged column/row label on the highlighted target slot in
+    // highlight-text color (no extra fill, the reorderable's own focus fill is the
+    // background) and a thick err-colored marker line at the dragged-from position in the
+    // ruler that lines up with the equivalent indicator in the file canvas.
+    const drag_idx_for_overlay = switch (orientation) {
+        .horizontal => self.columns_drag_index,
+        .vertical => self.rows_drag_index,
+    };
+    if (drag_idx_for_overlay) |di| {
+        const target_idx_opt = switch (orientation) {
+            .horizontal => self.columns_target_index,
+            .vertical => self.rows_target_index,
+        };
+        const same_slot = target_idx_opt == di;
+
+        if (target_rs_screen) |trs| {
+            const drag_label_opt: ?[]const u8 = switch (orientation) {
+                .horizontal => file.fmtColumn(dvui.currentWindow().arena(), @intCast(di)) catch null,
+                .vertical => std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{di}) catch null,
+            };
+            if (drag_label_opt) |drag_label| {
+                if (same_slot) {
+                    // Reorderable still draws theme focus fill for the drop target; paint control
+                    // hover on top so "no move" matches ruler button hover styling.
+                    trs.r.fill(.all(0), .{ .color = dvui.themeGet().color(.control, .fill_hover), .fade = 1.0 });
+                }
+                self.drawRulerLabel(.{
+                    .font = font,
+                    .label = drag_label,
+                    .rect = trs.r,
+                    .color = if (same_slot)
+                        dvui.themeGet().color(.control, .text).opacity(0.5)
+                    else
+                        dvui.themeGet().color(.highlight, .text),
+                    .mode = switch (orientation) {
+                        .horizontal => .horizontal,
+                        .vertical => .vertical,
+                    },
+                    .largest_label = if (orientation == .vertical) largest_row_index_label else null,
+                    .ref_size_physical = vertical_row_layout_size_phys,
+                });
+            }
+        }
+
+        // Use the canvas data->screen mapping for the cross-axis position so the marker
+        // line aligns exactly with the err indicator drawn over the file canvas grid.
+        // The other axis uses the ruler's own screen extents so the line fills the ruler.
+        const target_idx_for_line = switch (orientation) {
+            .horizontal => self.columns_target_index,
+            .vertical => self.rows_target_index,
+        };
+        if (target_idx_for_line) |ti| {
+            if (di != ti) {
+                const removed_data_rect = switch (orientation) {
+                    .horizontal => file.columnRect(di),
+                    .vertical => file.rowRect(di),
+                };
+                const removed_canvas_screen = file.editor.canvas.screenFromDataRect(removed_data_rect);
+                const ruler_screen = outer_box.data().contentRectScale().r;
+                const err_color = dvui.themeGet().color(.err, .fill);
+                const thickness = 3.0 * dvui.currentWindow().natural_scale;
+                switch (orientation) {
+                    .horizontal => {
+                        const edge_x = if (di < ti)
+                            removed_canvas_screen.x
+                        else
+                            removed_canvas_screen.x + removed_canvas_screen.w;
+                        dvui.Path.stroke(.{ .points = &.{
+                            .{ .x = edge_x, .y = ruler_screen.y },
+                            .{ .x = edge_x, .y = ruler_screen.y + ruler_screen.h },
+                        } }, .{ .thickness = thickness, .color = err_color });
+                    },
+                    .vertical => {
+                        const edge_y = if (di < ti)
+                            removed_canvas_screen.y
+                        else
+                            removed_canvas_screen.y + removed_canvas_screen.h;
+                        dvui.Path.stroke(.{ .points = &.{
+                            .{ .x = ruler_screen.x, .y = edge_y },
+                            .{ .x = ruler_screen.x + ruler_screen.w, .y = edge_y },
+                        } }, .{ .thickness = thickness, .color = err_color });
+                    },
+                }
             }
         }
     }

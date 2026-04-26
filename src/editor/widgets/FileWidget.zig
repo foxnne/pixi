@@ -4458,7 +4458,7 @@ fn drawColumnRowReorderPreview(self: *FileWidget) void {
         .rows => workspace.rows_drag_index,
     } orelse return;
 
-    self.drawReorderPreviewForAxis(workspace, file, axis, target_index, removed_index);
+    self.drawReorderPreviewForAxis(file, axis, target_index, removed_index);
 }
 
 fn renderLayersInDataRect(
@@ -4559,7 +4559,6 @@ fn reorderSegmentRects(
 
 fn drawReorderPreviewForAxis(
     self: *FileWidget,
-    workspace: *pixi.Editor.Workspace,
     file: *pixi.Internal.File,
     axis: ReorderAxis,
     target_index: ?usize,
@@ -4613,6 +4612,7 @@ fn drawReorderPreviewForAxis(
     }
 
     const target_i = target_index.?;
+    const same_slot = removed_index == target_i;
 
     const target_rect = switch (axis) {
         .columns => file.columnRect(target_i),
@@ -4624,10 +4624,6 @@ fn drawReorderPreviewForAxis(
         .columns => dvui.enums.Direction.horizontal,
         .rows => dvui.enums.Direction.vertical,
     };
-    const ruler_size = switch (axis) {
-        .columns => workspace.horizontal_ruler_height,
-        .rows => workspace.vertical_ruler_width,
-    } / scale;
 
     defer {
         var target_box_rect = target_rect;
@@ -4704,36 +4700,11 @@ fn drawReorderPreviewForAxis(
             }
         }
 
-        var target_box_label_rect = target_box_rect;
-        switch (axis) {
-            .columns => {
-                target_box_label_rect.y -= ruler_size;
-                target_box_label_rect.h = ruler_size;
-            },
-            .rows => {
-                target_box_label_rect.x -= ruler_size;
-                target_box_label_rect.w = ruler_size;
-            },
-        }
-
-        const target_box_label_box = dvui.box(@src(), .{ .dir = box_dir }, .{
-            .expand = .none,
-            .rect = target_box_label_rect,
-            .border = dvui.Rect.all(0),
-            .background = true,
-            .color_fill = dvui.themeGet().color(.highlight, .fill),
-            .corner_radius = if (axis == .columns) .{
-                .x = 10000000,
-                .y = 10000000,
-            } else .{
-                .x = 10000000,
-                .h = 10000000,
-            },
-        });
-        target_box_label_box.deinit();
-
         file.editor.canvas.screenFromDataRect(animated_target_box_rect).fill(.all(3.0 / scale), .{
-            .color = dvui.themeGet().color(.highlight, .fill).opacity(0.6),
+            .color = if (same_slot)
+                dvui.themeGet().color(.control, .fill).opacity(0.6)
+            else
+                dvui.themeGet().color(.highlight, .fill).opacity(0.6),
             .fade = 1.0,
         });
 
@@ -4751,7 +4722,10 @@ fn drawReorderPreviewForAxis(
             .rect = target_box_rect,
             .border = dvui.Rect.all(0),
             .background = true,
-            .color_fill = dvui.themeGet().color(.control, .fill).opacity(0.75),
+            .color_fill = if (same_slot)
+                dvui.themeGet().color(.control, .fill).opacity(0.75)
+            else
+                dvui.themeGet().color(.control, .fill).opacity(0.75),
             .box_shadow = .{
                 .color = .black,
                 .offset = .{
@@ -4767,24 +4741,19 @@ fn drawReorderPreviewForAxis(
 
         self.renderLayersInDataRect(file, removed_rect, target_box.data().rectScale().r);
         self.drawCheckerboardReorderFloatingStrip(file, removed_rect, target_box.data().rectScale().r, axis, removed_index);
-
-        const label = switch (axis) {
-            .columns => file.fmtColumn(dvui.currentWindow().arena(), @intCast(removed_index)) catch "err",
-            .rows => std.fmt.allocPrint(dvui.currentWindow().arena(), "{d}", .{removed_index}) catch "err",
-        };
-        workspace.drawRulerLabel(.{
-            .font = dvui.Font.theme(.body).larger(-1),
-            .label = label,
-            .rect = file.editor.canvas.screenFromDataRect(target_box_label_rect),
-            .color = dvui.themeGet().color(.window, .fill),
-            .mode = switch (axis) {
-                .columns => .horizontal,
-                .rows => .vertical,
-            },
-        });
     }
 
     defer {
+        const err_color = dvui.themeGet().color(.err, .fill);
+        if (!same_slot) {
+            // Tint the original removed slot with err color so the canvas matches the
+            // dragged-from indicator used in our tree widgets (files / layers / animations).
+            file.editor.canvas.screenFromDataRect(removed_rect).fill(.all(0), .{
+                .color = err_color.opacity(0.25),
+                .fade = 1.0,
+            });
+        }
+
         if (removed_index != target_i) {
             if (axis == .columns) {
                 const top = if (removed_index < target_i) removed_rect.topLeft() else removed_rect.topRight();
@@ -4792,7 +4761,7 @@ fn drawReorderPreviewForAxis(
                 dvui.Path.stroke(.{ .points = &.{
                     file.editor.canvas.screenFromDataPoint(top),
                     file.editor.canvas.screenFromDataPoint(bottom),
-                } }, .{ .thickness = 3, .color = dvui.themeGet().color(.highlight, .fill) });
+                } }, .{ .thickness = 3, .color = err_color });
 
                 dvui.Path.fillConvex(.{
                     .points = &.{
@@ -4801,7 +4770,7 @@ fn drawReorderPreviewForAxis(
                         file.editor.canvas.screenFromDataPoint(top.plus(.{ .x = -5.0 / scale, .y = -10.0 / scale })),
                     },
                 }, .{
-                    .color = dvui.themeGet().color(.highlight, .fill),
+                    .color = err_color,
                     .fade = 1.0,
                 });
 
@@ -4812,7 +4781,7 @@ fn drawReorderPreviewForAxis(
                         file.editor.canvas.screenFromDataPoint(bottom.plus(.{ .x = -5.0 / scale, .y = 10.0 / scale })),
                     },
                 }, .{
-                    .color = dvui.themeGet().color(.highlight, .fill),
+                    .color = err_color,
                     .fade = 1.0,
                 });
             } else {
@@ -4821,7 +4790,7 @@ fn drawReorderPreviewForAxis(
                 dvui.Path.stroke(.{ .points = &.{
                     file.editor.canvas.screenFromDataPoint(left),
                     file.editor.canvas.screenFromDataPoint(right),
-                } }, .{ .thickness = 3, .color = dvui.themeGet().color(.highlight, .fill) });
+                } }, .{ .thickness = 3, .color = err_color });
 
                 dvui.Path.fillConvex(.{
                     .points = &.{
@@ -4830,7 +4799,7 @@ fn drawReorderPreviewForAxis(
                         file.editor.canvas.screenFromDataPoint(left.plus(.{ .x = -8.0 / scale, .y = 5.0 / scale })),
                     },
                 }, .{
-                    .color = dvui.themeGet().color(.highlight, .fill),
+                    .color = err_color,
                     .fade = 1.0,
                 });
                 dvui.Path.fillConvex(.{
@@ -4840,7 +4809,7 @@ fn drawReorderPreviewForAxis(
                         file.editor.canvas.screenFromDataPoint(right.plus(.{ .x = 8.0 / scale, .y = 5.0 / scale })),
                     },
                 }, .{
-                    .color = dvui.themeGet().color(.highlight, .fill),
+                    .color = err_color,
                     .fade = 1.0,
                 });
             }
