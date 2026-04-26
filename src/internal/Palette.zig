@@ -2,7 +2,7 @@ const std = @import("std");
 const pixi = @import("../pixi.zig");
 const dvui = @import("dvui");
 
-const PackedColor = packed struct(u32) { r: u8, g: u8, b: u8, a: u8 };
+const palette_parse = @import("palette_parse.zig");
 
 pub const Palette = @This();
 
@@ -28,21 +28,19 @@ pub fn loadFromFile(allocator: std.mem.Allocator, file: []const u8) !Palette {
 }
 
 pub fn loadFromBytes(allocator: std.mem.Allocator, name: []const u8, bytes: []const u8) !Palette {
-    var colors = std.array_list.Managed([4]u8).init(allocator);
-    var iter = std.mem.splitSequence(u8, bytes, "\n");
-    while (iter.next()) |line| {
-        if (line.len == 0) continue;
-        const color_u32 = std.fmt.parseInt(u32, line[0 .. line.len - 1], 16) catch {
-            dvui.log.err("Failed to parse color: {s}", .{line[0 .. line.len - 1]});
-            return error.FailedToParseColor;
-        };
-        const color_packed: PackedColor = @as(PackedColor, @bitCast(color_u32));
-        try colors.append(.{ color_packed.b, color_packed.g, color_packed.r, 255 });
-    }
+    const colors = palette_parse.parseHexBytes(allocator, bytes) catch |err| {
+        switch (err) {
+            error.InvalidHexLine => {
+                dvui.log.err("Failed to parse palette: invalid hex line", .{});
+                return error.FailedToParseColor;
+            },
+            error.OutOfMemory => return error.OutOfMemory,
+        }
+    };
 
     return .{
         .name = try allocator.dupe(u8, name),
-        .colors = try colors.toOwnedSlice(),
+        .colors = colors,
     };
 }
 

@@ -1,6 +1,8 @@
 name: build
 on:
+  # Like DVUI: light CI on the default branch; full platform builds on PRs.
   push:
+    branches: [ main ]
     paths-ignore:
       - "doc/**"
       - "README.md"
@@ -12,12 +14,33 @@ on:
       - "README.md"
       - "**.md"
       - "LICENSE**"
+  workflow_dispatch:
+
+# Only one run per ref at a time; supersede in-flight runs when you push again.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  x86_64-linux:
+  # Runs on: push to main, all PRs, and manual dispatch.
+  test:
     runs-on: ubuntu-latest
-    # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
-    # to the branch.
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
+    name: Tests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Zig
+        uses: mlugg/setup-zig@v2
+      - name: Run tests
+        # Runs both pure-logic and headless integration test targets.
+        run: zig build test --summary all
+
+  # Full builds + artifacts only for PRs and manual runs — not for push to main
+  # (main already ran `zig build test` above; cross-platform is gated on review).
+  x86_64-linux:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    needs: test
+    runs-on: ubuntu-latest
     env:
       DISPLAY: ':99.0'
     steps:
@@ -25,12 +48,6 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
-      - name: Update
-        run: sudo apt-get update
-      - name: Get GTK3
-        run: sudo apt install libgtk-3-dev
-      - name: Launch xvfb
-        run: Xvfb :99 -screen 0 1680x720x24 > /dev/null 2>&1 &
       - name: Build
         run: zig build
       - name: Upload Artifacts
@@ -41,10 +58,9 @@ jobs:
       - name: x86_64-linux -> x86_64-windows
         run: zig build -Dtarget=x86_64-windows-gnu
   x86_64-windows:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    needs: test
     runs-on: windows-latest
-    # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
-    # to the branch.
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -58,10 +74,9 @@ jobs:
           name: x86_64-windows
           path: zig-out/bin
   arm64-macos:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    needs: test
     runs-on: macos-14
-    # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
-    # to the branch.
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -74,26 +89,3 @@ jobs:
         with: 
           name: arm64-macos
           path: zig-out/bin
-
-  # arm64-macos:
-  # If it runs on 13 it should run on 14 as well
-  # x86_64-macos:
-  #   runs-on: macos-13
-  #   # We want to run on external PRs, but not on our own internal PRs as they'll be run by the push
-  #   # to the branch.
-  #   if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v4
-  #     - name: Setup Zig
-  #       uses: mlugg/setup-zig@v1
-  #       with:
-  #         version: 2024.11.0-mach
-  #         mirror: 'https://pkg.machengine.org/zig'
-  #     - name: build
-  #       run: zig build
-  #     - name: Upload Artifacts
-  #       uses: actions/upload-artifact@v4
-  #       with: 
-  #         name: x86_64-macos
-  #         path: zig-out/bin
