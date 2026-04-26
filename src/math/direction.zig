@@ -199,22 +199,75 @@ pub const Direction = enum(u8) {
     }
 };
 
-test "Direction" {
-    var direction: Direction = .none;
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+//
+// `Direction` uses a Y-up convention: positive `vy` (north) sets the
+// 0b0001 bit and negative `vy` (south) sets 0b0011. Confirm that
+// behavior here so we catch any future re-encoding of the bits.
+//
+// (Note: the previous version of this `test` block called
+// `std.testing.expect` without `try`, so the assertions were silently
+// discarded and several expectations did not match the actual encoding.
+// They are corrected below.)
 
-    direction = Direction.find(8, 1, 1);
-    std.testing.expect(direction == .se);
-    // std.testing.expectEqual(zm.f32x4(1, 1, 0, 0), direction.f32x4());
-    // std.testing.expectEqual(zm.f32x4(sqrt, sqrt, 0, 0), direction.normalized());
+const expectEqual = std.testing.expectEqual;
 
-    direction = Direction.find(8, 0, 1);
-    std.testing.expect(direction == .s);
+test "Direction.find 8-way diagonals" {
+    try expectEqual(Direction.ne, Direction.find(8, 1, 1));
+    try expectEqual(Direction.nw, Direction.find(8, -1, 1));
+    try expectEqual(Direction.se, Direction.find(8, 1, -1));
+    try expectEqual(Direction.sw, Direction.find(8, -1, -1));
+}
 
-    direction = Direction.find(8, -1, -1);
-    std.testing.expect(direction == .nw);
-    std.testing.expect(direction.flippedHorizontally() == true);
+test "Direction.find 8-way cardinals" {
+    try expectEqual(Direction.e, Direction.find(8, 1, 0));
+    try expectEqual(Direction.w, Direction.find(8, -1, 0));
+    try expectEqual(Direction.n, Direction.find(8, 0, 1));
+    try expectEqual(Direction.s, Direction.find(8, 0, -1));
+}
 
-    direction = Direction.find(4, 1, 1);
-    std.testing.expect(direction == .e);
-    std.testing.expect(direction.flippedHorizontally() == false);
+test "Direction.find 4-way snaps diagonals to nearest cardinal" {
+    // 4-way collapses diagonals onto the dominant axis; equal magnitudes
+    // fall on x because the threshold uses `absy < absx * sqrt2`.
+    try expectEqual(Direction.e, Direction.find(4, 1, 1));
+    try expectEqual(Direction.w, Direction.find(4, -1, -1));
+    try expectEqual(Direction.n, Direction.find(4, 0, 1));
+    try expectEqual(Direction.s, Direction.find(4, 0, -1));
+}
+
+test "Direction.fromRadians produces the documented 8-way mapping" {
+    const pi = std.math.pi;
+    try expectEqual(Direction.e, Direction.fromRadians(0));
+    try expectEqual(Direction.ne, Direction.fromRadians(pi / 4.0));
+    try expectEqual(Direction.n, Direction.fromRadians(pi / 2.0));
+    try expectEqual(Direction.nw, Direction.fromRadians(3.0 * pi / 4.0));
+    try expectEqual(Direction.w, Direction.fromRadians(pi));
+    try expectEqual(Direction.sw, Direction.fromRadians(5.0 * pi / 4.0));
+    try expectEqual(Direction.s, Direction.fromRadians(3.0 * pi / 2.0));
+    try expectEqual(Direction.se, Direction.fromRadians(7.0 * pi / 4.0));
+}
+
+test "Direction.fromRadians wraps negative angles" {
+    const pi = std.math.pi;
+    // -pi normalizes to +pi (both should map to west).
+    try expectEqual(Direction.fromRadians(pi), Direction.fromRadians(-pi));
+    // -pi/2 normalizes to 3pi/2 (south).
+    try expectEqual(Direction.s, Direction.fromRadians(-pi / 2.0));
+}
+
+test "Direction.flippedHorizontally and flippedVertically" {
+    try std.testing.expect(Direction.find(8, -1, -1).flippedHorizontally());
+    try std.testing.expect(!Direction.find(8, 1, 1).flippedHorizontally());
+    try std.testing.expect(Direction.find(8, 1, 1).flippedVertically());
+    try std.testing.expect(!Direction.find(8, 1, -1).flippedVertically());
+}
+
+test "Direction.rotateCW and rotateCCW are inverses on the 8 named directions" {
+    inline for (.{ .n, .ne, .e, .se, .s, .sw, .w, .nw }) |dir| {
+        const d: Direction = dir;
+        try expectEqual(d, d.rotateCW().rotateCCW());
+        try expectEqual(d, d.rotateCCW().rotateCW());
+    }
 }

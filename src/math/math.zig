@@ -42,30 +42,10 @@ pub const Colors = color.Colors;
 
 pub const Point = struct { x: i32, y: i32 };
 
-pub fn lerp(a: f32, b: f32, t: f32) f32 {
-    return a + (b - a) * t;
-}
-
-pub fn ease(a: f32, b: f32, t: f32, ease_type: EaseType) f32 {
-    return switch (ease_type) {
-        .linear => lerp(a, b, t),
-        .ease_in => lerp(a, b, square(t)),
-        .ease_out => lerp(a, b, flip(square(flip(t)))),
-        .ease_in_out => lerp(a, b, -(std.math.cos(std.math.pi * t) - 1.0) / 2.0),
-    };
-}
-
-fn square(t: f32) f32 {
-    return t * t;
-}
-
-fn flip(t: f32) f32 {
-    return 1.0 - t;
-}
-
-pub const EaseType = enum {
-    linear,
-    ease_in,
-    ease_out,
-    ease_in_out,
-};
+// Pure scalar easing/lerp helpers live in a sibling file so `zig build
+// test` can exercise them without pulling in dvui. Re-exported here to
+// keep existing call sites unchanged.
+const easing = @import("easing.zig");
+pub const EaseType = easing.EaseType;
+pub const lerp = easing.lerp;
+pub const ease = easing.ease;

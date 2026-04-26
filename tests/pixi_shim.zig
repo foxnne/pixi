@@ -1,0 +1,58 @@
+//! Minimum bring-up of pixi globals for headless integration tests.
+//!
+//! Why a shim and not `Editor.init`? Because `Editor.init` reads from
+//! disk (config dir via known_folders), allocates fonts and themes,
+//! and runs asset loading. None of that is wanted in unit-flavored
+//! tests that just want to call e.g. `Internal.File.fillPoint` against
+//! an in-memory file.
+//!
+//! Strategy: heap-allocate `pixi.app` and `pixi.editor`, zero-initialize
+//! the editor, then set only the fields tests actually read. Convention:
+//! if a new test fails because some `pixi.editor.foo` is zero/empty/null,
+//! set just that field at the top of that test rather than expanding
+//! the shim.
+
+const std = @import("std");
+const dvui = @import("dvui");
+const pixi = @import("pixi");
+
+pub const Ctx = struct {
+    t: dvui.testing,
+    app: *pixi.App,
+    editor: *pixi.Editor,
+
+    pub fn deinit(self: *Ctx, gpa: std.mem.Allocator) void {
+        gpa.destroy(self.editor);
+        gpa.destroy(self.app);
+        self.t.deinit();
+    }
+};
+
+pub fn init(gpa: std.mem.Allocator) !Ctx {
+    var t = try dvui.testing.init(.{ .allocator = gpa });
+    errdefer t.deinit();
+
+    const app_ptr = try gpa.create(pixi.App);
+    app_ptr.* = .{
+        .allocator = gpa,
+        .window = t.window,
+        .root_path = "",
+    };
+    pixi.app = app_ptr;
+
+    // pixi.Editor contains many non-nullable pointer / non-zeroable
+    // fields, so `std.mem.zeroes(pixi.Editor)` rejects at comptime.
+    // Allocate via `create` (proper alignment + pairs with `destroy`)
+    // and `@memset` the bytes to zero — every byte of the struct is
+    // now 0, which is safe as long as tests only read fields they
+    // explicitly set below. If a new test fails because some
+    // `pixi.editor.foo` is zero/null/empty, set just that field at the
+    // top of that test rather than expanding the shim.
+    const editor_ptr = try gpa.create(pixi.Editor);
+    @memset(@as([*]u8, @ptrCast(editor_ptr))[0..@sizeOf(pixi.Editor)], 0);
+    editor_ptr.settings.checker_color_even = .{ 200, 200, 200, 255 };
+    editor_ptr.settings.checker_color_odd = .{ 100, 100, 100, 255 };
+    pixi.editor = editor_ptr;
+
+    return .{ .t = t, .app = app_ptr, .editor = editor_ptr };
+}
