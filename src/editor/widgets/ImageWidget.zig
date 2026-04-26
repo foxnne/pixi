@@ -288,18 +288,64 @@ pub fn drawSample(self: *ImageWidget) void {
     }
 }
 
+/// Checkerboard + content fill behind packed atlas RGBA (matches FileWidget layer backdrop for `transparency_effect == .none`).
+fn drawPackedAtlasCheckerboardBackground(canvas: *CanvasWidget, data_rect: dvui.Rect) void {
+    const bg_screen = canvas.screenFromDataRect(data_rect);
+    if (canvas.scale < 0.1) {
+        bg_screen.fill(.all(0), .{ .color = dvui.themeGet().color(.content, .fill), .fade = 1.5 });
+        return;
+    }
+    bg_screen.fill(.all(0), .{ .color = dvui.themeGet().color(.content, .fill), .fade = 1.5 });
+
+    const files = pixi.editor.open_files.values();
+    const tex = if (files.len > 0)
+        files[0].editor.checkerboard_tile.getTexture() catch null
+    else
+        null;
+    if (tex == null) return;
+
+    const tone = dvui.themeGet().color(.content, .fill).lighten(6.0).opacity(0.5).opacity(dvui.currentWindow().alpha);
+    const pma = dvui.Color.PMA.fromColor(tone);
+
+    const col_w: f32 = 8.0;
+    const row_h: f32 = 8.0;
+    const rs = canvas.screen_rect_scale;
+    const r = rs.rectToPhysical(data_rect);
+    const tl = r.topLeft();
+    const tr = r.topRight();
+    const br = r.bottomRight();
+    const bl = r.bottomLeft();
+    const uv_x0 = data_rect.x / col_w;
+    const uv_y0 = data_rect.y / row_h;
+    const uv_x1 = (data_rect.x + data_rect.w) / col_w;
+    const uv_y1 = (data_rect.y + data_rect.h) / row_h;
+
+    const arena = dvui.currentWindow().arena();
+    var builder = dvui.Triangles.Builder.init(arena, 4, 6) catch return;
+    defer builder.deinit(arena);
+    builder.appendVertex(.{ .pos = tl, .col = pma, .uv = .{ uv_x0, uv_y0 } });
+    builder.appendVertex(.{ .pos = tr, .col = pma, .uv = .{ uv_x1, uv_y0 } });
+    builder.appendVertex(.{ .pos = br, .col = pma, .uv = .{ uv_x1, uv_y1 } });
+    builder.appendVertex(.{ .pos = bl, .col = pma, .uv = .{ uv_x0, uv_y1 } });
+    builder.appendTriangles(&.{ 1, 0, 3, 1, 3, 2 });
+    const triangles = builder.build();
+    dvui.renderTriangles(triangles, tex) catch {
+        dvui.log.err("Failed to render packed atlas checkerboard", .{});
+    };
+}
+
 pub fn drawImage(self: *ImageWidget) void {
     const size: dvui.Size = dvui.imageSize(self.init_options.source) catch .{ .w = 0, .h = 0 };
+    const image_rect = dvui.Rect{ .x = 0, .y = 0, .w = size.w, .h = size.h };
 
     const shadow_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
         .expand = .none,
-        .rect = .{ .x = 0, .y = 0, .w = size.w, .h = size.h },
+        .rect = image_rect,
         .border = dvui.Rect.all(0),
-        .background = true,
         .box_shadow = .{
             .fade = 20 * 1 / self.init_options.canvas.scale,
             .corner_radius = dvui.Rect.all(2 * 1 / self.init_options.canvas.scale),
-            .alpha = 0.2,
+            .alpha = if (dvui.themeGet().dark) 0.4 else 0.2,
             .offset = .{
                 .x = 2 * 1 / self.init_options.canvas.scale,
                 .y = 2 * 1 / self.init_options.canvas.scale,
@@ -308,8 +354,19 @@ pub fn drawImage(self: *ImageWidget) void {
     });
     shadow_box.deinit();
 
+    const fill_box = dvui.box(@src(), .{ .dir = .horizontal }, .{
+        .expand = .none,
+        .rect = image_rect,
+        .border = dvui.Rect.all(0),
+        .background = true,
+        .color_fill = dvui.themeGet().color(.window, .fill),
+    });
+    fill_box.deinit();
+
+    drawPackedAtlasCheckerboardBackground(self.init_options.canvas, image_rect);
+
     _ = dvui.image(@src(), .{ .source = self.init_options.source }, .{
-        .rect = .{ .x = 0, .y = 0, .w = size.w, .h = size.h },
+        .rect = image_rect,
         .border = dvui.Rect.all(0),
         .background = false,
     });

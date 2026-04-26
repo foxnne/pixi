@@ -84,6 +84,7 @@ fn drawOption(option: Pane, icon: []const u8, size: f32) !bool {
 
     if (bw.clicked()) {
         pixi.editor.explorer.pane = option;
+        dvui.refresh(null, @src(), null);
         ret = true;
     }
 
