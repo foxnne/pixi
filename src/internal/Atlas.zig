@@ -40,14 +40,11 @@ pub fn save(atlas: Atlas, path: []const u8, selector: Selector) !void {
                 std.log.debug("File name must end with .atlas extension!", .{});
                 return error.InvalidExtension;
             }
-            var handle = try std.fs.cwd().createFile(path, .{});
-            defer handle.close();
-
             const options: std.json.Stringify.Options = .{};
 
             const output = try std.json.Stringify.valueAlloc(pixi.editor.arena.allocator(), atlas.data, options);
 
-            handle.writeAll(output) catch return error.CouldNotWriteAtlasData;
+            std.Io.Dir.cwd().writeFile(dvui.io, .{ .sub_path = path, .data = output }) catch return error.CouldNotWriteAtlasData;
         },
     }
 }

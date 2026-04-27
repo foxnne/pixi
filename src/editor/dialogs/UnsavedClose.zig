@@ -24,7 +24,7 @@ pub fn request(file_id: u64, mode: Mode) void {
         .max_size = .{ .w = 520, .h = 280 },
     });
     dvui.dataSet(null, mutex.id, "_unsaved_file_id", file_id);
-    mutex.mutex.unlock();
+    mutex.mutex.unlock(dvui.io);
 }
 
 fn fileBasename(file_id: u64) []const u8 {

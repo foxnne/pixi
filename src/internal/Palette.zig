@@ -18,7 +18,7 @@ pub fn loadFromFile(allocator: std.mem.Allocator, file: []const u8) !Palette {
     const ext = std.fs.path.extension(file);
 
     if (std.mem.eql(u8, ext, ".hex")) {
-        if (pixi.fs.read(pixi.app.allocator, file) catch null) |read| {
+        if (pixi.fs.read(pixi.app.allocator, dvui.io, file) catch null) |read| {
             defer pixi.app.allocator.free(read);
 
             return loadFromBytes(allocator, std.fs.path.basename(file), read);

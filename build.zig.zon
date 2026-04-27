@@ -8,16 +8,16 @@
     .fingerprint = 0xdef5a52d63bd43b9,
     .name = .pixi,
     .version = "0.0.3",
-    .minimum_zig_version = "0.15.2",
+    .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .zig_objc = .{
-            .url = "git+https://github.com/foxnne/zig-objc#27d0e03242e7ee6842bf8a86d2e0bb1f586a9847",
-            .hash = "zig_objc-0.0.0-Ir_Sp7oUAQC3JpeR9EGUFGcHRSx_33IehitnjBCy-CwD",
+            .url = "git+https://github.com/foxnne/zig-objc#c8de82ff80281215ad92900866dab7103a8efa8b",
+            .hash = "zig_objc-0.0.0-Ir_Sp9gsAQCPAJc0oF5xoWePHWP6Y6tCphDeyNUThJoi",
             .lazy = true,
         },
         .zigwin32 = .{
-            .url = "git+https://github.com/marlersoft/zigwin32#fd6ebce3ebfe48f291069c0ddc518b2cc83be450",
-            .hash = "zigwin32-25.0.28-preview-AAAAALYs5QNcI6U4YMngK-zET_wKAM10AWdbIcWEUaYV",
+            .url = "git+https://github.com/kristoff-it/zigwin32#1102e9b82e8bd50913b6a78035bfb399ebd8cf97",
+            .hash = "zigwin32-25.0.28-preview-6BfVhYKN5AOvXPVJq4bGZ7C5dM3PbUra4xhKAKOFJGcF",
             .lazy = true,
         },
         .icons = .{
@@ -26,22 +26,17 @@
             .lazy = true,
         },
         .dvui = .{
-            //.path = "../dvui-dev",
-            .url = "git+https://github.com/foxnne/dvui-dev#9296fc64e52405b4233760a345291562c40b8c0f",
-            .hash = "dvui-0.4.0-AQFJmSj-4QA9wLZOnd624My6L-dw-gAEGm-ipXoqZcWt",
+            .url = "git+https://github.com/foxnne/dvui-dev#c6d9c17d10502c6e67f526e59357450683f8ed13",
+            .hash = "dvui-0.5.0-dev-AQFJme4F3wDD1uUidoucAhnPuIeAXfVMijsh0wr6rW-p",
         },
         .assetpack = .{
             //.path = "../assetpack",
-            .url = "git+https://github.com/foxnne/assetpack#40314c96819d53ba44c3cab1b2b71219004de829",
-            .hash = "assetpack-0.1.0-5DA2d2VlAACfTN5RE7XvEVSPwr-a8IT2E58MFnONRXnP",
+            .url = "git+https://github.com/foxnne/assetpack#fa8210e54870fc7c406cde027be2c8dab6ccdb5d",
+            .hash = "assetpack-0.1.0-5DA2dwFhAAAfPMIvCLHpoiOknZr_xhu5nOU4D5651m__",
         },
         .known_folders = .{
-            .url = "git+https://github.com/ziglibs/known-folders.git#83d39161eac2ed6f37ad3cb4d9dd518696ce90bb",
-            .hash = "known_folders-0.0.0-Fy-PJv3LAAABBRVoZWVrKZdyLoUfl5VRY5fqRRRdnF5L",
-        },
-        .win32 = .{
-            .url = "git+https://github.com/marlersoft/zigwin32#ec98bb4d9eea532320a8551720a9e3ec6de64994",
-            .hash = "win32-25.0.28-preview-mX5pFWMt5QPTVIGh3r2-OpPunpcCCjApyRbA6Zn6WALH",
+            .url = "https://github.com/ziglibs/known-folders/archive/d6d03830968cca6b7b9f24fd97ee348346a6905d.tar.gz",
+            .hash = "known_folders-0.0.0-Fy-PJk3KAACzUg2us_0JvQQmod1ZA8jBt7MuoKCihq88",
         },
     },
 }
