@@ -70,3 +70,16 @@ pub const dvui = @import("dvui.zig");
 
 /// Custom backend stuff
 pub const backend = @import("backend.zig");
+
+/// Returns a `std.process.Environ` populated from the libc `environ` global.
+/// Used to bridge APIs (like `known-folders.getPath`) that require an
+/// `Environ.Map` constructed from the parent process's environment.
+pub fn processEnviron() std.process.Environ {
+    if (@import("builtin").os.tag == .windows) {
+        return .{ .block = .global };
+    }
+    var n: usize = 0;
+    while (std.c.environ[n] != null) : (n += 1) {}
+    const slice: [:null]const ?[*:0]const u8 = @as([*:null]const ?[*:0]const u8, @ptrCast(std.c.environ))[0..n :null];
+    return .{ .block = .{ .slice = slice } };
+}

@@ -1,23 +1,23 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const Child = std.process.Child;
+const Io = std.Io;
 
 // url must be something like: https://github.com/nat3Github/zig-lib-dvui-dev-fork
 //  branch must be something like main or dev
-pub fn get_hash(alloc: Allocator, url: []const u8, branch: []const u8) ![]const u8 {
+pub fn get_hash(alloc: Allocator, io: Io, url: []const u8, branch: []const u8) ![]const u8 {
     const get_commit = &.{ "git", "ls-remote", url };
-    const dat = try exec(alloc, get_commit);
+    const dat = try exec(alloc, io, get_commit);
     var tokenizer = std.mem.tokenizeAny(u8, dat, "\r\n");
     var hash: []const u8 = "";
     const refs_heads = "refs/heads/";
-    var arlist = std.array_list.Managed([]const u8).init(alloc);
-    defer arlist.deinit();
+    var arlist: std.ArrayList([]const u8) = .empty;
+    defer arlist.deinit(alloc);
     while (tokenizer.next()) |token| {
         hash = token[0..40];
         var ref = std.mem.trim(u8, token[40..], " \t");
         if (std.ascii.startsWithIgnoreCase(ref, refs_heads)) ref = ref[refs_heads.len..];
         if (std.mem.eql(u8, branch, ref)) return alloc.dupe(u8, hash);
-        try arlist.append(ref);
+        try arlist.append(alloc, ref);
     }
     const branches = arlist.items;
     std.log.err("url: {s} BRANCH: '{s}' NOT FOUND", .{ url, branch });
@@ -28,8 +28,8 @@ pub fn get_hash(alloc: Allocator, url: []const u8, branch: []const u8) ![]const 
     return error.BranchNotFound;
 }
 
-pub fn get_zig_fetch_repo_string(alloc: Allocator, url: []const u8, branch: []const u8) ![]const u8 {
-    const hash = try get_hash(alloc, url, branch);
+pub fn get_zig_fetch_repo_string(alloc: Allocator, io: Io, url: []const u8, branch: []const u8) ![]const u8 {
+    const hash = try get_hash(alloc, io, url, branch);
     const repo = try std.fmt.allocPrint(alloc, "git+{s}#{s}", .{ url, hash });
     return repo;
 }
@@ -39,11 +39,11 @@ pub const GitDependency = struct {
     branch: []const u8,
 };
 
-pub fn update_dependency(alloc: Allocator, deps: []const GitDependency) !void {
+pub fn update_dependency(alloc: Allocator, io: Io, deps: []const GitDependency) !void {
     for (deps) |dep| {
-        const rep = try get_zig_fetch_repo_string(alloc, dep.url, dep.branch);
+        const rep = try get_zig_fetch_repo_string(alloc, io, dep.url, dep.branch);
         std.log.info("running zig fetch --save {s}", .{rep});
-        _ = try exec(alloc, &.{
+        _ = try exec(alloc, io, &.{
             "zig",
             "fetch",
             "--save",
@@ -52,21 +52,20 @@ pub fn update_dependency(alloc: Allocator, deps: []const GitDependency) !void {
     }
     std.log.info("ok", .{});
 }
-pub fn exec(alloc: Allocator, args: []const []const u8) ![]const u8 {
-    var caller = Child.init(args, alloc);
-    caller.stdout_behavior = .Pipe;
-    caller.stderr_behavior = .Pipe;
-    var stdout = std.ArrayListUnmanaged(u8){};
-    var stderr = std.ArrayListUnmanaged(u8){};
-    errdefer stdout.deinit(alloc);
-    defer stderr.deinit(alloc);
-    try caller.spawn();
-    try caller.collectOutput(alloc, &stdout, &stderr, 1024 * 1024);
-    const res = try caller.wait();
-    if (res.Exited > 0) {
-        std.log.err("{s}\n", .{stderr.items});
-        return error.Failed;
-    } else {
-        return stdout.items;
+
+pub fn exec(alloc: Allocator, io: Io, args: []const []const u8) ![]const u8 {
+    const result = try std.process.run(alloc, io, .{ .argv = args });
+    defer alloc.free(result.stderr);
+    errdefer alloc.free(result.stdout);
+    switch (result.term) {
+        .exited => |code| if (code != 0) {
+            std.log.err("{s}\n", .{result.stderr});
+            return error.Failed;
+        },
+        else => {
+            std.log.err("{s}\n", .{result.stderr});
+            return error.Failed;
+        },
     }
+    return result.stdout;
 }

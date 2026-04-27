@@ -37,21 +37,21 @@ pub fn accept(self: *Transform) void {
     if (pixi.editor.open_files.getPtr(self.file_id)) |file| {
         var layer = file.getLayer(self.layer_id) orelse return;
 
-        const t_all: i128 = if (pixi.perf.record) std.time.nanoTimestamp() else 0;
+        const t_all: i128 = if (pixi.perf.record) pixi.perf.nanoTimestamp() else 0;
         const layer_px: u64 = @as(u64, file.width()) * @as(u64, file.height());
 
         const pix = dvui.textureReadTarget(dvui.currentWindow().arena(), self.target_texture) catch {
             dvui.log.err("Failed to read target texture", .{});
             return;
         };
-        const t_after_gpu: i128 = if (pixi.perf.record) std.time.nanoTimestamp() else 0;
+        const t_after_gpu: i128 = if (pixi.perf.record) pixi.perf.nanoTimestamp() else 0;
 
         file.buffers.stroke.clearAndReserveCapacity(@intCast(layer_px)) catch {
             dvui.log.err("Failed to reserve stroke map for transform accept", .{});
             return;
         };
 
-        const t_loop: i128 = if (pixi.perf.record) std.time.nanoTimestamp() else 0;
+        const t_loop: i128 = if (pixi.perf.record) pixi.perf.nanoTimestamp() else 0;
         // Two passes: undo keys use the pre-write layer; writes are independent per index, so order
         // matches the original interleaved loop without mutating layer between undo decisions.
         for (pix, file.editor.transform_layer.pixels(), layer.pixels(), 0..) |temp_pixel, transform_pixel, layer_pixel, pixel_index| {
@@ -79,19 +79,19 @@ pub fn accept(self: *Transform) void {
             }
         }
 
-        const t_after_loop: i128 = if (pixi.perf.record) std.time.nanoTimestamp() else 0;
+        const t_after_loop: i128 = if (pixi.perf.record) pixi.perf.nanoTimestamp() else 0;
 
-        const t_to_change: i128 = if (pixi.perf.record) std.time.nanoTimestamp() else 0;
+        const t_to_change: i128 = if (pixi.perf.record) pixi.perf.nanoTimestamp() else 0;
         const change = file.buffers.stroke.toChange(self.layer_id) catch null;
-        const t_after_to_change: i128 = if (pixi.perf.record) std.time.nanoTimestamp() else 0;
+        const t_after_to_change: i128 = if (pixi.perf.record) pixi.perf.nanoTimestamp() else 0;
 
-        const t_hist: i128 = if (pixi.perf.record) std.time.nanoTimestamp() else 0;
+        const t_hist: i128 = if (pixi.perf.record) pixi.perf.nanoTimestamp() else 0;
         if (change) |c| {
             file.history.append(c) catch {
                 dvui.log.err("Failed to append stroke change to history", .{});
             };
         }
-        const t_end: i128 = if (pixi.perf.record) std.time.nanoTimestamp() else 0;
+        const t_end: i128 = if (pixi.perf.record) pixi.perf.nanoTimestamp() else 0;
 
         if (pixi.perf.record) {
             pixi.perf.transform_accept_last_total_ns = @intCast(t_end - t_all);

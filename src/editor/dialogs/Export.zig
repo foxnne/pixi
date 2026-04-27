@@ -817,14 +817,8 @@ pub fn createAnimationGif(path: []const u8) anyerror!void {
         defer msf_gif.free(result);
 
         // // Now write to file using the new Writer interface
-        var output_file = std.fs.cwd().createFile(path, .{}) catch {
-            dvui.log.err("Failed to create file {s}", .{path});
-            return;
-        };
-        defer output_file.close();
-
         if (result.data) |data| {
-            output_file.writeAll(data[0..result.dataSize]) catch {
+            std.Io.Dir.cwd().writeFile(dvui.io, .{ .sub_path = path, .data = data[0..result.dataSize] }) catch {
                 dvui.log.err("Failed to write to file {s}", .{path});
                 return;
             };

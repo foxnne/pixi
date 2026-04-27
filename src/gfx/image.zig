@@ -44,7 +44,7 @@ pub fn fromImageFileBytes(name: []const u8, file_bytes: []const u8, invalidation
 }
 
 pub fn fromImageFilePath(name: []const u8, path: []const u8, invalidation: dvui.ImageSource.InvalidationStrategy) !dvui.ImageSource {
-    const file_byes = try pixi.fs.read(pixi.app.allocator, path);
+    const file_byes = try pixi.fs.read(pixi.app.allocator, dvui.io, path);
     defer pixi.app.allocator.free(file_byes);
     return fromImageFileBytes(name, file_byes, invalidation);
 }
@@ -328,11 +328,12 @@ pub fn writeToPng(source: dvui.ImageSource, path: []const u8) !void {
         else => return error.InvalidImageSource,
     };
 
-    var handle = try std.fs.cwd().createFile(path, .{});
-    defer handle.close();
+    const io = dvui.io;
+    var handle = try std.Io.Dir.cwd().createFile(io, path, .{});
+    defer handle.close(io);
 
     var buffer: [512]u8 = undefined;
-    var writer = handle.writer(&buffer);
+    var writer = handle.writer(io, &buffer);
 
     try dvui.PNGEncoder.write(&writer.interface, data, w, h);
     try writer.end();
@@ -349,11 +350,12 @@ pub fn writeToPngResolution(source: dvui.ImageSource, path: []const u8, resoluti
         else => return error.InvalidImageSource,
     };
 
-    var handle = try std.fs.cwd().createFile(path, .{});
-    defer handle.close();
+    const io = dvui.io;
+    var handle = try std.Io.Dir.cwd().createFile(io, path, .{});
+    defer handle.close(io);
 
     var buffer: [512]u8 = undefined;
-    var writer = handle.writer(&buffer);
+    var writer = handle.writer(io, &buffer);
 
     try dvui.PNGEncoder.writeWithResolution(&writer.interface, data, w, h, resolution);
     try writer.end();
@@ -374,11 +376,12 @@ fn flatRgbaForEncode(source: dvui.ImageSource) !struct { data: []u8, w: u32, h: 
 pub fn writeToJpg(source: dvui.ImageSource, path: []const u8) !void {
     const flat = try flatRgbaForEncode(source);
 
-    var handle = try std.fs.cwd().createFile(path, .{});
-    defer handle.close();
+    const io = dvui.io;
+    var handle = try std.Io.Dir.cwd().createFile(io, path, .{});
+    defer handle.close(io);
 
     var buffer: [512]u8 = undefined;
-    var writer = handle.writer(&buffer);
+    var writer = handle.writer(io, &buffer);
 
     try dvui.JPGEncoder.write(&writer.interface, flat.data, flat.w, flat.h);
     try writer.end();
@@ -389,11 +392,12 @@ pub fn writeToJpg(source: dvui.ImageSource, path: []const u8) !void {
 pub fn writeToJpgPpi(source: dvui.ImageSource, path: []const u8, ppi: u16) !void {
     const flat = try flatRgbaForEncode(source);
 
-    var handle = try std.fs.cwd().createFile(path, .{});
-    defer handle.close();
+    const io = dvui.io;
+    var handle = try std.Io.Dir.cwd().createFile(io, path, .{});
+    defer handle.close(io);
 
     var buffer: [512]u8 = undefined;
-    var writer = handle.writer(&buffer);
+    var writer = handle.writer(io, &buffer);
 
     var enc = dvui.JPGEncoder.initDensity(&writer.interface, ppi);
     try enc.writeWithQuality(flat.data, flat.w, flat.h, 90);

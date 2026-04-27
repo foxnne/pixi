@@ -129,7 +129,7 @@ pub fn tick() !void {
                         .modal = false,
                         .default = .ok,
                     });
-                    mutex.mutex.unlock();
+                    mutex.mutex.unlock(dvui.io);
                 }
 
                 if (ke.matchBind("decrease_stroke_size") and (ke.action == .down or ke.action == .repeat)) {

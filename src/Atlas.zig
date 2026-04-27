@@ -24,8 +24,8 @@ const AtlasV1 = struct {
     animations: []Animation.AnimationV1,
 };
 
-pub fn loadFromFile(allocator: std.mem.Allocator, file: []const u8) !Atlas {
-    const read = try fs.read(allocator, file);
+pub fn loadFromFile(allocator: std.mem.Allocator, io: std.Io, file: []const u8) !Atlas {
+    const read = try fs.read(allocator, io, file);
     defer allocator.free(read);
 
     return loadFromBytes(allocator, read);

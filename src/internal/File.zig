@@ -2602,7 +2602,7 @@ pub fn saveTar(self: *File, window: *dvui.Window) !void {
         const id = id_mutex.id;
         const message = std.fmt.allocPrint(window.arena(), "Saved {s}", .{std.fs.path.basename(self.path)}) catch "Saved file";
         dvui.dataSetSlice(window, id, "_message", message);
-        id_mutex.mutex.unlock();
+        id_mutex.mutex.unlock(dvui.io);
     }
 
     self.saving = false;
@@ -2621,7 +2621,7 @@ pub fn savePng(self: *File, window: *dvui.Window) !void {
         const id = id_mutex.id;
         const message = std.fmt.allocPrint(window.arena(), "Saved {s} to disk", .{std.fs.path.basename(self.path)}) catch "Saved file";
         dvui.dataSetSlice(window, id, "_message", message);
-        id_mutex.mutex.unlock();
+        id_mutex.mutex.unlock(dvui.io);
     }
 
     self.editor.saving = false;
@@ -2640,7 +2640,7 @@ pub fn saveJpg(self: *File, window: *dvui.Window) !void {
         const id = id_mutex.id;
         const message = std.fmt.allocPrint(window.arena(), "Saved {s} to disk", .{std.fs.path.basename(self.path)}) catch "Saved file";
         dvui.dataSetSlice(window, id, "_message", message);
-        id_mutex.mutex.unlock();
+        id_mutex.mutex.unlock(dvui.io);
     }
 
     self.editor.saving = false;
@@ -2657,20 +2657,13 @@ pub fn saveZip(self: *File, window: *dvui.Window) !void {
     const zip_file = zip.zip_open(null_terminated_path.ptr, zip.ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
 
     if (zip_file) |z| {
-        var json = std.array_list.Managed(u8).init(pixi.app.allocator);
-        const writer = json.writer();
         const options = std.json.Stringify.Options{};
 
         const output = try std.json.Stringify.valueAlloc(pixi.app.allocator, ext, options);
         defer pixi.app.allocator.free(output);
 
-        writer.writeAll(output) catch return error.CouldNotWriteZipFile;
-
-        const json_output = try json.toOwnedSlice();
-        defer pixi.app.allocator.free(json_output);
-
         _ = zip.zip_entry_open(z, "pixidata.json");
-        _ = zip.zip_entry_write(z, json_output.ptr, json_output.len);
+        _ = zip.zip_entry_write(z, output.ptr, output.len);
         _ = zip.zip_entry_close(z);
 
         if (self.layers.len > 0) {
@@ -2693,7 +2686,7 @@ pub fn saveZip(self: *File, window: *dvui.Window) !void {
             const id = id_mutex.id;
             const message = std.fmt.allocPrint(window.arena(), "Saved {s}", .{std.fs.path.basename(self.path)}) catch "Saved file";
             dvui.dataSetSlice(window, id, "_message", message);
-            id_mutex.mutex.unlock();
+            id_mutex.mutex.unlock(dvui.io);
         }
     }
 
@@ -2882,7 +2875,7 @@ pub fn saveAsFlattened(self: *File, output_path: []const u8, window: *dvui.Windo
         const id = id_mutex.id;
         const message = std.fmt.allocPrint(window.arena(), "Saved {s} to disk", .{std.fs.path.basename(self.path)}) catch "Saved file";
         dvui.dataSetSlice(window, id, "_message", message);
-        id_mutex.mutex.unlock();
+        id_mutex.mutex.unlock(dvui.io);
     }
     pixi.editor.requestCompositeWarmup();
 }

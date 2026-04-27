@@ -220,14 +220,16 @@ fn pointerReleaseInRectWithoutSelectionModifier(r: dvui.Rect.Physical) bool {
     return false;
 }
 
-fn lessThan(_: void, lhs: std.fs.Dir.Entry, rhs: std.fs.Dir.Entry) bool {
+const SimpleEntry = struct { name: []const u8, kind: std.Io.File.Kind };
+
+fn lessThan(_: void, lhs: SimpleEntry, rhs: SimpleEntry) bool {
     if (lhs.kind == .directory and rhs.kind == .file) return true;
     if (lhs.kind == .file and rhs.kind == .directory) return false;
 
     return std.mem.order(u8, lhs.name, rhs.name) == .lt;
 }
 
-pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind: std.fs.Dir.Entry.Kind, full_path: []const u8) !void {
+pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind: std.Io.File.Kind, full_path: []const u8) !void {
     const padding = dvui.Rect.all(3);
     const font = dvui.Font.theme(.body);
 
@@ -284,7 +286,7 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
             defer edit_id = null;
 
             const valid_path = blk: {
-                std.fs.accessAbsolute(full_path, .{}) catch {
+                std.Io.Dir.accessAbsolute(dvui.io, full_path, .{}) catch {
                     break :blk false;
                 };
 
@@ -300,7 +302,7 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
             if (!std.mem.eql(u8, label, te.getText()) and te.getText().len > 0 and valid_path) {
                 switch (kind) {
                     .directory => {
-                        std.fs.renameAbsolute(full_path, new_path) catch dvui.log.err("Failed to rename folder: {s} to {s}", .{ label, te.getText() });
+                        std.Io.Dir.renameAbsolute(full_path, new_path, dvui.io) catch dvui.log.err("Failed to rename folder: {s} to {s}", .{ label, te.getText() });
 
                         for (pixi.editor.open_files.values()) |*file| {
                             if (std.mem.containsAtLeast(u8, file.path, 1, full_path)) {
@@ -311,7 +313,7 @@ pub fn editableLabel(id_extra: usize, label: []const u8, color: dvui.Color, kind
                         }
                     },
                     .file => {
-                        std.fs.renameAbsolute(full_path, new_path) catch dvui.log.err("Failed to rename file: {s} to {s}", .{ label, te.getText() });
+                        std.Io.Dir.renameAbsolute(full_path, new_path, dvui.io) catch dvui.log.err("Failed to rename file: {s} to {s}", .{ label, te.getText() });
 
                         if (pixi.editor.getFileFromPath(full_path)) |file| {
                             pixi.app.allocator.free(file.path);
@@ -346,14 +348,14 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
 
     const recursor = struct {
         fn search(directory: []const u8, tree: *pixi.dvui.TreeWidget, inner_unique_id: dvui.Id, inner_id_extra: *usize, color_id: *usize, filter_text: []const u8, parent_branch: ?*pixi.dvui.TreeWidget.Branch) !void {
-            var dir = std.fs.cwd().openDir(directory, .{ .access_sub_paths = true, .iterate = true }) catch return;
-            defer dir.close();
+            const io = dvui.io;
+            var dir = std.Io.Dir.cwd().openDir(io, directory, .{ .access_sub_paths = true, .iterate = true }) catch return;
+            defer dir.close(io);
 
-            // Collect all files/folders in the directory and sort them alphabetically
-            var files = std.array_list.Managed(std.fs.Dir.Entry).init(dvui.currentWindow().arena());
+            var files = std.array_list.Managed(SimpleEntry).init(dvui.currentWindow().arena());
 
             var iter = dir.iterate();
-            while (try iter.next()) |entry| {
+            while (try iter.next(io)) |entry| {
                 try files.append(.{
                     .name = dvui.currentWindow().arena().dupe(u8, entry.name) catch "Arena failed to allocate",
                     .kind = entry.kind,
@@ -361,7 +363,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
             }
 
             std.mem.sort(
-                std.fs.Dir.Entry,
+                SimpleEntry,
                 files.items,
                 {},
                 lessThan,
@@ -599,18 +601,18 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                                 .id_extra = branch_id.asUsize(),
                             });
                             dvui.dataSetSlice(null, mutex.id, "_parent_path", parent_owned);
-                            mutex.mutex.unlock();
+                            mutex.mutex.unlock(dvui.io);
                         }
 
                         if ((dvui.menuItemLabel(@src(), "New Folder...", .{}, .{ .expand = .horizontal })) != null) {
                             switch (entry.kind) {
                                 .directory => {
                                     const new_folder_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{ abs_path, "New Folder" });
-                                    std.fs.makeDirAbsolute(new_folder_path) catch dvui.log.err("Failed to create folder: {s}", .{new_folder_path});
+                                    std.Io.Dir.createDirAbsolute(dvui.io, new_folder_path, .default_dir) catch dvui.log.err("Failed to create folder: {s}", .{new_folder_path});
                                 },
                                 .file => {
                                     const new_folder_path = try std.fs.path.join(dvui.currentWindow().arena(), &.{ directory, "New Folder" });
-                                    std.fs.makeDirAbsolute(new_folder_path) catch dvui.log.err("Failed to create folder: {s}", .{new_folder_path});
+                                    std.Io.Dir.createDirAbsolute(dvui.io, new_folder_path, .default_dir) catch dvui.log.err("Failed to create folder: {s}", .{new_folder_path});
                                 },
                                 else => {},
                             }
@@ -638,9 +640,9 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                                 };
                                 for (top) |del_path| {
                                     if (pathIsDirAbsolute(del_path)) {
-                                        std.fs.deleteDirAbsolute(del_path) catch dvui.log.err("Failed to delete folder: {s}", .{del_path});
+                                        std.Io.Dir.deleteDirAbsolute(dvui.io, del_path) catch dvui.log.err("Failed to delete folder: {s}", .{del_path});
                                     } else {
-                                        std.fs.deleteFileAbsolute(del_path) catch dvui.log.err("Failed to delete file: {s}", .{del_path});
+                                        std.Io.Dir.deleteFileAbsolute(dvui.io, del_path) catch dvui.log.err("Failed to delete file: {s}", .{del_path});
                                     }
                                 }
                             }
@@ -687,7 +689,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
 
                         editableLabel(
                             inner_id_extra.*,
-                            if (filter_text.len > 0) std.fs.path.relative(dvui.currentWindow().arena(), pixi.editor.folder.?, abs_path) catch entry.name else entry.name,
+                            if (filter_text.len > 0) std.fs.path.relativePosix(dvui.currentWindow().arena(), ".", pixi.editor.folder.?, abs_path) catch entry.name else entry.name,
                             if (pixi.editor.getFileFromPath(abs_path) != null) dvui.themeGet().color(.window, .text) else dvui.themeGet().color(.control, .text),
                             entry.kind,
                             abs_path,
@@ -964,8 +966,9 @@ fn selectionPathsSorted(arena: std.mem.Allocator) ![]const []const u8 {
 }
 
 fn pathIsDirAbsolute(abs: []const u8) bool {
-    var d = std.fs.openDirAbsolute(abs, .{}) catch return false;
-    d.close();
+    const io = dvui.io;
+    var d = std.Io.Dir.openDirAbsolute(io, abs, .{}) catch return false;
+    d.close(io);
     return true;
 }
 
@@ -979,14 +982,15 @@ fn openablePath(abs_path: []const u8) bool {
 }
 
 fn appendOpenableFilesInTree(arena: std.mem.Allocator, root_abs: []const u8, out: *std.ArrayListUnmanaged([]const u8)) !void {
-    var dir = std.fs.openDirAbsolute(root_abs, .{ .iterate = true }) catch |err| {
+    const io = dvui.io;
+    var dir = std.Io.Dir.openDirAbsolute(io, root_abs, .{ .iterate = true }) catch |err| {
         dvui.log.err("Failed to open directory for open: {s} ({any})", .{ root_abs, err });
         return;
     };
-    defer dir.close();
+    defer dir.close(io);
     var walker = try dir.walk(arena);
     defer walker.deinit();
-    while (try walker.next()) |entry| {
+    while (try walker.next(io)) |entry| {
         if (entry.kind != .file) continue;
         const full = try std.fs.path.join(arena, &.{ root_abs, entry.path });
         if (!openablePath(full)) continue;
@@ -1054,7 +1058,7 @@ fn applyFileMove(unique_id: dvui.Id, tree: *pixi.dvui.TreeWidget, target_dir: []
     if (is_multi) {
         // Snapshot paths first: moving invalidates `selected_paths` entries and their strings.
         // Omit paths that are already under another selected folder (the folder move covers them).
-        var paths = std.ArrayList([]u8){};
+        var paths: std.ArrayList([]u8) = .empty;
         defer paths.deinit(arena);
         var it = selected_paths.iterator();
         while (it.next()) |e| {
@@ -1081,7 +1085,7 @@ fn applyFileMove(unique_id: dvui.Id, tree: *pixi.dvui.TreeWidget, target_dir: []
         for (paths.items) |old_path| {
             const base = std.fs.path.basename(old_path);
             const new_path = std.fs.path.join(arena, &.{ target_dir, base }) catch continue;
-            std.fs.accessAbsolute(new_path, .{}) catch continue;
+            std.Io.Dir.accessAbsolute(dvui.io, new_path, .{}) catch continue;
             const new_id = dvui.Id.update(tree.data().id, new_path).asUsize();
             selectionPut(new_id, new_path);
             selected_id = new_id;
@@ -1099,7 +1103,7 @@ fn moveOnePath(source_path: []const u8, target_dir: []const u8, arena: std.mem.A
     const new_path = try std.fs.path.join(arena, &.{ target_dir, base });
     if (std.mem.eql(u8, source_path, new_path)) return false;
 
-    std.fs.renameAbsolute(source_path, new_path) catch {
+    std.Io.Dir.renameAbsolute(source_path, new_path, dvui.io) catch {
         dvui.log.err("Failed to move {s} to {s}", .{ source_path, new_path });
         return false;
     };
@@ -1119,7 +1123,7 @@ pub fn pruneMissingSelections() void {
     var i: usize = 0;
     while (i < selected_paths.count()) {
         const entry = selected_paths.entries.get(i);
-        std.fs.accessAbsolute(entry.value, .{}) catch {
+        std.Io.Dir.accessAbsolute(dvui.io, entry.value, .{}) catch {
             const removed = selected_paths.fetchSwapRemove(entry.key) orelse {
                 i += 1;
                 continue;
