@@ -1901,7 +1901,7 @@ fn applyFrameClick(
         return true;
     }
 
-    var out = std.ArrayList(usize){};
+    var out: std.ArrayList(usize) = .empty;
     defer out.deinit(pixi.app.allocator);
 
     // When anchor is null, shift-extend uses `primary_opt` as the range endpoint. During playback
@@ -2268,7 +2268,7 @@ fn applyAnimationClick(file: *pixi.Internal.File, clicked: usize, mode: pixi.dvu
 
     const defer_narrow = (mode == .replace and was_multi and was_in_multi);
 
-    var out = std.ArrayList(usize){};
+    var out: std.ArrayList(usize) = .empty;
     defer out.deinit(pixi.app.allocator);
 
     if (defer_narrow) {

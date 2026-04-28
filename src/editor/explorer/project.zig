@@ -102,14 +102,14 @@ pub fn draw() !void {
     //                         break :blk false;
     //                     }
 
-    //                     std.fs.accessAbsolute(output[0..i], .{}) catch {
+    //                     std.Io.Dir.accessAbsolute(dvui.io, output[0..i], .{}) catch {
     //                         break :blk false;
     //                     };
     //                 } else {
     //                     if (!std.fs.path.isAbsolute(output)) {
     //                         break :blk false;
     //                     }
-    //                     std.fs.accessAbsolute(output, .{}) catch {
+    //                     std.Io.Dir.accessAbsolute(dvui.io, output, .{}) catch {
     //                         break :blk false;
     //                     };
     //                 }
@@ -183,14 +183,14 @@ pub fn draw() !void {
     //                         break :blk false;
     //                     }
 
-    //                     std.fs.accessAbsolute(output[0..i], .{}) catch {
+    //                     std.Io.Dir.accessAbsolute(dvui.io, output[0..i], .{}) catch {
     //                         break :blk false;
     //                     };
     //                 } else {
     //                     if (!std.fs.path.isAbsolute(output)) {
     //                         break :blk false;
     //                     }
-    //                     std.fs.accessAbsolute(output, .{}) catch {
+    //                     std.Io.Dir.accessAbsolute(dvui.io, output, .{}) catch {
     //                         break :blk false;
     //                     };
     //                 }
@@ -288,14 +288,14 @@ fn pathTextEntry(path_type: PathType) !void {
                             break :blk false;
                         }
 
-                        std.fs.accessAbsolute(output[0..i], .{}) catch {
+                        std.Io.Dir.accessAbsolute(dvui.io, output[0..i], .{}) catch {
                             break :blk false;
                         };
                     } else {
                         if (!std.fs.path.isAbsolute(output)) {
                             break :blk false;
                         }
-                        std.fs.accessAbsolute(output, .{}) catch {
+                        std.Io.Dir.accessAbsolute(dvui.io, output, .{}) catch {
                             break :blk false;
                         };
                     }

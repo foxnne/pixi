@@ -1,6 +1,7 @@
 const builtin = @import("builtin");
 const pixi = @import("../pixi.zig");
 const std = @import("std");
+const dvui = @import("dvui");
 
 const Settings = @This();
 
@@ -86,7 +87,7 @@ titlebar_top_buffer: f32 = 10.0,
 
 /// Loads settings or if fails, returns default settings
 pub fn load(allocator: std.mem.Allocator, path: []const u8) !Settings {
-    if (pixi.fs.read(allocator, path) catch null) |data| {
+    if (pixi.fs.read(allocator, dvui.io, path) catch null) |data| {
         defer allocator.free(data);
 
         const options = std.json.ParseOptions{
@@ -108,10 +109,7 @@ pub fn save(settings: *Settings, allocator: std.mem.Allocator, path: []const u8)
     const str = try std.json.Stringify.valueAlloc(allocator, settings, .{});
     defer allocator.free(str);
 
-    var file = try std.fs.createFileAbsolute(path, .{});
-    defer file.close();
-
-    try file.writeAll(str);
+    try std.Io.Dir.cwd().writeFile(dvui.io, .{ .sub_path = path, .data = str });
 }
 
 pub fn deinit(settings: *Settings, allocator: std.mem.Allocator) void {

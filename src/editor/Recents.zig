@@ -1,5 +1,6 @@
 const std = @import("std");
 const pixi = @import("../pixi.zig");
+const dvui = @import("dvui");
 
 const Recents = @This();
 
@@ -16,7 +17,7 @@ folders: std.array_list.Managed([]const u8),
 pub fn load(allocator: std.mem.Allocator, path: []const u8) !Recents {
     var folders = std.array_list.Managed([]const u8).init(allocator);
 
-    if (pixi.fs.read(allocator, path) catch null) |read| {
+    if (pixi.fs.read(allocator, dvui.io, path) catch null) |read| {
         defer allocator.free(read);
 
         const options = std.json.ParseOptions{ .duplicate_field_behavior = .use_first, .ignore_unknown_fields = true };
@@ -25,9 +26,11 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Recents {
 
             for (parsed.value.folders) |folder| {
                 // Check if the folder exists
-                const dir_opt = std.fs.openDirAbsolute(folder, .{}) catch null;
-                if (dir_opt != null)
+                if (std.Io.Dir.openDirAbsolute(dvui.io, folder, .{})) |d| {
+                    var dd = d;
+                    dd.close(dvui.io);
                     try folders.append(try allocator.dupe(u8, folder));
+                } else |_| {}
             }
 
             return .{
@@ -78,10 +81,7 @@ pub fn save(recents: *Recents, allocator: std.mem.Allocator, path: []const u8) !
     const str = try std.json.Stringify.valueAlloc(allocator, recents_json, .{});
     defer allocator.free(str);
 
-    var file = try std.fs.createFileAbsolute(path, .{});
-    defer file.close();
-
-    try file.writeAll(str);
+    try std.Io.Dir.cwd().writeFile(dvui.io, .{ .sub_path = path, .data = str });
 }
 
 pub fn deinit(recents: *Recents) void {

@@ -57,7 +57,7 @@ last_titlebar_color: dvui.Color,
 dim_titlebar: bool = false,
 
 /// Workspaces stored by their grouping ID
-workspaces: std.AutoArrayHashMap(u64, Workspace) = undefined,
+workspaces: std.AutoArrayHashMapUnmanaged(u64, Workspace) = .empty,
 sidebar: Sidebar,
 infobar: Infobar,
 
@@ -65,9 +65,9 @@ infobar: Infobar,
 folder: ?[]const u8 = null,
 project: ?Project = null,
 
-themes: std.array_list.Managed(dvui.Theme) = undefined,
+themes: std.ArrayList(dvui.Theme) = .empty,
 
-open_files: std.AutoArrayHashMap(u64, pixi.Internal.File) = undefined,
+open_files: std.AutoArrayHashMapUnmanaged(u64, pixi.Internal.File) = .empty,
 
 // The actively focused workspace grouping ID
 // This will contain tabs for all open files with a matching grouping ID
@@ -146,8 +146,11 @@ const embedded_fonts: []const dvui.Font.Source = &.{
 pub fn init(
     app: *App,
 ) !Editor {
+    const arena = dvui.currentWindow().arena();
+    var environ_map = try pixi.processEnviron().createMap(arena);
+    defer environ_map.deinit();
     const config_folder = std.fs.path.join(pixi.app.allocator, &.{
-        try known_folders.getPath(dvui.currentWindow().arena(), .local_configuration) orelse app.root_path,
+        try known_folders.getPath(dvui.io, arena, environ_map, .local_configuration) orelse app.root_path,
         "Pixi",
     }) catch app.root_path;
     const palette_folder = std.fs.path.join(pixi.app.allocator, &.{ config_folder, "Palettes" }) catch config_folder;
@@ -252,26 +255,26 @@ pub fn init(
             .source = try pixi.image.fromImageFileBytes("pixi.png", assets.files.@"pixi.png", .ptr),
         },
         .tools = try .init(app.allocator),
-        .themes = .init(app.allocator),
+        .themes = .empty,
     };
 
-    editor.themes.append(pixi_dark) catch {
+    editor.themes.append(app.allocator, pixi_dark) catch {
         dvui.log.err("Failed to append theme", .{});
         return error.FailedToAppendTheme;
     };
 
-    editor.themes.append(moi) catch {
+    editor.themes.append(app.allocator, moi) catch {
         dvui.log.err("Failed to append moi theme", .{});
         return error.FailedToAppendMoiTheme;
     };
 
-    editor.themes.append(pixi_light) catch {
+    editor.themes.append(app.allocator, pixi_light) catch {
         dvui.log.err("Failed to append pixi light theme", .{});
         return error.FailedToAppendPixiLightTheme;
     };
 
     for (dvui.Theme.builtins) |b| {
-        editor.themes.append(b) catch {
+        editor.themes.append(app.allocator, b) catch {
             dvui.log.err("Failed to append builtin theme", .{});
             return error.FailedToAppendBuiltinTheme;
         };
@@ -279,23 +282,23 @@ pub fn init(
 
     var valid_path: bool = true;
     if (std.fs.path.isAbsolute(editor.config_folder)) {
-        std.fs.accessAbsolute(editor.config_folder, .{ .mode = .read_only }) catch {
+        std.Io.Dir.accessAbsolute(dvui.io, editor.config_folder, .{ .read = true }) catch {
             valid_path = false;
         };
 
         if (!valid_path) {
-            std.fs.makeDirAbsolute(editor.config_folder) catch |err| dvui.log.err("Failed to create config folder: {s}: {any}", .{ editor.config_folder, err });
+            std.Io.Dir.createDirAbsolute(dvui.io, editor.config_folder, .default_dir) catch |err| dvui.log.err("Failed to create config folder: {s}: {any}", .{ editor.config_folder, err });
         }
     }
 
     valid_path = true;
     if (std.fs.path.isAbsolute(editor.palette_folder)) {
-        std.fs.accessAbsolute(editor.palette_folder, .{ .mode = .read_only }) catch {
+        std.Io.Dir.accessAbsolute(dvui.io, editor.palette_folder, .{ .read = true }) catch {
             valid_path = false;
         };
 
         if (!valid_path) {
-            std.fs.makeDirAbsolute(editor.palette_folder) catch |err| dvui.log.err("Failed to create palette folder: {s}: {any}", .{ editor.palette_folder, err });
+            std.Io.Dir.createDirAbsolute(dvui.io, editor.palette_folder, .default_dir) catch |err| dvui.log.err("Failed to create palette folder: {s}: {any}", .{ editor.palette_folder, err });
         }
     }
 
@@ -311,9 +314,9 @@ pub fn init(
 
     editor.explorer.* = .init();
     editor.panel.* = .init();
-    editor.open_files = .init(pixi.app.allocator);
-    editor.workspaces = .init(pixi.app.allocator);
-    editor.workspaces.put(0, .init(0)) catch |err| {
+    editor.open_files = .empty;
+    editor.workspaces = .empty;
+    editor.workspaces.put(pixi.app.allocator, 0, .init(0)) catch |err| {
         std.log.err("Failed to create workspace: {s}", .{@errorName(err)});
         return err;
     };
@@ -1104,7 +1107,7 @@ pub fn rebuildWorkspaces(editor: *Editor) !void {
                 }
             }
 
-            editor.workspaces.put(file.editor.grouping, workspace) catch |err| {
+            editor.workspaces.put(pixi.app.allocator, file.editor.grouping, workspace) catch |err| {
                 std.log.err("Failed to create workspace: {s}", .{@errorName(err)});
                 return err;
             };
@@ -1254,7 +1257,7 @@ pub fn setProjectFolder(editor: *Editor, path: []const u8) !void {
 }
 
 pub fn saving(editor: *Editor) bool {
-    for (editor.open_files.items) |file| {
+    for (editor.open_files.values()) |file| {
         if (file.saving) return true;
     }
     return false;
@@ -1297,7 +1300,7 @@ pub fn openFilePath(editor: *Editor, path: []const u8, grouping: u64) !bool {
     }
 
     if (pixi.Internal.File.fromPath(path) catch null) |file| {
-        try editor.open_files.put(file.id, file);
+        try editor.open_files.put(pixi.app.allocator, file.id, file);
         if (editor.open_files.getPtr(file.id)) |f| {
             f.editor.grouping = grouping;
         }
@@ -1328,7 +1331,7 @@ pub fn newFile(editor: *Editor, path: []const u8, options: pixi.Internal.File.In
         return error.FailedToCreateFile;
     };
 
-    try editor.open_files.put(file.id, file);
+    try editor.open_files.put(pixi.app.allocator, file.id, file);
     editor.setActiveFile(editor.open_files.count() - 1);
     editor.pending_composite_warmup = true;
 
@@ -1362,7 +1365,7 @@ pub fn requestNewFileDialog(_: *Editor) void {
         .resizeable = false,
         .default = .ok,
     });
-    mutex.mutex.unlock();
+    mutex.mutex.unlock(dvui.io);
 }
 
 pub fn setActiveFile(editor: *Editor, index: usize) void {
@@ -1527,7 +1530,7 @@ pub fn copy(editor: *Editor) !void {
                 const id = id_mutex.id;
                 const message = std.fmt.allocPrint(dvui.currentWindow().arena(), "Copied selection", .{}) catch "Copied selection.";
                 dvui.dataSetSlice(dvui.currentWindow(), id, "_message", message);
-                id_mutex.mutex.unlock();
+                id_mutex.mutex.unlock(dvui.io);
             }
         }
     }
@@ -1886,7 +1889,7 @@ pub fn redo(editor: *Editor) !void {
 
 pub fn openInFileBrowser(_: *Editor, path: []const u8) !void {
     const cmd = if (builtin.os.tag == .macos) "open" else if (builtin.os.tag == .linux) "xdg-open" else "start";
-    _ = std.process.Child.run(.{ .argv = &.{ cmd, path }, .allocator = pixi.app.allocator }) catch {
+    _ = std.process.run(pixi.app.allocator, dvui.io, .{ .argv = &.{ cmd, path } }) catch {
         dvui.log.err("Failed to open file browser", .{});
         return;
     };

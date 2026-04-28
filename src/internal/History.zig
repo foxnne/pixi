@@ -226,7 +226,7 @@ pub fn append(self: *History, change: Change) !void {
         .pixels => |p| p.indices.len,
         else => 0,
     } else 0;
-    const t_hist: i128 = if (track_pixels) std.time.nanoTimestamp() else 0;
+    const t_hist: i128 = if (track_pixels) pixi.perf.nanoTimestamp() else 0;
 
     if (self.redo_stack.items.len > 0) {
         for (self.redo_stack.items) |*c| {
@@ -329,7 +329,7 @@ pub fn append(self: *History, change: Change) !void {
     }
 
     if (track_pixels and t_hist != 0) {
-        pixi.perf.history_append_pixels_ns +%= @intCast(std.time.nanoTimestamp() - t_hist);
+        pixi.perf.history_append_pixels_ns +%= @intCast(pixi.perf.nanoTimestamp() - t_hist);
         pixi.perf.history_append_pixels_calls += 1;
         pixi.perf.history_append_pixels_slots +%= pixel_slots;
     }
@@ -420,7 +420,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
     var change = active_stack.pop().?;
 
     defer {
-        const id_mutex = dvui.toastAdd(dvui.currentWindow(), @src(), @intCast(std.time.microTimestamp()), file.editor.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
+        const id_mutex = dvui.toastAdd(dvui.currentWindow(), @src(), @intCast(@divTrunc(pixi.perf.nanoTimestamp(), 1000)), file.editor.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
         const id = id_mutex.id;
         const action_text = switch (action) {
             .undo => "Undo:",
@@ -437,7 +437,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                     }
                 }
             },
-            .origins => |_| {
+            .origins => {
                 message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Sprite origins modified", .{action_text}) catch "Invalid change";
             },
             .animation_name => |*animation_name| {
@@ -459,7 +459,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                     file.animations.items(.name)[animation_settings.index],
                 }) catch "Invalid change";
             },
-            .animation_order => |_| {
+            .animation_order => {
                 message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Animations order modified", .{action_text}) catch "Invalid change";
             },
             .animation_restore_delete => |*animation_restore_delete| {
@@ -478,7 +478,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                     },
                 }
             },
-            .layers_order => |_| {
+            .layers_order => {
                 message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Layers order modified", .{action_text}) catch "Invalid change";
             },
             .layer_restore_delete => |*layer_restore_delete| {
@@ -510,7 +510,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                     file.layers.items(.name)[layer_settings.index],
                 }) catch "Invalid change";
             },
-            .resize => |_| {
+            .resize => {
                 message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} File resized to {d}x{d}", .{
                     action_text,
                     file.width(),
@@ -531,16 +531,16 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                     },
                 }
             },
-            .reorder_cell => |_| {
+            .reorder_cell => {
                 message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Cells reordered", .{action_text}) catch "Invalid change";
             },
-            .layer_merge => |_| {
+            .layer_merge => {
                 message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Layer merge", .{action_text}) catch "Invalid change";
             },
         }
 
         dvui.dataSetSlice(dvui.currentWindow(), id, "_message", message);
-        id_mutex.mutex.unlock();
+        id_mutex.mutex.unlock(dvui.io);
     }
 
     switch (change) {
@@ -685,7 +685,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             animation_name.name = name;
             pixi.editor.explorer.pane = .sprites;
         },
-        .animation_settings => |_| {},
+        .animation_settings => {},
         .animation_order => |*animation_order| {
             var new_order = try dvui.currentWindow().arena().alloc(usize, animation_order.order.len);
             for (0..file.animations.len) |anim_index| {
@@ -720,7 +720,7 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             const history_frames = &animation_frames.frames;
             const current_frames = &file.animations.items(.frames)[animation_frames.index];
 
-            std.mem.swap([]usize, history_frames, current_frames);
+            std.mem.swap([]pixi.Animation.Frame, history_frames, current_frames);
 
             file.selected_animation_index = animation_frames.index;
         },

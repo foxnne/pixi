@@ -398,16 +398,16 @@ fn syncSplitComposite(file: *pixi.Internal.File) !void {
         break :blk nt;
     };
 
-    const t_below = std.time.nanoTimestamp();
+    const t_below = perf.nanoTimestamp();
     try renderLayersIntoTarget(file, below, active_idx + 1, file.layers.len, null);
     if (perf.record) {
-        perf.split_composite_below_ns = @intCast(std.time.nanoTimestamp() - t_below);
+        perf.split_composite_below_ns = @intCast(perf.nanoTimestamp() - t_below);
     }
 
-    const t_above = std.time.nanoTimestamp();
+    const t_above = perf.nanoTimestamp();
     try renderLayersIntoTarget(file, above, 0, active_idx, null);
     if (perf.record) {
-        perf.split_composite_above_ns = @intCast(std.time.nanoTimestamp() - t_above);
+        perf.split_composite_above_ns = @intCast(perf.nanoTimestamp() - t_above);
     }
 
     file.editor.split_composite_layer = active_idx;
@@ -418,11 +418,11 @@ fn syncSplitComposite(file: *pixi.Internal.File) !void {
 /// stroke does not pay allocation + flatten cost. Safe to call once after open or when
 /// selecting a drawing tool; no-op if composites are already current.
 pub fn warmupDrawingComposites(file: *pixi.Internal.File) !void {
-    const w0 = std.time.nanoTimestamp();
+    const w0 = perf.nanoTimestamp();
     try syncSplitComposite(file);
     _ = file.editor.temporary_layer.source.getTexture() catch null;
     _ = file.editor.selection_layer.source.getTexture() catch null;
-    perf.composite_warmup_last_ns = @intCast(std.time.nanoTimestamp() - w0);
+    perf.composite_warmup_last_ns = @intCast(perf.nanoTimestamp() - w0);
     perf.composite_warmup_total +%= 1;
 }
 
