@@ -14,6 +14,17 @@ last_save_folder: ?[]const u8 = null,
 last_open_folder: ?[]const u8 = null,
 folders: std.array_list.Managed([]const u8),
 
+/// Treats "/" and `\` at the end like extra directory hints: `/foo` and `/foo/` compare equal.
+fn trimTrailingPathSeparators(path: []const u8) []const u8 {
+    var end = path.len;
+    while (end > 1) {
+        const c = path[end - 1];
+        if (c != '/' and c != '\\') break;
+        end -= 1;
+    }
+    return path[0..end];
+}
+
 pub fn load(allocator: std.mem.Allocator, path: []const u8) !Recents {
     var folders = std.array_list.Managed([]const u8).init(allocator);
 
@@ -25,18 +36,35 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Recents {
             defer parsed.deinit();
 
             for (parsed.value.folders) |folder| {
-                // Check if the folder exists
                 if (std.Io.Dir.openDirAbsolute(dvui.io, folder, .{})) |d| {
                     var dd = d;
                     dd.close(dvui.io);
-                    try folders.append(try allocator.dupe(u8, folder));
+
+                    const canon = trimTrailingPathSeparators(folder);
+
+                    var found = false;
+                    for (folders.items) |existing| {
+                        if (std.mem.eql(u8, trimTrailingPathSeparators(existing), canon)) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (found) continue;
+
+                    try folders.append(try allocator.dupe(u8, canon));
                 } else |_| {}
             }
 
             return .{
                 .folders = folders,
-                .last_open_folder = if (parsed.value.last_open_folder.len > 0) try allocator.dupe(u8, parsed.value.last_open_folder) else null,
-                .last_save_folder = if (parsed.value.last_save_folder.len > 0) try allocator.dupe(u8, parsed.value.last_save_folder) else null,
+                .last_open_folder = if (parsed.value.last_open_folder.len > 0)
+                    try allocator.dupe(u8, trimTrailingPathSeparators(parsed.value.last_open_folder))
+                else
+                    null,
+                .last_save_folder = if (parsed.value.last_save_folder.len > 0)
+                    try allocator.dupe(u8, trimTrailingPathSeparators(parsed.value.last_save_folder))
+                else
+                    null,
             };
         }
     }
@@ -49,26 +77,35 @@ pub fn load(allocator: std.mem.Allocator, path: []const u8) !Recents {
 pub fn indexOfFolder(recents: *Recents, path: []const u8) ?usize {
     if (recents.folders.items.len == 0) return null;
 
+    const key = trimTrailingPathSeparators(path);
     for (recents.folders.items, 0..) |folder, i| {
-        if (std.mem.eql(u8, folder, path))
+        if (std.mem.eql(u8, trimTrailingPathSeparators(folder), key))
             return i;
     }
     return null;
 }
 
 pub fn appendFolder(recents: *Recents, path: []const u8) !void {
-    if (recents.indexOfFolder(path)) |index| {
+    const canon_owned = dup: {
+        const t = trimTrailingPathSeparators(path);
+        const duped = try pixi.app.allocator.dupe(u8, t);
         pixi.app.allocator.free(path);
+        break :dup duped;
+    };
+
+    if (recents.indexOfFolder(canon_owned)) |index| {
+        pixi.app.allocator.free(canon_owned);
         const folder = recents.folders.orderedRemove(index);
         try recents.folders.append(folder);
-    } else {
-        if (recents.folders.items.len >= pixi.editor.settings.max_recents) {
-            const folder = recents.folders.orderedRemove(0);
-            pixi.app.allocator.free(folder);
-        }
-
-        try recents.folders.append(path);
+        return;
     }
+
+    if (recents.folders.items.len >= pixi.editor.settings.max_recents) {
+        const oldest = recents.folders.orderedRemove(0);
+        pixi.app.allocator.free(oldest);
+    }
+
+    try recents.folders.append(canon_owned);
 }
 
 pub fn save(recents: *Recents, allocator: std.mem.Allocator, path: []const u8) !void {
@@ -84,9 +121,9 @@ pub fn save(recents: *Recents, allocator: std.mem.Allocator, path: []const u8) !
     try std.Io.Dir.cwd().writeFile(dvui.io, .{ .sub_path = path, .data = str });
 }
 
-pub fn deinit(recents: *Recents) void {
+pub fn deinit(recents: *Recents, allocator: std.mem.Allocator) void {
     for (recents.folders.items) |folder| {
-        pixi.app.allocator.free(folder);
+        allocator.free(folder);
     }
 
     recents.folders.clearAndFree();

@@ -106,6 +106,13 @@ pending_quit_continue: bool = false,
 /// End this frame with `App.Result.close` (e.g. quit finished).
 pending_app_close: bool = false,
 
+/// Last serialized JSON written or captured at startup; avoids redundant writes.
+settings_last_saved_json: ?[]u8 = null,
+/// True after user-driven settings edits until successfully persisted or snapshot matches disk.
+settings_dirty: bool = false,
+/// Monotonic deadline (`perf.nanoTimestamp()`): autosave runs when dirty and `now >= deadline`.
+settings_save_deadline_ns: i128 = 0,
+
 pub const SpriteClipboard = struct {
     source: dvui.ImageSource,
     offset: dvui.Point,
@@ -155,92 +162,6 @@ pub fn init(
     }) catch app.root_path;
     const palette_folder = std.fs.path.join(pixi.app.allocator, &.{ config_folder, "Palettes" }) catch config_folder;
 
-    var pixi_dark = dvui.themeGet();
-    pixi_dark.embedded_fonts = embedded_fonts;
-
-    pixi_dark.window = .{
-        .fill = .{ .r = 28, .g = 29, .b = 36, .a = 255 },
-        .border = .{ .r = 34, .g = 35, .b = 42, .a = 255 },
-        .text = .{ .r = 206, .g = 163, .b = 127, .a = 255 },
-    };
-
-    pixi_dark.control = .{
-        .fill = .{ .r = 28, .g = 29, .b = 36, .a = 255 },
-        .border = .{ .r = 34, .g = 35, .b = 42, .a = 255 },
-        .text = .{ .r = 134, .g = 138, .b = 148, .a = 255 },
-    };
-
-    pixi_dark.highlight = .{
-        .fill = .{ .r = 47, .g = 179, .b = 135, .a = 255 },
-        .border = .{ .r = 47, .g = 179, .b = 135, .a = 255 },
-        .text = pixi_dark.window.fill,
-    };
-
-    pixi_dark.err = .{
-        .fill = .{ .r = 109, .g = 35, .b = 54, .a = 255 },
-    };
-
-    // theme.content
-    pixi_dark.fill = .{ .r = 42, .g = 44, .b = 54, .a = 255 };
-    pixi_dark.text = pixi_dark.window.text.?;
-    pixi_dark.focus = pixi_dark.highlight.fill.?;
-
-    pixi_dark.dark = true;
-    pixi_dark.name = "Pixi Dark";
-    pixi_dark.font_body = .find(.{ .family = "Comfortaa", .size = 9, .weight = .bold });
-    pixi_dark.font_title = .find(.{ .family = "NotoSans", .size = 9, .weight = .bold });
-    pixi_dark.font_heading = .find(.{ .family = "NotoSans", .size = 8, .weight = .bold });
-    pixi_dark.font_mono = .find(.{ .family = "CozetteVector", .size = 10 });
-
-    dvui.themeSet(pixi_dark);
-
-    var moi: dvui.Theme = pixi_dark;
-    moi.name = "Moi";
-    moi.window = .{
-        .fill = .{ .r = 84, .g = 12, .b = 26, .a = 255 },
-        .border = .{ .r = 104, .g = 62, .b = 72, .a = 255 },
-        .text = .{ .r = 255, .g = 190, .b = 190, .a = 240 },
-    };
-
-    moi.control = .{
-        .fill = moi.window.fill.?.lighten(10),
-        .border = .{ .r = 104, .g = 62, .b = 72, .a = 255 },
-        .text = .{ .r = 255, .g = 235, .b = 235, .a = 200 },
-    };
-    moi.highlight = .{
-        .fill = moi.window.fill.?.lighten(10),
-    };
-
-    moi.fill = moi.control.fill.?;
-    moi.text = moi.window.text.?;
-    moi.focus = moi.highlight.fill.?;
-
-    var pixi_light = pixi_dark;
-    pixi_light.dark = false;
-    pixi_light.name = "Pixi Light";
-
-    pixi_light.window = .{
-        .fill = .{ .r = 240, .g = 240, .b = 245, .a = 255 },
-        .border = dvui.Theme.builtin.adwaita_light.window.border,
-        .text = .{ .r = 120, .g = 70, .b = 65, .a = 255 },
-    };
-
-    pixi_light.control = dvui.Theme.builtin.adwaita_light.control;
-
-    pixi_light.highlight = .{
-        .fill = .{ .r = 170, .g = 130, .b = 140, .a = 255 },
-        .text = pixi_light.window.fill,
-    };
-
-    pixi_light.err = .{
-        .fill = .{ .r = 109, .g = 35, .b = 54, .a = 255 },
-    };
-
-    // theme.content
-    pixi_light.fill = .{ .r = 200, .g = 200, .b = 205, .a = 255 };
-    pixi_light.text = .{ .r = 40, .g = 40, .b = 45, .a = 255 };
-    pixi_light.focus = pixi_light.highlight.fill.?;
-
     var editor: Editor = .{
         .config_folder = config_folder,
         .palette_folder = palette_folder,
@@ -258,26 +179,120 @@ pub fn init(
         .themes = .empty,
     };
 
-    editor.themes.append(app.allocator, pixi_dark) catch {
-        dvui.log.err("Failed to append theme", .{});
-        return error.FailedToAppendTheme;
-    };
+    editor.settings = try Settings.load(app.allocator, try std.fs.path.join(app.allocator, &.{ editor.config_folder, "settings.json" }));
 
-    editor.themes.append(app.allocator, moi) catch {
-        dvui.log.err("Failed to append moi theme", .{});
-        return error.FailedToAppendMoiTheme;
-    };
+    { // Setup themes
+        var pixi_dark = dvui.themeGet();
+        pixi_dark.embedded_fonts = embedded_fonts;
 
-    editor.themes.append(app.allocator, pixi_light) catch {
-        dvui.log.err("Failed to append pixi light theme", .{});
-        return error.FailedToAppendPixiLightTheme;
-    };
-
-    for (dvui.Theme.builtins) |b| {
-        editor.themes.append(app.allocator, b) catch {
-            dvui.log.err("Failed to append builtin theme", .{});
-            return error.FailedToAppendBuiltinTheme;
+        pixi_dark.window = .{
+            .fill = .{ .r = 28, .g = 29, .b = 36, .a = 255 },
+            .border = .{ .r = 34, .g = 35, .b = 42, .a = 255 },
+            .text = .{ .r = 206, .g = 163, .b = 127, .a = 255 },
         };
+
+        pixi_dark.control = .{
+            .fill = .{ .r = 28, .g = 29, .b = 36, .a = 255 },
+            .border = .{ .r = 34, .g = 35, .b = 42, .a = 255 },
+            .text = .{ .r = 134, .g = 138, .b = 148, .a = 255 },
+        };
+
+        pixi_dark.highlight = .{
+            .fill = .{ .r = 47, .g = 179, .b = 135, .a = 255 },
+            .border = .{ .r = 47, .g = 179, .b = 135, .a = 255 },
+            .text = pixi_dark.window.fill,
+        };
+
+        pixi_dark.err = .{
+            .fill = .{ .r = 109, .g = 35, .b = 54, .a = 255 },
+        };
+
+        // theme.content
+        pixi_dark.fill = .{ .r = 42, .g = 44, .b = 54, .a = 255 };
+        pixi_dark.text = pixi_dark.window.text.?;
+        pixi_dark.focus = pixi_dark.highlight.fill.?;
+
+        pixi_dark.dark = true;
+        pixi_dark.name = "Pixi Dark";
+        pixi_dark.font_body = .find(.{ .family = "Comfortaa", .size = editor.settings.font_body_size, .weight = .bold });
+        pixi_dark.font_title = .find(.{ .family = "NotoSans", .size = editor.settings.font_title_size, .weight = .bold });
+        pixi_dark.font_heading = .find(.{ .family = "NotoSans", .size = editor.settings.font_heading_size, .weight = .bold });
+        pixi_dark.font_mono = .find(.{ .family = "CozetteVector", .size = editor.settings.font_mono_size });
+
+        var moi: dvui.Theme = pixi_dark;
+        moi.name = "Moi";
+        moi.window = .{
+            .fill = .{ .r = 84, .g = 12, .b = 26, .a = 255 },
+            .border = .{ .r = 104, .g = 62, .b = 72, .a = 255 },
+            .text = .{ .r = 255, .g = 190, .b = 190, .a = 240 },
+        };
+
+        moi.control = .{
+            .fill = moi.window.fill.?.lighten(10),
+            .border = .{ .r = 104, .g = 62, .b = 72, .a = 255 },
+            .text = .{ .r = 255, .g = 235, .b = 235, .a = 200 },
+        };
+        moi.highlight = .{
+            .fill = moi.window.fill.?.lighten(10),
+        };
+
+        moi.fill = moi.control.fill.?;
+        moi.text = moi.window.text.?;
+        moi.focus = moi.highlight.fill.?;
+
+        var pixi_light = pixi_dark;
+        pixi_light.dark = false;
+        pixi_light.name = "Pixi Light";
+
+        pixi_light.window = .{
+            .fill = .{ .r = 240, .g = 240, .b = 245, .a = 255 },
+            .border = dvui.Theme.builtin.adwaita_light.window.border,
+            .text = .{ .r = 120, .g = 70, .b = 65, .a = 255 },
+        };
+
+        pixi_light.control = dvui.Theme.builtin.adwaita_light.control;
+
+        pixi_light.highlight = .{
+            .fill = .{ .r = 170, .g = 130, .b = 140, .a = 255 },
+            .text = pixi_light.window.fill,
+        };
+
+        pixi_light.err = .{
+            .fill = .{ .r = 109, .g = 35, .b = 54, .a = 255 },
+        };
+
+        // theme.content
+        pixi_light.fill = .{ .r = 200, .g = 200, .b = 205, .a = 255 };
+        pixi_light.text = .{ .r = 40, .g = 40, .b = 45, .a = 255 };
+        pixi_light.focus = pixi_light.highlight.fill.?;
+
+        appendUserThemes(app.allocator, &editor) catch |err| {
+            dvui.log.err("Failed to prepare user themes folder: {s}", .{@errorName(err)});
+        };
+
+        editor.themes.append(app.allocator, pixi_dark) catch {
+            dvui.log.err("Failed to append theme", .{});
+            return error.FailedToAppendTheme;
+        };
+
+        editor.themes.append(app.allocator, moi) catch {
+            dvui.log.err("Failed to append moi theme", .{});
+            return error.FailedToAppendMoiTheme;
+        };
+
+        editor.themes.append(app.allocator, pixi_light) catch {
+            dvui.log.err("Failed to append pixi light theme", .{});
+            return error.FailedToAppendPixiLightTheme;
+        };
+
+        for (dvui.Theme.builtins) |b| {
+            editor.themes.append(app.allocator, b) catch {
+                dvui.log.err("Failed to append builtin theme", .{});
+                return error.FailedToAppendBuiltinTheme;
+            };
+        }
+
+        try editor.applySettingsTheme();
     }
 
     var valid_path: bool = true;
@@ -302,15 +317,12 @@ pub fn init(
         }
     }
 
-    editor.settings = Settings.load(app.allocator, try std.fs.path.join(app.allocator, &.{ editor.config_folder, "settings.json" })) catch .{
-        .theme = try app.allocator.dupe(u8, "pixi_dark.json"),
-    };
     pixi.perf.console_logging_enabled = editor.settings.perf_logging;
     editor.recents = Recents.load(app.allocator, try std.fs.path.join(app.allocator, &.{ editor.config_folder, "recents.json" })) catch .{
         .folders = .init(app.allocator),
     };
 
-    pixi.backend.setTitlebarColor(dvui.currentWindow(), pixi_dark.fill.opacity(if (dvui.themeGet().dark) editor.settings.window_opacity_dark else editor.settings.window_opacity_light));
+    pixi.backend.setTitlebarColor(dvui.currentWindow(), dvui.themeGet().color(.content, .fill).opacity(if (dvui.themeGet().dark) editor.settings.window_opacity_dark else editor.settings.window_opacity_light));
 
     editor.explorer.* = .init();
     editor.panel.* = .init();
@@ -326,7 +338,111 @@ pub fn init(
 
     try Keybinds.register();
 
+    // Collect the initial settings json
+    editor.settings_last_saved_json = try std.json.Stringify.valueAlloc(pixi.app.allocator, &editor.settings, .{});
+
     return editor;
+}
+
+/// Ensures `{config}/Themes` exists and scans `*.json` for future user themes (loaded entries are prepended before Pixi themes).
+fn appendUserThemes(gpa: std.mem.Allocator, editor: *Editor) !void {
+    const themes_dir = try std.fs.path.join(gpa, &.{ editor.config_folder, "Themes" });
+
+    if (!std.fs.path.isAbsolute(themes_dir)) {
+        gpa.free(themes_dir);
+        return;
+    }
+    defer gpa.free(themes_dir);
+
+    std.Io.Dir.accessAbsolute(dvui.io, themes_dir, .{ .read = true }) catch {
+        try std.Io.Dir.createDirAbsolute(dvui.io, themes_dir, .default_dir);
+    };
+
+    var dir = try std.Io.Dir.cwd().openDir(dvui.io, themes_dir, .{ .access_sub_paths = false, .iterate = true });
+    defer dir.close(dvui.io);
+
+    var iter = dir.iterate();
+    while (try iter.next(dvui.io)) |entry| {
+        if (entry.kind != .file) continue;
+        if (!std.mem.endsWith(u8, entry.name, ".json")) continue;
+        // Future: parse Theme JSON and append before Pixi themes so folder overrides builtins by list order.
+    }
+}
+
+/// Clamp settings font sizes (6–20), apply those sizes to every registered theme (preserving each theme’s font families), and refresh the active DVUI theme.
+pub fn applyFontSizesFromSettings(editor: *Editor) void {
+    const clampFontSize = struct {
+        fn f(sz: f32) f32 {
+            return @floatCast(std.math.clamp(@round(sz), 6.0, 20.0));
+        }
+    }.f;
+
+    const sb = clampFontSize(editor.settings.font_body_size);
+    const st = clampFontSize(editor.settings.font_title_size);
+    const sh = clampFontSize(editor.settings.font_heading_size);
+    const sm = clampFontSize(editor.settings.font_mono_size);
+
+    editor.settings.font_body_size = sb;
+    editor.settings.font_title_size = st;
+    editor.settings.font_heading_size = sh;
+    editor.settings.font_mono_size = sm;
+
+    for (editor.themes.items) |*t| {
+        t.font_body = t.font_body.withSize(sb);
+        t.font_title = t.font_title.withSize(st);
+        t.font_heading = t.font_heading.withSize(sh);
+        t.font_mono = t.font_mono.withSize(sm);
+    }
+
+    const active_name = dvui.themeGet().name;
+    for (editor.themes.items) |*t| {
+        if (std.mem.eql(u8, t.name, active_name)) {
+            dvui.themeSet(t.*);
+            break;
+        }
+    }
+}
+
+fn themeFilenameToName(trimmed: []const u8) ?[]const u8 {
+    const pairs = [_]struct { stub: []const u8, canonical: []const u8 }{
+        .{ .stub = "pixi_dark.json", .canonical = "Pixi Dark" },
+        .{ .stub = "pixi_light.json", .canonical = "Pixi Light" },
+    };
+    for (pairs) |p| {
+        if (std.mem.eql(u8, trimmed, p.stub)) return p.canonical;
+    }
+    return null;
+}
+
+/// Select a theme from `editor.themes` matching `settings.theme`: trim, legacy file-name aliases, then exact and case-insensitive name match. Falls back to `Settings.default_theme`, then the first entry, and logs if the stored value did not match anything.
+fn resolveSettingsTheme(editor: *Editor) *dvui.Theme {
+    const trimmed = std.mem.trim(u8, editor.settings.theme, &std.ascii.whitespace);
+    const candidate = themeFilenameToName(trimmed) orelse trimmed;
+
+    for (editor.themes.items) |*t| {
+        if (std.mem.eql(u8, t.name, candidate)) return t;
+    }
+    for (editor.themes.items) |*t| {
+        if (std.ascii.eqlIgnoreCase(t.name, candidate)) return t;
+    }
+    dvui.log.warn(
+        "Saved theme \"{s}\" did not match any known theme; falling back to \"{s}\".",
+        .{ trimmed, Settings.default_theme },
+    );
+    for (editor.themes.items) |*t| {
+        if (std.mem.eql(u8, t.name, Settings.default_theme)) return t;
+    }
+    std.debug.assert(editor.themes.items.len > 0);
+    return &editor.themes.items[0];
+}
+
+pub fn applySettingsTheme(editor: *Editor) !void {
+    const t = resolveSettingsTheme(editor);
+    if (!std.mem.eql(u8, editor.settings.theme, t.name)) {
+        try Settings.setThemeName(&editor.settings, pixi.app.allocator, t.name);
+    }
+    dvui.themeSet(t.*);
+    editor.applyFontSizesFromSettings();
 }
 
 pub fn currentGroupingID(editor: *Editor) u64 {
@@ -341,6 +457,79 @@ pub fn newGroupingID(editor: *Editor) u64 {
 pub fn newFileID(editor: *Editor) u64 {
     editor.file_id_counter += 1;
     return editor.file_id_counter;
+}
+
+pub fn markSettingsDirty(editor: *Editor) void {
+    editor.settings_dirty = true;
+    editor.settings_save_deadline_ns = pixi.perf.nanoTimestamp() + Settings.autosave_timeout_ns;
+}
+
+fn activelyDrawing(editor: *Editor) bool {
+    for (editor.open_files.values()) |*file| {
+        if (file.editor.active_drawing) return true;
+    }
+    return false;
+}
+
+/// Debounced autosave (defers while a canvas stroke is active).
+fn saveSettingsGuarded(editor: *Editor) !void {
+    if (!editor.settings_dirty) return;
+
+    const now = pixi.perf.nanoTimestamp();
+    if (now < editor.settings_save_deadline_ns) return;
+
+    if (editor.activelyDrawing())
+        return;
+
+    const serialized = try std.json.Stringify.valueAlloc(pixi.app.allocator, &editor.settings, .{});
+    defer pixi.app.allocator.free(serialized);
+
+    if (editor.settings_last_saved_json) |old| {
+        if (std.mem.eql(u8, old, serialized)) {
+            editor.settings_dirty = false;
+            return;
+        }
+    }
+
+    const settings_path = try std.fs.path.join(pixi.app.allocator, &.{ editor.config_folder, "settings.json" });
+    defer pixi.app.allocator.free(settings_path);
+
+    try Settings.save(&editor.settings, pixi.app.allocator, settings_path);
+
+    if (editor.settings_last_saved_json) |blob| {
+        pixi.app.allocator.free(blob);
+        editor.settings_last_saved_json = null;
+    }
+    editor.settings_last_saved_json = try pixi.app.allocator.dupe(u8, serialized);
+    editor.settings_dirty = false;
+}
+
+/// Flush to disk regardless of idle/drawing deferral — used during shutdown only.
+fn saveSettingsRaw(editor: *Editor) !void {
+    const serialized = try std.json.Stringify.valueAlloc(pixi.app.allocator, &editor.settings, .{});
+    defer pixi.app.allocator.free(serialized);
+
+    const need_disk = blk: {
+        if (editor.settings_last_saved_json) |old| {
+            if (std.mem.eql(u8, old, serialized)) break :blk false;
+        }
+        break :blk true;
+    };
+
+    const settings_path = try std.fs.path.join(pixi.app.allocator, &.{ editor.config_folder, "settings.json" });
+    defer pixi.app.allocator.free(settings_path);
+
+    if (need_disk)
+        try Settings.save(&editor.settings, pixi.app.allocator, settings_path);
+
+    if (need_disk) {
+        if (editor.settings_last_saved_json) |blob| {
+            pixi.app.allocator.free(blob);
+            editor.settings_last_saved_json = null;
+        }
+        editor.settings_last_saved_json = try pixi.app.allocator.dupe(u8, serialized);
+    }
+    editor.settings_dirty = false;
 }
 
 const handle_size = 10;
@@ -661,6 +850,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             }
         } else if (editor.explorer.paned.dragging) {
             editor.settings.explorer_ratio = editor.explorer.paned.split_ratio.*;
+            editor.markSettingsDirty();
         }
 
         if (sidebar_pressed) {
@@ -717,6 +907,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 }
             } else {
                 pixi.editor.settings.panel_ratio = 1.0 - editor.panel.paned.split_ratio.*;
+                pixi.editor.markSettingsDirty();
             }
 
             if (editor.panel.paned.showSecond()) {
@@ -766,6 +957,10 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
 
     // look at demo() for examples of dvui widgets, shows in a floating window
     dvui.Examples.demo(.full);
+
+    editor.saveSettingsGuarded() catch |err| {
+        dvui.log.err("Failed to autosave settings ({s})", .{@errorName(err)});
+    };
 
     _ = editor.arena.reset(.retain_capacity);
 
@@ -1971,9 +2166,13 @@ pub fn deinit(editor: *Editor) !void {
     editor.recents.save(pixi.app.allocator, try std.fs.path.join(pixi.app.allocator, &.{ editor.config_folder, "recents.json" })) catch {
         dvui.log.err("Failed to save recents", .{});
     };
-    editor.recents.deinit();
+    editor.recents.deinit(pixi.app.allocator);
 
-    try editor.settings.save(pixi.app.allocator, try std.fs.path.join(pixi.app.allocator, &.{ editor.config_folder, "settings.json" }));
+    try saveSettingsRaw(editor);
+    if (editor.settings_last_saved_json) |blob| {
+        pixi.app.allocator.free(blob);
+        editor.settings_last_saved_json = null;
+    }
     editor.settings.deinit(pixi.app.allocator);
 
     if (editor.project) |*project| {
