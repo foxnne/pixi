@@ -15,18 +15,123 @@ pub fn draw() !void {
     });
     defer vbox.deinit();
 
-    if (dvui.Theme.picker(@src(), pixi.editor.themes.items, .{})) {}
+    {
+        var box = dvui.groupBox(@src(), "Appearance", .{
+            .expand = .horizontal,
+        });
+        defer box.deinit();
 
-    if (true) {
+        {
+            var dropdown: dvui.DropdownWidget = undefined;
+            dropdown.init(@src(), .{ .label = "Theme" }, .{
+                .expand = .horizontal,
+                .corner_radius = dvui.Rect.all(1000),
+            });
+            defer dropdown.deinit();
+
+            var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{
+                .expand = .vertical,
+                .gravity_x = 1.0,
+            });
+
+            dvui.label(@src(), "{s}", .{dvui.themeGet().name}, .{ .margin = .all(0), .padding = .all(0) });
+
+            dvui.icon(
+                @src(),
+                "dropdown_triangle",
+                dvui.entypo.triangle_down,
+                .{},
+                .{ .gravity_y = 0.5 },
+            );
+
+            hbox.deinit();
+
+            if (dropdown.dropped()) {
+                for (pixi.editor.themes.items) |theme| {
+                    if (dropdown.addChoiceLabel(theme.name)) {
+                        try Editor.Settings.setThemeName(&pixi.editor.settings, pixi.app.allocator, theme.name);
+                        pixi.editor.applySettingsTheme() catch {
+                            dvui.log.err("Failed to apply theme", .{});
+                        };
+                        pixi.editor.markSettingsDirty();
+                        dvui.refresh(null, @src(), vbox.data().id);
+                        break;
+                    }
+                }
+            }
+
+            _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 10, .h = 10 } });
+        }
+
+        {
+            var font_group = dvui.groupBox(@src(), "Font Sizes", .{
+                .expand = .horizontal,
+            });
+            defer font_group.deinit();
+
+            if (dvui.sliderEntry(@src(), "Body: {d:0.0}", .{
+                .value = &pixi.editor.settings.font_body_size,
+                .interval = 1.0,
+                .max = 20.0,
+                .min = 6.0,
+            }, .{
+                .expand = .horizontal,
+            })) {
+                pixi.editor.applyFontSizesFromSettings();
+                pixi.editor.markSettingsDirty();
+                dvui.refresh(null, @src(), vbox.data().id);
+            }
+
+            if (dvui.sliderEntry(@src(), "Heading: {d:0.0}", .{
+                .value = &pixi.editor.settings.font_heading_size,
+                .interval = 1.0,
+                .max = 20.0,
+                .min = 6.0,
+            }, .{
+                .expand = .horizontal,
+            })) {
+                pixi.editor.applyFontSizesFromSettings();
+                pixi.editor.markSettingsDirty();
+                dvui.refresh(null, @src(), vbox.data().id);
+            }
+
+            if (dvui.sliderEntry(@src(), "Title: {d:0.0}", .{
+                .value = &pixi.editor.settings.font_title_size,
+                .interval = 1.0,
+                .max = 20.0,
+                .min = 6.0,
+            }, .{
+                .expand = .horizontal,
+            })) {
+                pixi.editor.applyFontSizesFromSettings();
+                pixi.editor.markSettingsDirty();
+                dvui.refresh(null, @src(), vbox.data().id);
+            }
+
+            if (dvui.sliderEntry(@src(), "Monospace: {d:0.0}", .{
+                .value = &pixi.editor.settings.font_mono_size,
+                .interval = 1.0,
+                .max = 20.0,
+                .min = 6.0,
+            }, .{
+                .expand = .horizontal,
+            })) {
+                pixi.editor.applyFontSizesFromSettings();
+                pixi.editor.markSettingsDirty();
+                dvui.refresh(null, @src(), vbox.data().id);
+            }
+        }
+
         if (dvui.sliderEntry(@src(), "Window Opacity: {d:0.01}", .{
             .value = &if (dvui.themeGet().dark) pixi.editor.settings.window_opacity_dark else pixi.editor.settings.window_opacity_light,
             .interval = 0.01,
             .max = 1.0,
             .min = 0.0,
         }, .{
-            .expand = .none,
+            .expand = .horizontal,
         })) {
             pixi.backend.setTitlebarColor(dvui.currentWindow(), dvui.themeGet().color(.content, .fill).opacity(if (dvui.themeGet().dark) pixi.editor.settings.window_opacity_dark else pixi.editor.settings.window_opacity_light));
+            pixi.editor.markSettingsDirty();
             dvui.refresh(null, @src(), vbox.data().id);
         }
 
@@ -36,19 +141,14 @@ pub fn draw() !void {
             .max = 1.0,
             .min = 0.0,
         }, .{
-            .expand = .none,
+            .expand = .horizontal,
         })) {
             pixi.backend.setTitlebarColor(dvui.currentWindow(), dvui.themeGet().color(.content, .fill).opacity(pixi.editor.settings.content_opacity));
+            pixi.editor.markSettingsDirty();
             dvui.refresh(null, @src(), vbox.data().id);
         }
 
         {
-            const oldt = dvui.themeGet();
-            var t = oldt;
-            t.control.fill = t.window.fill;
-            dvui.themeSet(t);
-            defer dvui.themeSet(oldt);
-
             var dropdown: dvui.DropdownWidget = undefined;
             dropdown.init(@src(), .{ .label = "Transparency effect" }, .{
                 .expand = .horizontal,
@@ -81,14 +181,17 @@ pub fn draw() !void {
             if (dropdown.dropped()) {
                 if (dropdown.addChoiceLabel("None")) {
                     pixi.editor.settings.transparency_effect = .none;
+                    pixi.editor.markSettingsDirty();
                     dvui.refresh(null, @src(), vbox.data().id);
                 }
                 if (dropdown.addChoiceLabel("Rainbow")) {
                     pixi.editor.settings.transparency_effect = .rainbow;
+                    pixi.editor.markSettingsDirty();
                     dvui.refresh(null, @src(), vbox.data().id);
                 }
                 if (dropdown.addChoiceLabel("Animation")) {
                     pixi.editor.settings.transparency_effect = .animation;
+                    pixi.editor.markSettingsDirty();
                     dvui.refresh(null, @src(), vbox.data().id);
                 }
             }
@@ -98,14 +201,24 @@ pub fn draw() !void {
 
         if (dvui.checkbox(@src(), &pixi.editor.settings.show_rulers, "Show Rulers", .{
             .expand = .none,
-        })) {}
+        })) {
+            pixi.editor.markSettingsDirty();
+        }
+    }
+
+    {
+        var box = dvui.groupBox(@src(), "Debugging", .{
+            .expand = .horizontal,
+        });
+        defer box.deinit();
 
         if (dvui.checkbox(@src(), &pixi.editor.settings.perf_logging, "Console perf logging", .{
             .expand = .none,
         })) {
             pixi.perf.console_logging_enabled = pixi.editor.settings.perf_logging;
+            pixi.editor.markSettingsDirty();
         }
-    }
 
-    dvui.label(@src(), "{d:0>3.0} fps", .{dvui.FPS()}, .{});
+        dvui.label(@src(), "{d:0>3.0} fps", .{dvui.FPS()}, .{});
+    }
 }
