@@ -33,6 +33,7 @@ pub const Keybinds = @import("Keybinds.zig");
 
 pub const Workspace = @import("Workspace.zig");
 pub const Explorer = @import("explorer/Explorer.zig");
+pub const IgnoreRules = @import("explorer/IgnoreRules.zig");
 pub const Panel = @import("panel/Panel.zig");
 pub const Sidebar = @import("Sidebar.zig");
 pub const Infobar = @import("Infobar.zig");
@@ -64,6 +65,8 @@ infobar: Infobar,
 /// The root folder that will be searched for files and a .pixiproject file
 folder: ?[]const u8 = null,
 project: ?Project = null,
+/// From `.pixiignore` (preferred) or `.gitignore` at the project root; used by the Files explorer.
+ignore: IgnoreRules = .{},
 
 themes: std.ArrayList(dvui.Theme) = .empty,
 
@@ -1242,6 +1245,7 @@ pub fn close(app: *App, editor: *Editor) void {
 
 pub fn setProjectFolder(editor: *Editor, path: []const u8) !void {
     if (editor.folder) |folder| {
+        editor.ignore.deinit(pixi.app.allocator);
         if (editor.project) |*project| {
             project.save() catch {
                 dvui.log.err("Failed to save project", .{});
@@ -1254,6 +1258,7 @@ pub fn setProjectFolder(editor: *Editor, path: []const u8) !void {
     editor.explorer.pane = .files;
 
     editor.project = Project.load(pixi.app.allocator) catch null;
+    editor.ignore = try IgnoreRules.load(pixi.app.allocator, path);
 }
 
 pub fn saving(editor: *Editor) bool {
@@ -1986,6 +1991,8 @@ pub fn deinit(editor: *Editor) !void {
     editor.explorer.deinit();
 
     editor.tools.deinit(pixi.app.allocator);
+
+    editor.ignore.deinit(pixi.app.allocator);
 
     if (editor.folder) |folder| pixi.app.allocator.free(folder);
     editor.arena.deinit();
