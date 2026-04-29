@@ -695,6 +695,13 @@ pub fn processEventsAfter(self: *FloatingWindowWidget) void {
 pub fn autoSize(self: *FloatingWindowWidget) void {
     self.auto_size = true;
 }
+
+/// Clear the auto-size snap so manual resize is preserved (`auto_size` otherwise stays true when
+/// children trigger extra refresh frames).
+pub fn stopAutoSizing(self: *FloatingWindowWidget) void {
+    self.auto_size = false;
+}
+
 /// Request that the window center itself on its parent (or
 /// InitOptions.center_on). This takes effect next frame.
 pub fn autoPosition(self: *FloatingWindowWidget) void {

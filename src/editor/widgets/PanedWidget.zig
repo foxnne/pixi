@@ -140,12 +140,16 @@ pub fn init(self: *PanedWidget, src: std.builtin.SourceLocation, init_options: I
         self.collapsed_state = false;
         if (self.init_opts.uncollapse_ratio) |ratio| {
             self.animateSplit(ratio, dvui.easing.outBack);
-        } else if (self.split_ratio.* > 0.5) {
-            self.animateSplit(0.5, dvui.easing.outBack);
-        } else {
-            // we were on the second widget, this will
-            // "remember" we were on it
-            self.animateSplit(0.4999, dvui.easing.outBack);
+        } else if (self.init_opts.autofit_first == null) {
+            // `autofit_first` adjusts split in `showSecond` from content min size; animating to 0.5
+            // would fight that every frame until the animation completes.
+            if (self.split_ratio.* > 0.5) {
+                self.animateSplit(0.5, dvui.easing.outBack);
+            } else {
+                // we were on the second widget, this will
+                // "remember" we were on it
+                self.animateSplit(0.4999, dvui.easing.outBack);
+            }
         }
     }
 
