@@ -865,6 +865,11 @@ pub fn handleNativeMenuAction(editor: *Editor, action: pixi.backend.NativeMenuAc
                 };
             }
         },
+        .grid_layout => {
+            if (editor.activeFile() != null) {
+                editor.requestGridLayoutDialog();
+            }
+        },
         .toggle_explorer => {
             // Use .closed, not paned.split_ratio — split_ratio is only valid during draw
             if (editor.explorer.closed) {
@@ -1352,6 +1357,33 @@ pub fn allocNextUntitledPath(editor: *Editor) ![]u8 {
         }
     }
     return std.fmt.allocPrint(pixi.app.allocator, "untitled-{d}", .{max_n + 1});
+}
+
+/// Opens the Grid Layout dialog for the active file. Uses a custom `windowFn` that matches
+/// `dialogWindow`'s open animation while capping the window to half the main window size; the
+/// dialog can still be resized afterward.
+/// The dialog rebinds the active file via the `_grid_layout_file_id` data slot so the form and
+/// preview can survive frames where `pixi.editor.activeFile()` momentarily returns null.
+pub fn requestGridLayoutDialog(editor: *Editor) void {
+    const file = editor.activeFile() orelse return;
+
+    Dialogs.GridLayout.presetFromFile(file);
+
+    var mutex = pixi.dvui.dialog(@src(), .{
+        .displayFn = Dialogs.GridLayout.dialog,
+        .callafterFn = Dialogs.GridLayout.callAfter,
+        .windowFn = Dialogs.GridLayout.windowFn,
+        .title = "Grid Layout...",
+        .ok_label = "Apply",
+        .cancel_label = "Cancel",
+        .resizeable = true,
+        .default = .ok,
+    });
+    dvui.dataSet(null, mutex.id, "_grid_layout_file_id", file.id);
+    // Let `GridLayout.windowFn` run `autoSize` only until the open animation finishes; otherwise
+    // `auto_size` stays true every frame and the shell snaps back to content min (user resize breaks).
+    dvui.dataSet(null, mutex.id, "_grid_dialog_open_done", false);
+    mutex.mutex.unlock(dvui.io);
 }
 
 /// Opens the New File dimensions dialog; on confirm, creates an in-memory `untitled-n` document (or on-disk from explorer when `_parent_path` is set).

@@ -24,6 +24,7 @@ pub const ChangeType = enum {
     reorder_col_row,
     reorder_cell,
     layer_merge,
+    grid_layout,
 };
 
 pub const Change = union(ChangeType) {
@@ -116,6 +117,29 @@ pub const Change = union(ChangeType) {
         insert_before_sprite_indices: []usize,
     };
 
+    /// Snapshot of all state that `File.applyGridLayout` mutates. Stored on the undo/redo stacks
+    /// as the *previous* full state; `undoRedo` swaps the snapshot with the live file state to
+    /// move forward or back. All slices are owned by the snapshot and freed in `deinit`.
+    pub const GridLayout = struct {
+        column_width: u32,
+        row_height: u32,
+        columns: u32,
+        rows: u32,
+
+        /// Layer ids in the order layers existed when the snapshot was captured. Pixel buffers are
+        /// matched to live layers by id, not index, so layer-list reorderings between snapshots
+        /// don't corrupt the restore.
+        layer_ids: []u64,
+        /// One full pixel buffer per id in `layer_ids`, sized `column_width * columns * row_height * rows`.
+        layer_pixels: [][][4]u8,
+
+        sprite_origins: [][2]f32,
+
+        selected_animation_index: ?usize,
+        selected_animation_frame_index: usize,
+        selected_layer_index: usize,
+    };
+
     pixels: Pixels,
     origins: Origins,
     animation_name: AnimationName,
@@ -131,6 +155,7 @@ pub const Change = union(ChangeType) {
     reorder_col_row: ColumnRowReorder,
     reorder_cell: CellReorder,
     layer_merge: LayerMerge,
+    grid_layout: GridLayout,
 
     pub fn create(allocator: std.mem.Allocator, field: ChangeType, len: usize) !Change {
         return switch (field) {
@@ -185,6 +210,12 @@ pub const Change = union(ChangeType) {
             .layer_merge => |*layer_merge| {
                 pixi.app.allocator.free(layer_merge.dest_pixels_before);
                 layer_merge.dest_mask_before.deinit();
+            },
+            .grid_layout => |*gl| {
+                for (gl.layer_pixels) |buf| pixi.app.allocator.free(buf);
+                pixi.app.allocator.free(gl.layer_pixels);
+                pixi.app.allocator.free(gl.layer_ids);
+                pixi.app.allocator.free(gl.sprite_origins);
             },
             else => {},
         }
@@ -314,6 +345,9 @@ pub fn append(self: *History, change: Change) !void {
                     equal = false;
                 },
                 .layer_merge => {
+                    equal = false;
+                },
+                .grid_layout => {
                     equal = false;
                 },
             }
@@ -536,6 +570,15 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
             },
             .layer_merge => {
                 message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Layer merge", .{action_text}) catch "Invalid change";
+            },
+            .grid_layout => {
+                message = std.fmt.allocPrint(dvui.currentWindow().arena(), "{s} Grid layout {d}×{d} cells of {d}×{d}", .{
+                    action_text,
+                    file.columns,
+                    file.rows,
+                    file.column_width,
+                    file.row_height,
+                }) catch "Invalid change";
             },
         }
 
@@ -837,6 +880,21 @@ pub fn undoRedo(self: *History, file: *pixi.Internal.File, action: Action) !void
                 .undo => try layerMergeUndo(file, layer_merge),
                 .redo => try layerMergeRedo(file, layer_merge),
             }
+        },
+        .grid_layout => |*gl| {
+            // Symmetric swap: capture live state into a fresh snapshot, restore the popped one
+            // into the file, then put the fresh snapshot in place of the popped one (which is
+            // now redundant — its data lives in the file again). The fresh snapshot rides the
+            // normal `append` below to the opposite stack.
+            const fresh = try file.captureGridLayoutSnapshot();
+            file.applyGridLayoutSnapshot(gl.*) catch |err| {
+                var fresh_ch = Change{ .grid_layout = fresh };
+                Change.deinit(&fresh_ch);
+                return err;
+            };
+            var old_ch = Change{ .grid_layout = gl.* };
+            Change.deinit(&old_ch);
+            gl.* = fresh;
         },
     }
 
