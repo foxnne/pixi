@@ -18,4 +18,5 @@ comptime {
     _ = @import("pixi-easing");
     _ = @import("pixi-layer-order");
     _ = @import("pixi-palette-parse");
+    _ = @import("pixi-layout-anchor");
 }
