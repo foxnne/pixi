@@ -258,6 +258,9 @@ pub fn blit(source: dvui.ImageSource, dst_pixels: [][4]u8, dst_rect: dvui.Rect, 
     blitData(pixels(source), @intFromFloat(image_size.w), @intFromFloat(image_size.h), dst_pixels, dst_rect, transparent);
 }
 
+/// When `transparent` is true: composite **src_pixels** (upper) overlaid on **dst_pixels** (lower)
+/// and write the result back into **src_pixels** (used by multi-layer CPU flattening).
+/// When false: copies each row of `dst_pixels` into the corresponding row of `src_pixels`.
 pub fn blitData(src_pixels: [][4]u8, src_width: usize, src_height: usize, dst_pixels: [][4]u8, dst_rect: dvui.Rect, transparent: bool) void {
     const x = @as(usize, @intFromFloat(dst_rect.x));
     const y = @as(usize, @intFromFloat(dst_rect.y));
@@ -279,10 +282,13 @@ pub fn blitData(src_pixels: [][4]u8, src_width: usize, src_height: usize, dst_pi
         if (!transparent) {
             @memcpy(source_row, dst_row);
         } else {
-            for (dst_row, source_row) |src, *dst| {
-                if (src[3] > 0) {
-                    dst.* = src;
-                }
+            for (source_row, dst_row) |*top_px, bot_px| {
+                const top_c = dvui.Color{ .r = top_px[0], .g = top_px[1], .b = top_px[2], .a = top_px[3] };
+                const bot_c = dvui.Color{ .r = bot_px[0], .g = bot_px[1], .b = bot_px[2], .a = bot_px[3] };
+                const tpm = dvui.Color.PMA.fromColor(top_c);
+                const bpm = dvui.Color.PMA.fromColor(bot_c);
+                const out_pma = pixi.Internal.Layer.blendPmaSrcOver(@bitCast(tpm), @bitCast(bpm));
+                top_px.* = @as(dvui.Color.PMA, @bitCast(out_pma)).toColor().toRGBA();
             }
         }
 

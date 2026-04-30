@@ -6,7 +6,9 @@ const Dialogs = @This();
 pub const NewFile = @import("NewFile.zig");
 pub const Export = @import("Export.zig");
 pub const UnsavedClose = @import("UnsavedClose.zig");
+pub const AppQuitUnsaved = @import("AppQuitUnsaved.zig");
 pub const GridLayout = @import("GridLayout.zig");
+pub const FlatRasterSaveWarning = @import("FlatRasterSaveWarning.zig");
 
 pub fn drawDimensionsLabel(src: std.builtin.SourceLocation, width: u32, height: u32, font: dvui.Font, unit: []const u8, opts: dvui.Options) void {
     {
