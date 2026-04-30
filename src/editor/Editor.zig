@@ -103,15 +103,12 @@ pending_save_as_path: ?[]u8 = null,
 /// After Save As from "Save and Close", close this file id once save completes.
 pending_close_file_id: ?u64 = null,
 
-/// "Save all and quit" walks these ids (see `advanceQuitSaveAll`).
-quit_save_all_active: bool = false,
+/// "Save all and quit" walks these ids (see `advanceSaveAllQuit`). Non-empty ⇒ save-all quit in progress.
 quit_save_all_ids: std.ArrayListUnmanaged(u64) = .empty,
-/// True while the app-level unsaved quit dialog is open (window close / `Editor.close`).
-app_quit_unsaved_dialog_open: bool = false,
 
 /// True during save-all quit (nested Save As / flat-raster prompts).
 quit_in_progress: bool = false,
-/// Next frame: continue save-all quit (`advanceQuitSaveAll`).
+/// Next frame: continue save-all quit (`advanceSaveAllQuit`).
 pending_quit_continue: bool = false,
 /// End this frame with `App.Result.close` (e.g. quit finished).
 pending_app_close: bool = false,
@@ -550,7 +547,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
 
     if (editor.pending_quit_continue) {
         editor.pending_quit_continue = false;
-        editor.advanceQuitSaveAll();
+        editor.advanceSaveAllQuit();
     }
 
     const wd = dvui.currentWindow().data();
@@ -568,7 +565,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
         if (dirty_n == 0) continue;
 
         e.handle(@src(), wd);
-        if (!editor.app_quit_unsaved_dialog_open and !editor.quit_save_all_active) {
+        if (!Dialogs.AppQuitUnsaved.active(dvui.currentWindow()) and editor.quit_save_all_ids.items.len == 0) {
             Dialogs.AppQuitUnsaved.request();
         }
     }
@@ -1456,15 +1453,14 @@ pub fn drawWorkspaces(editor: *Editor, index: usize) !dvui.App.Result {
 
 pub fn abortSaveAllQuit(editor: *Editor) void {
     Dialogs.FlatRasterSaveWarning.pending_from_save_all_quit = false;
-    editor.quit_save_all_active = false;
     editor.quit_save_all_ids.clearAndFree(pixi.app.allocator);
     editor.quit_in_progress = false;
     editor.pending_close_file_id = null;
     editor.pending_quit_continue = false;
 }
 
-pub fn advanceQuitSaveAll(editor: *Editor) void {
-    if (!editor.quit_save_all_active) return;
+pub fn advanceSaveAllQuit(editor: *Editor) void {
+    if (editor.quit_save_all_ids.items.len == 0) return;
 
     while (editor.quit_save_all_ids.items.len > 0) {
         const id = editor.quit_save_all_ids.items[0];
@@ -1505,7 +1501,6 @@ pub fn advanceQuitSaveAll(editor: *Editor) void {
         _ = editor.quit_save_all_ids.swapRemove(0);
     }
 
-    editor.quit_save_all_active = false;
     editor.quit_save_all_ids.clearRetainingCapacity();
     editor.quit_in_progress = false;
     editor.pending_app_close = true;
@@ -2133,7 +2128,7 @@ pub fn saveAsDialogCallback(paths: ?[][:0]const u8) void {
     if (paths == null) {
         if (pixi.editor.pending_close_file_id) |_| {
             pixi.editor.pending_close_file_id = null;
-            if (pixi.editor.quit_save_all_active) {
+            if (pixi.editor.quit_save_all_ids.items.len > 0) {
                 pixi.editor.abortSaveAllQuit();
             }
         }
@@ -2191,7 +2186,7 @@ fn processPendingSaveAs(editor: *Editor) void {
             editor.rawCloseFileID(cid) catch |err| {
                 dvui.log.err("Failed to close file after Save As: {s}", .{@errorName(err)});
             };
-            if (editor.quit_save_all_active) {
+            if (editor.quit_save_all_ids.items.len > 0) {
                 if (std.mem.indexOfScalar(u64, editor.quit_save_all_ids.items, cid)) |ix| {
                     _ = editor.quit_save_all_ids.swapRemove(ix);
                 }
