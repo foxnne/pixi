@@ -148,6 +148,7 @@ pub fn drawFiles(path: []const u8, tree: *pixi.dvui.TreeWidget) !void {
                 .expand = .horizontal,
             })) != null) {
                 if (pixi.editor.folder) |f| {
+                    pixi.editor.ignore.deinit(pixi.app.allocator);
                     pixi.app.allocator.free(f);
                     pixi.editor.folder = null;
                 }
@@ -374,6 +375,12 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                     dvui.currentWindow().arena(),
                     &.{ directory, entry.name },
                 );
+
+                if (pixi.editor.folder) |proj_root| {
+                    if (pixi.editor.ignore.isIgnored(proj_root, abs_path, entry.name, entry.kind)) {
+                        continue;
+                    }
+                }
 
                 if (entry.kind == .file) {
                     if (std.ascii.indexOfIgnoreCase(entry.name, filter_text) == null) {
