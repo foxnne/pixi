@@ -1,17 +1,9 @@
 const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const dvui = @import("dvui");
+const FlatRasterSaveWarning = @import("FlatRasterSaveWarning.zig");
 
-/// Set in `request` for `callAfter` (header close) and button handlers.
-pub var pending_mode: Mode = .tab_close;
-
-pub const Mode = enum {
-    tab_close,
-    app_quit,
-};
-
-pub fn request(file_id: u64, mode: Mode) void {
-    pending_mode = mode;
+pub fn request(file_id: u64) void {
     var mutex = pixi.dvui.dialog(@src(), .{
         .displayFn = dialog,
         .callafterFn = callAfter,
@@ -22,6 +14,7 @@ pub fn request(file_id: u64, mode: Mode) void {
         .default = .cancel,
         .hide_footer = true,
         .max_size = .{ .w = 520, .h = 280 },
+        .header_kind = .warning,
     });
     dvui.dataSet(null, mutex.id, "_unsaved_file_id", file_id);
     mutex.mutex.unlock(dvui.io);
@@ -94,20 +87,14 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
 fn onDiscard(file_id: u64) !void {
     try pixi.editor.rawCloseFileID(file_id);
     pixi.dvui.closeFloatingDialogAnchored();
-    if (pending_mode == .app_quit) {
-        pixi.editor.pending_quit_continue = true;
-    }
 }
 
 fn onCancel() void {
-    if (pending_mode == .app_quit) {
-        pixi.editor.quit_in_progress = false;
-    }
     pixi.dvui.closeFloatingDialogAnchored();
 }
 
 /// Must complete before the file is closed — `saveAsync` runs on another thread and races with `deinit`.
-fn saveSynchronously(file: *pixi.Internal.File) !void {
+pub fn saveSynchronously(file: *pixi.Internal.File) !void {
     const ext = std.fs.path.extension(file.path);
     const win = dvui.currentWindow();
     if (std.mem.eql(u8, ext, ".pixi")) {
@@ -131,45 +118,18 @@ fn onSaveAndClose(file_id: u64) !void {
         pixi.editor.requestSaveAs();
         return;
     }
+    if (file.shouldConfirmFlatRasterSave()) {
+        FlatRasterSaveWarning.pending_from_save_all_quit = false;
+        pixi.dvui.closeFloatingDialogAnchored();
+        FlatRasterSaveWarning.request(file_id, .save_and_close);
+        return;
+    }
     saveSynchronously(file) catch |err| {
         dvui.log.err("Save and Close failed: {s}", .{@errorName(err)});
         return;
     };
     try pixi.editor.rawCloseFileID(file_id);
     pixi.dvui.closeFloatingDialogAnchored();
-    if (pending_mode == .app_quit) {
-        pixi.editor.pending_quit_continue = true;
-    }
 }
 
-pub fn callAfter(_: dvui.Id, response: dvui.enums.DialogResponse) !void {
-    switch (response) {
-        .cancel => {
-            if (pending_mode == .app_quit) {
-                pixi.editor.quit_in_progress = false;
-            }
-        },
-        else => {},
-    }
-}
-
-/// After closing a tab during app quit, open the next dirty prompt or finish quit.
-pub fn continueAppQuitIfNeeded() void {
-    if (!pixi.editor.quit_in_progress) return;
-
-    var first_dirty: ?u64 = null;
-    for (pixi.editor.open_files.values()) |f| {
-        if (f.dirty()) {
-            first_dirty = f.id;
-            break;
-        }
-    }
-
-    if (first_dirty == null) {
-        pixi.editor.quit_in_progress = false;
-        pixi.editor.pending_app_close = true;
-        return;
-    }
-
-    request(first_dirty.?, .app_quit);
-}
+pub fn callAfter(_: dvui.Id, _: dvui.enums.DialogResponse) !void {}

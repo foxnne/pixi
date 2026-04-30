@@ -127,6 +127,7 @@ pub fn tick() !void {
                         .cancel_label = "Cancel",
                         .resizeable = false,
                         .modal = false,
+                        .header_kind = .info,
                         .default = .ok,
                     });
                     mutex.mutex.unlock(dvui.io);

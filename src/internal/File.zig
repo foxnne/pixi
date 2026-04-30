@@ -616,6 +616,24 @@ pub fn hasRecognizedSaveExtension(path: []const u8) bool {
     return std.mem.eql(u8, ext, ".pixi") or isFlatImageExtension(ext);
 }
 
+/// True when the document holds state that a flat PNG/JPEG round-trip would not preserve
+/// (layers, tile grid, animations, per-sprite origins).
+pub fn requiresPixiCompatibleSave(self: File) bool {
+    if (self.layers.len != 1) return true;
+    if (self.columns != 1 or self.rows != 1) return true;
+    if (self.animations.len != 0) return true;
+    for (self.sprites.items(.origin)) |o| {
+        if (o[0] != 0.0 or o[1] != 0.0) return true;
+    }
+    return false;
+}
+
+pub fn shouldConfirmFlatRasterSave(self: File) bool {
+    const ext = std.fs.path.extension(self.path);
+    if (!isFlatImageExtension(ext)) return false;
+    return requiresPixiCompatibleSave(self);
+}
+
 /// Loads a PNG or JPEG as the first layer of a new file, and retains the path
 /// when saved; layers will be flattened to that file
 pub fn fromPathFlatImage(path: []const u8) !?pixi.Internal.File {
@@ -2609,12 +2627,42 @@ pub fn saveTar(self: *File, window: *dvui.Window) !void {
     self.history.bookmark = 0;
 }
 
+/// All visible layers composited with src-over (same as on-canvas), then encoded to PNG or JPEG.
+fn writeFlattenedLayersToPath(self: *File, out_path: []const u8, window: *dvui.Window, comptime kind: enum { png, jpg }) !void {
+    const w = self.width();
+    const h = self.height();
+    if (w == 0 or h == 0) return error.InvalidImageSize;
+
+    try pixi.render.syncLayerComposite(self);
+    const target = self.editor.layer_composite_target orelse return error.NoLayerComposite;
+
+    const pma_read: []dvui.Color.PMA = try dvui.Texture.readTarget(pixi.app.allocator, target);
+    defer {
+        const byte_len = pma_read.len * @sizeOf(dvui.Color.PMA);
+        pixi.app.allocator.free(@as([*]u8, @ptrCast(pma_read.ptr))[0..byte_len]);
+    }
+
+    var tmp_layer: pixi.Internal.Layer = try .fromPixelsPMA(self.newLayerID(), "_flat_save", pma_read, w, h, .ptr);
+    defer tmp_layer.deinit();
+
+    switch (kind) {
+        .png => {
+            const r: u32 = @intFromFloat(@round(window.natural_scale * 72.0 / 0.0254));
+            try pixi.image.writeToPngResolution(tmp_layer.source, out_path, r);
+        },
+        .jpg => {
+            const ppi: u16 = @intFromFloat(@round(window.natural_scale * 72.0));
+            try pixi.image.writeToJpgPpi(tmp_layer.source, out_path, ppi);
+        },
+    }
+}
+
 pub fn savePng(self: *File, window: *dvui.Window) !void {
     if (self.editor.saving) return;
     self.editor.saving = true;
+    errdefer self.editor.saving = false;
 
-    // Write only the first layer, we shouldn't do anything with other layers
-    try pixi.image.writeToPngResolution(self.layers.get(self.selected_layer_index).source, self.path, @intFromFloat(@round(window.natural_scale * 72.0 / 0.0254)));
+    try self.writeFlattenedLayersToPath(self.path, window, .png);
 
     {
         const id_mutex = dvui.toastAdd(window, @src(), self.id, self.editor.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
@@ -2631,9 +2679,9 @@ pub fn savePng(self: *File, window: *dvui.Window) !void {
 pub fn saveJpg(self: *File, window: *dvui.Window) !void {
     if (self.editor.saving) return;
     self.editor.saving = true;
+    errdefer self.editor.saving = false;
 
-    const ppi: u16 = @intFromFloat(@round(window.natural_scale * 72.0));
-    try pixi.image.writeToJpgPpi(self.layers.get(self.selected_layer_index).source, self.path, ppi);
+    try self.writeFlattenedLayersToPath(self.path, window, .jpg);
 
     {
         const id_mutex = dvui.toastAdd(window, @src(), self.id, self.editor.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
@@ -2891,11 +2939,10 @@ pub fn saveAsync(self: *File) !void {
         const thread = try std.Thread.spawn(.{}, saveZip, .{ self, dvui.currentWindow() });
         thread.detach();
     } else if (std.mem.eql(u8, ext, ".png")) {
-        const thread = try std.Thread.spawn(.{}, savePng, .{ self, dvui.currentWindow() });
-        thread.detach();
+        // `writeFlattenedLayersToPath` uses `syncLayerComposite` + `readTarget` (GPU); must run on the GUI thread.
+        try savePng(self, dvui.currentWindow());
     } else if (std.mem.eql(u8, ext, ".jpg") or std.mem.eql(u8, ext, ".jpeg")) {
-        const thread = try std.Thread.spawn(.{}, saveJpg, .{ self, dvui.currentWindow() });
-        thread.detach();
+        try saveJpg(self, dvui.currentWindow());
     }
 }
 
