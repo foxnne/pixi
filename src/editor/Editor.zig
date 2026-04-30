@@ -102,9 +102,16 @@ pending_save_as_path: ?[]u8 = null,
 
 /// After Save As from "Save and Close", close this file id once save completes.
 pending_close_file_id: ?u64 = null,
-/// User requested app quit while dirty files remain; drive `Dialogs.UnsavedClose` until clean.
+
+/// "Save all and quit" walks these ids (see `advanceQuitSaveAll`).
+quit_save_all_active: bool = false,
+quit_save_all_ids: std.ArrayListUnmanaged(u64) = .empty,
+/// True while the app-level unsaved quit dialog is open (window close / `Editor.close`).
+app_quit_unsaved_dialog_open: bool = false,
+
+/// True during save-all quit (nested Save As / flat-raster prompts).
 quit_in_progress: bool = false,
-/// Next frame: continue quit flow (next dirty prompt or exit).
+/// Next frame: continue save-all quit (`advanceQuitSaveAll`).
 pending_quit_continue: bool = false,
 /// End this frame with `App.Result.close` (e.g. quit finished).
 pending_app_close: bool = false,
@@ -543,7 +550,27 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
 
     if (editor.pending_quit_continue) {
         editor.pending_quit_continue = false;
-        Dialogs.UnsavedClose.continueAppQuitIfNeeded();
+        editor.advanceQuitSaveAll();
+    }
+
+    const wd = dvui.currentWindow().data();
+    for (dvui.events()) |*e| {
+        if (e.handled) continue;
+        if (!dvui.eventMatchSimple(e, wd)) continue;
+        const want_quit = (e.evt == .window and e.evt.window.action == .close) or
+            (e.evt == .app and e.evt.app.action == .quit);
+        if (!want_quit) continue;
+
+        var dirty_n: usize = 0;
+        for (editor.open_files.values()) |f| {
+            if (f.dirty()) dirty_n += 1;
+        }
+        if (dirty_n == 0) continue;
+
+        e.handle(@src(), wd);
+        if (!editor.app_quit_unsaved_dialog_open and !editor.quit_save_all_active) {
+            Dialogs.AppQuitUnsaved.request();
+        }
     }
 
     if (pixi.backend.pollPendingNativeMenuAction()) |action| {
@@ -1427,20 +1454,78 @@ pub fn drawWorkspaces(editor: *Editor, index: usize) !dvui.App.Result {
     return .ok;
 }
 
+pub fn abortSaveAllQuit(editor: *Editor) void {
+    Dialogs.FlatRasterSaveWarning.pending_from_save_all_quit = false;
+    editor.quit_save_all_active = false;
+    editor.quit_save_all_ids.clearAndFree(pixi.app.allocator);
+    editor.quit_in_progress = false;
+    editor.pending_close_file_id = null;
+    editor.pending_quit_continue = false;
+}
+
+pub fn advanceQuitSaveAll(editor: *Editor) void {
+    if (!editor.quit_save_all_active) return;
+
+    while (editor.quit_save_all_ids.items.len > 0) {
+        const id = editor.quit_save_all_ids.items[0];
+        const file_ptr = editor.open_files.getPtr(id) orelse {
+            _ = editor.quit_save_all_ids.swapRemove(0);
+            continue;
+        };
+        if (!file_ptr.dirty()) {
+            _ = editor.quit_save_all_ids.swapRemove(0);
+            continue;
+        }
+
+        if (editor.open_files.getIndex(id)) |idx| {
+            editor.setActiveFile(idx);
+        }
+
+        if (!pixi.Internal.File.hasRecognizedSaveExtension(file_ptr.path)) {
+            editor.pending_close_file_id = id;
+            editor.quit_in_progress = true;
+            editor.requestSaveAs();
+            return;
+        }
+        if (file_ptr.shouldConfirmFlatRasterSave()) {
+            Dialogs.FlatRasterSaveWarning.pending_from_save_all_quit = true;
+            Dialogs.FlatRasterSaveWarning.request(id, .save_and_close);
+            return;
+        }
+        Dialogs.UnsavedClose.saveSynchronously(file_ptr) catch |err| {
+            dvui.log.err("Save all quit: {s}", .{@errorName(err)});
+            editor.abortSaveAllQuit();
+            return;
+        };
+        editor.rawCloseFileID(id) catch |err| {
+            dvui.log.err("Save all quit close: {s}", .{@errorName(err)});
+            editor.abortSaveAllQuit();
+            return;
+        };
+        _ = editor.quit_save_all_ids.swapRemove(0);
+    }
+
+    editor.quit_save_all_active = false;
+    editor.quit_save_all_ids.clearRetainingCapacity();
+    editor.quit_in_progress = false;
+    editor.pending_app_close = true;
+}
+
 pub fn close(app: *App, editor: *Editor) void {
     _ = app;
     if (editor.open_files.count() == 0) {
         editor.pending_app_close = true;
         return;
     }
-    for (editor.open_files.values()) |file| {
-        if (file.dirty()) {
-            editor.quit_in_progress = true;
-            Dialogs.UnsavedClose.request(file.id, .app_quit);
-            return;
-        }
+    var dirty_n: usize = 0;
+    for (editor.open_files.values()) |f| {
+        if (f.dirty()) dirty_n += 1;
     }
-    editor.pending_app_close = true;
+    if (dirty_n > 0) {
+        Dialogs.AppQuitUnsaved.request();
+    } else {
+        editor.pending_app_close = true;
+    }
 }
 
 pub fn setProjectFolder(editor: *Editor, path: []const u8) !void {
@@ -1577,6 +1662,7 @@ pub fn requestGridLayoutDialog(editor: *Editor) void {
         .ok_label = "Apply",
         .cancel_label = "Cancel",
         .resizeable = true,
+        .header_kind = .info,
         .default = .ok,
     });
     dvui.dataSet(null, mutex.id, "_grid_layout_file_id", file.id);
@@ -1595,6 +1681,7 @@ pub fn requestNewFileDialog(_: *Editor) void {
         .ok_label = "Create",
         .cancel_label = "Cancel",
         .resizeable = false,
+        .header_kind = .info,
         .default = .ok,
     });
     mutex.mutex.unlock(dvui.io);
@@ -2016,6 +2103,10 @@ pub fn save(editor: *Editor) !void {
         editor.requestSaveAs();
         return;
     }
+    if (file.shouldConfirmFlatRasterSave()) {
+        Dialogs.FlatRasterSaveWarning.request(file.id, .editor_save);
+        return;
+    }
     try file.saveAsync();
 }
 
@@ -2042,8 +2133,8 @@ pub fn saveAsDialogCallback(paths: ?[][:0]const u8) void {
     if (paths == null) {
         if (pixi.editor.pending_close_file_id) |_| {
             pixi.editor.pending_close_file_id = null;
-            if (pixi.editor.quit_in_progress) {
-                pixi.editor.quit_in_progress = false;
+            if (pixi.editor.quit_save_all_active) {
+                pixi.editor.abortSaveAllQuit();
             }
         }
         return;
@@ -2100,7 +2191,10 @@ fn processPendingSaveAs(editor: *Editor) void {
             editor.rawCloseFileID(cid) catch |err| {
                 dvui.log.err("Failed to close file after Save As: {s}", .{@errorName(err)});
             };
-            if (editor.quit_in_progress) {
+            if (editor.quit_save_all_active) {
+                if (std.mem.indexOfScalar(u64, editor.quit_save_all_ids.items, cid)) |ix| {
+                    _ = editor.quit_save_all_ids.swapRemove(ix);
+                }
                 editor.pending_quit_continue = true;
             }
         }
@@ -2130,7 +2224,7 @@ pub fn openInFileBrowser(_: *Editor, path: []const u8) !void {
 pub fn closeFileID(editor: *Editor, id: u64) !void {
     if (editor.open_files.get(id)) |file| {
         if (file.dirty()) {
-            Dialogs.UnsavedClose.request(id, .tab_close);
+            Dialogs.UnsavedClose.request(id);
             return;
         }
         try editor.rawCloseFileID(id);
@@ -2196,6 +2290,8 @@ pub fn deinit(editor: *Editor) !void {
         pixi.app.allocator.free(p);
         editor.pending_save_as_path = null;
     }
+
+    editor.quit_save_all_ids.deinit(pixi.app.allocator);
 
     if (editor.colors.palette) |*palette| palette.deinit();
     if (editor.colors.file_tree_palette) |*palette| palette.deinit();

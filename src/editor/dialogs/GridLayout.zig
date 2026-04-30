@@ -1473,8 +1473,16 @@ pub fn windowFn(id: dvui.Id) anyerror!void {
     var shell = dvui.box(@src(), .{ .dir = .vertical }, .{ .expand = .both });
     defer shell.deinit();
 
+    const header_kind: pixi.dvui.DialogHeaderKind = switch (dvui.dataGet(null, id, "_header_kind", u8) orelse 0) {
+        @intFromEnum(pixi.dvui.DialogHeaderKind.none) => .none,
+        @intFromEnum(pixi.dvui.DialogHeaderKind.info) => .info,
+        @intFromEnum(pixi.dvui.DialogHeaderKind.warning) => .warning,
+        @intFromEnum(pixi.dvui.DialogHeaderKind.err) => .err,
+        else => .none,
+    };
+
     var header_openflag = true;
-    win.dragAreaSet(pixi.dvui.windowHeader(title, "", &header_openflag));
+    win.dragAreaSet(pixi.dvui.windowHeader(title, "", &header_openflag, header_kind));
     if (!header_openflag) {
         if (callafter) |ca| {
             ca(id, .cancel) catch {
