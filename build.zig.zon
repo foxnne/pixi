@@ -32,7 +32,7 @@
         .assetpack = .{
             //.path = "../assetpack",
             .url = "git+https://github.com/foxnne/assetpack#fa8210e54870fc7c406cde027be2c8dab6ccdb5d",
-            .hash = "assetpack-0.1.0-5DA2dwFhAAAfPMIvCLHpoiOknZr_xhu5nOU4D5651m__",
+            .hash = "N-V-__8AAAFhAAAfPMIvCLHpoiOknZr_xhu5nOU4D5651m__",
         },
         .known_folders = .{
             .url = "https://github.com/ziglibs/known-folders/archive/d6d03830968cca6b7b9f24fd97ee348346a6905d.tar.gz",
