@@ -2,8 +2,18 @@ const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const dvui = @import("dvui");
 
+/// True if the app-quit confirmation is already queued or showing (see `request` de-dupe).
+pub fn active(win: *dvui.Window) bool {
+    var it = win.dialogs.iterator(null);
+    while (it.next()) |d| {
+        const df = dvui.dataGet(null, d.id, "_displayFn", pixi.dvui.DisplayFn) orelse continue;
+        if (df == dialog) return true;
+    }
+    return false;
+}
+
 pub fn request() void {
-    pixi.editor.app_quit_unsaved_dialog_open = true;
+    if (active(dvui.currentWindow())) return;
     var mutex = pixi.dvui.dialog(@src(), .{
         .displayFn = dialog,
         .callafterFn = callAfter,
@@ -86,7 +96,6 @@ pub fn dialog(_: dvui.Id) anyerror!bool {
 }
 
 fn onQuitWithoutSaving() !void {
-    pixi.editor.app_quit_unsaved_dialog_open = false;
     pixi.dvui.closeFloatingDialogAnchored();
 
     const alloc = pixi.app.allocator;
@@ -100,7 +109,6 @@ fn onQuitWithoutSaving() !void {
 }
 
 fn onSaveAllAndQuit() !void {
-    pixi.editor.app_quit_unsaved_dialog_open = false;
     pixi.dvui.closeFloatingDialogAnchored();
 
     pixi.editor.quit_save_all_ids.clearRetainingCapacity();
@@ -111,13 +119,11 @@ fn onSaveAllAndQuit() !void {
         pixi.editor.pending_app_close = true;
         return;
     }
-    pixi.editor.quit_save_all_active = true;
     pixi.editor.quit_in_progress = true;
     pixi.editor.pending_quit_continue = true;
 }
 
 fn onCancel() void {
-    pixi.editor.app_quit_unsaved_dialog_open = false;
     pixi.editor.quit_in_progress = false;
     pixi.dvui.closeFloatingDialogAnchored();
 }
@@ -125,7 +131,6 @@ fn onCancel() void {
 pub fn callAfter(_: dvui.Id, response: dvui.enums.DialogResponse) !void {
     switch (response) {
         .cancel => {
-            pixi.editor.app_quit_unsaved_dialog_open = false;
             pixi.editor.quit_in_progress = false;
         },
         else => {},
