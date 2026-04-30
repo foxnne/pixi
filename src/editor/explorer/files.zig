@@ -596,7 +596,7 @@ pub fn recurseFiles(root_directory: []const u8, outer_tree: *pixi.dvui.TreeWidge
                                 .ok_label = "Create",
                                 .cancel_label = "Cancel",
                                 .resizeable = false,
-
+                                .header_kind = .info,
                                 .default = .ok,
                                 .id_extra = branch_id.asUsize(),
                             });
