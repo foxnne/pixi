@@ -14,6 +14,7 @@ extern void PixiNativeMenuAction(int id);
 - (void)undo:(id)sender;
 - (void)redo:(id)sender;
 - (void)transform:(id)sender;
+- (void)gridLayout:(id)sender;
 - (void)toggleExplorer:(id)sender;
 - (void)showDvuiDemo:(id)sender;
 @end
@@ -29,6 +30,7 @@ extern void PixiNativeMenuAction(int id);
 - (void)undo:(id)sender          { (void)sender; PixiNativeMenuAction(5); }
 - (void)redo:(id)sender         { (void)sender; PixiNativeMenuAction(6); }
 - (void)transform:(id)sender     { (void)sender; PixiNativeMenuAction(7); }
+- (void)gridLayout:(id)sender    { (void)sender; PixiNativeMenuAction(12); }
 - (void)toggleExplorer:(id)sender { (void)sender; PixiNativeMenuAction(8); }
 - (void)showDvuiDemo:(id)sender  { (void)sender; PixiNativeMenuAction(9); }
 @end
