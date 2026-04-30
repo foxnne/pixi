@@ -2,7 +2,7 @@ const std = @import("std");
 const pixi = @import("../../pixi.zig");
 const dvui = @import("dvui");
 
-/// When `pending_mode == .save_and_close`, resume `Editor.advanceQuitSaveAll` after flat save.
+/// When `pending_mode == .save_and_close`, resume `Editor.advanceSaveAllQuit` after flat save.
 pub var pending_from_save_all_quit: bool = false;
 
 pub var pending_mode: Mode = .editor_save;
