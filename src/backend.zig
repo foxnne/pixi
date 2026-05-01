@@ -283,9 +283,10 @@ const win32_mica_subclass_id: usize = 0x50584931; // "PXI1"
 /// Applies the undocumented SetWindowCompositionAttribute accent policy for acrylic blur (frosted glass).
 /// Safe to call; no-ops if user32 or the API is unavailable.
 fn applyWin32AcrylicAccent(hwnd: win32.foundation.HWND) void {
-    var user32 = std.DynLib.open("user32.dll") catch return;
-    defer user32.close();
-    const SetWindowCompositionAttribute = user32.lookup(*const fn (win32.foundation.HWND, *const WINCOMPATTR_DATA) callconv(.winapi) i32, "SetWindowCompositionAttribute") orelse return;
+    const user32 = win32.system.library_loader.LoadLibraryA("user32.dll") orelse return;
+    defer _ = win32.system.library_loader.FreeLibrary(user32);
+    const proc = win32.system.library_loader.GetProcAddress(user32, "SetWindowCompositionAttribute") orelse return;
+    const SetWindowCompositionAttribute: *const fn (win32.foundation.HWND, *const WINCOMPATTR_DATA) callconv(.winapi) i32 = @ptrCast(proc);
     var policy = ACCENT_POLICY{
         .accent_state = ACCENT_ENABLE_ACRYLICBLURBEHIND,
         .accent_flags = 0,
