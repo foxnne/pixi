@@ -453,106 +453,27 @@ pub fn resize(layer: *Layer, new_size: dvui.Size) !void {
     layer.* = new_layer;
 }
 
-/// Takes a texture and a src rect and reduces the rect removing all fully transparent pixels
-/// If the src rect doesn't contain any opaque pixels, returns null
+/// Tighten `src` to the smallest sub-rect of this layer containing every opaque pixel.
+/// Returns null when `src` is empty, off-layer, or covers only fully-transparent pixels.
+///
+/// Pure scalar logic lives in `pixi.algorithms.reduce.reduce` so it can be exercised by
+/// unit tests without dvui / pixi globals — see that module for the contract details.
 pub fn reduce(layer: *Layer, src: dvui.Rect) ?dvui.Rect {
-    const layer_width = @as(usize, @intFromFloat(layer.size().w));
-    const layer_height = @as(usize, @intFromFloat(layer.size().h));
-    const read_pixels = layer.pixels();
+    const sz = layer.size();
+    const layer_w: u32 = @intFromFloat(sz.w);
+    const layer_h: u32 = @intFromFloat(sz.h);
 
-    const src_x: usize = @as(usize, @intFromFloat(src.x));
-    const src_y: usize = @as(usize, @intFromFloat(src.y));
-    const src_width: usize = @as(usize, @intFromFloat(src.w));
-    const src_height: usize = @as(usize, @intFromFloat(src.h));
-
-    // Clamp boundaries so we do not go out of bounds
-    if (src_x >= layer_width or src_y >= layer_height or src_width == 0 or src_height == 0)
-        return null;
-
-    const src_x_end = @min(src_x + src_width, layer_width);
-    const src_y_end = @min(src_y + src_height, layer_height);
-
-    var top = src_y;
-    var bottom = src_y_end - 1;
-    var left = src_x;
-    var right = src_x_end - 1;
-
-    // Find top
-    top: {
-        while (top <= bottom) : (top += 1) {
-            const start = left + top * layer_width;
-            // Clamp not really needed here, but check anyway to prevent OOB
-            if (start + (right - left + 1) > read_pixels.len) return null;
-            const row = read_pixels[start .. start + (right - left + 1)]; // inclusive right
-            for (row) |p| {
-                if (p[3] != 0) {
-                    break :top;
-                }
-            }
-        }
-    }
-    if (top > bottom) return null;
-
-    // Find bottom
-    bottom: {
-        while (bottom >= top) : (bottom -= 1) {
-            const start = left + bottom * layer_width;
-            if (start + (right - left + 1) > read_pixels.len) return null;
-            const row = read_pixels[start .. start + (right - left + 1)];
-            for (row) |p| {
-                if (p[3] != 0) {
-                    break :bottom;
-                }
-            }
-        }
-    }
-
-    const height = bottom - top + 1;
-    if (height == 0)
-        return null;
-
-    const new_top: usize = top;
-
-    // Left boundary
-    left: {
-        while (left < right) : (left += 1) {
-            var y = bottom + 1;
-            while (y > new_top) {
-                y -= 1;
-                const idx = left + y * layer_width;
-                if (idx >= read_pixels.len) return null;
-                if (read_pixels[idx][3] != 0) {
-                    break :left;
-                }
-            }
-        }
-    }
-
-    // Right boundary
-    right: {
-        while (right > left) : (right -= 1) {
-            var y = bottom + 1;
-            while (y > new_top) {
-                y -= 1;
-                const idx = right + y * layer_width;
-                if (idx >= read_pixels.len) return null;
-                if (read_pixels[idx][3] != 0) {
-                    break :right;
-                }
-            }
-        }
-    }
-
-    const width = right - left + 1;
-    if (width == 0)
-        return null;
-
-    // See note in original about tileset packing
+    const r = pixi.algorithms.reduce.reduce(layer.pixels(), layer_w, layer_h, .{
+        .x = @intFromFloat(src.x),
+        .y = @intFromFloat(src.y),
+        .w = @intFromFloat(src.w),
+        .h = @intFromFloat(src.h),
+    }) orelse return null;
 
     return .{
-        .x = @floatFromInt(left),
-        .y = @floatFromInt(top),
-        .w = @floatFromInt(width),
-        .h = @floatFromInt(height),
+        .x = @floatFromInt(r.x),
+        .y = @floatFromInt(r.y),
+        .w = @floatFromInt(r.w),
+        .h = @floatFromInt(r.h),
     };
 }

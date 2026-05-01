@@ -22,6 +22,7 @@ pub const Ctx = struct {
     editor: *pixi.Editor,
 
     pub fn deinit(self: *Ctx, gpa: std.mem.Allocator) void {
+        self.editor.arena.deinit();
         gpa.destroy(self.editor);
         gpa.destroy(self.app);
         self.t.deinit();
@@ -52,6 +53,7 @@ pub fn init(gpa: std.mem.Allocator) !Ctx {
     @memset(@as([*]u8, @ptrCast(editor_ptr))[0..@sizeOf(pixi.Editor)], 0);
     editor_ptr.settings.checker_color_even = .{ 200, 200, 200, 255 };
     editor_ptr.settings.checker_color_odd = .{ 100, 100, 100, 255 };
+    editor_ptr.arena = std.heap.ArenaAllocator.init(gpa);
     pixi.editor = editor_ptr;
 
     return .{ .t = t, .app = app_ptr, .editor = editor_ptr };

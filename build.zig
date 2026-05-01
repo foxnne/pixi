@@ -205,6 +205,9 @@ pub fn build(b: *std.Build) !void {
         .{ "pixi-layer-order", "src/internal/layer_order.zig" },
         .{ "pixi-palette-parse", "src/internal/palette_parse.zig" },
         .{ "pixi-layout-anchor", "src/math/layout_anchor.zig" },
+        .{ "pixi-reduce", "src/algorithms/reduce.zig" },
+        .{ "pixi-grid-validate", "src/internal/grid_layout_validate.zig" },
+        .{ "pixi-animation", "src/Animation.zig" },
     }) |entry| {
         tests_module.addAnonymousImport(entry[0], .{
             .root_source_file = b.path(entry[1]),
