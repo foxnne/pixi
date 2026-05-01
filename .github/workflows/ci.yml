@@ -37,5 +37,5 @@ jobs:
       - uses: mlugg/setup-zig@v2
         with:
           version: ${{ env.ZIG_VERSION }}
-          cache-key: v2026-05-01
+          cache-key: 92834028102
       - run: zig build test --summary all
