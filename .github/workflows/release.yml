@@ -1,0 +1,58 @@
+name: Release build
+
+on:
+  release:
+    types: [published]
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ZIG_VERSION: "0.16.0"
+
+jobs:
+  x86_64-linux:
+    runs-on: ubuntu-latest
+    env:
+      DISPLAY: ":99.0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+          cache-key: v2026-05-01
+      - run: zig build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-linux
+          path: zig-out/bin
+      - run: zig build -Dtarget=x86_64-windows-gnu
+
+  x86_64-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+          cache-key: v2026-05-01
+      - run: zig build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: x86_64-windows
+          path: zig-out/bin
+
+  arm64-macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+          cache-key: v2026-05-01
+      - run: zig build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arm64-macos
+          path: zig-out/bin

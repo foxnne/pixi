@@ -58,7 +58,9 @@ pub fn reorder(src: std.builtin.SourceLocation, init_opts: ReorderWidget.InitOpt
 pub const DisplayFn = *const fn (dvui.Id) anyerror!bool;
 pub const CallAfterFn = *const fn (dvui.Id, dvui.enums.DialogResponse) anyerror!void;
 
-/// Header type icon for `windowHeader` (right side, glyph only; close is on the left).
+/// Header type icon for `windowHeader` (glyph only). Placement follows `dvui.currentWindow().button_order`:
+/// `.cancel_ok` (macOS): dismiss close on the leading edge, icon on the trailing edge.
+/// `.ok_cancel` (e.g. Windows): icon on the leading edge, close on the trailing edge.
 pub const DialogHeaderKind = enum(u8) {
     none = 0,
     info,
@@ -85,7 +87,7 @@ pub const DialogOptions = struct {
     max_size: ?dvui.Options.MaxSize = null,
     /// When true, only the header and `displayFn` are shown; footer OK/Cancel are omitted (e.g. three custom actions).
     hide_footer: bool = false,
-    /// Optional header type icon on the right (e.g. unsaved prompt, flat-save warning).
+    /// Optional header type icon; side follows `button_order` like the footer (see `DialogHeaderKind`).
     header_kind: DialogHeaderKind = .none,
 };
 
@@ -399,18 +401,7 @@ pub fn windowHeaderCloseButtonOptions(over: dvui.Options) dvui.Options {
     return base.override(over);
 }
 
-pub fn windowHeader(str: []const u8, right_str: []const u8, openflag: ?*bool, header_kind: DialogHeaderKind) dvui.Rect.Physical {
-    // Pack [close][title][right_str][type icon]: close and trailing icon use the same min size and
-    // margin so the title stays centered. Type icon is glyph-only (no chip background).
-    var row = dvui.box(@src(), .{ .dir = .horizontal }, .{
-        .expand = .horizontal,
-        .name = "WindowHeader",
-        .background = true,
-        .color_fill = dvui.themeGet().color(.content, .fill),
-        .corner_radius = .{ .x = 10, .y = 10 },
-    });
-    defer row.deinit();
-
+fn windowHeaderPaintClose(openflag: ?*bool) void {
     if (openflag) |of| {
         const close_side = windowHeaderCloseInnerSide();
         var button: dvui.ButtonWidget = undefined;
@@ -440,6 +431,58 @@ pub fn windowHeader(str: []const u8, right_str: []const u8, openflag: ?*bool, he
             of.* = false;
         }
     }
+}
+
+fn windowHeaderPaintKindIcon(header_kind: DialogHeaderKind) void {
+    if (header_kind == .none) return;
+
+    const close_side = windowHeaderCloseInnerSide();
+    const tvg = switch (header_kind) {
+        .none => unreachable,
+        .info => icons.tvg.lucide.@"circle-help",
+        .warning, .err => icons.tvg.lucide.@"circle-alert",
+    };
+    const icon_color: dvui.Color = switch (header_kind) {
+        .none => unreachable,
+        .info => dvui.themeGet().color(.content, .text),
+        .warning => dialog_header_warning_fill,
+        .err => dvui.themeGet().color(.err, .fill),
+    };
+
+    dvui.icon(@src(), "dialog_header_accent", tvg, .{
+        .stroke_color = icon_color,
+        .fill_color = icon_color,
+    }, .{
+        .expand = .none,
+        .min_size_content = .{ .w = close_side, .h = close_side },
+        .margin = window_header_close_margin,
+        .gravity_y = 0.5,
+        .color_text = .white,
+    });
+}
+
+pub fn windowHeader(str: []const u8, right_str: []const u8, openflag: ?*bool, header_kind: DialogHeaderKind) dvui.Rect.Physical {
+    // Order matches dialog footer `button_order`: `.cancel_ok` → dismiss (close) leading like Cancel;
+    // `.ok_cancel` → icon leading, dismiss trailing (same role split as OK vs Cancel horizontal placement).
+    const dismiss_close_leading = switch (dvui.currentWindow().button_order) {
+        .cancel_ok => true,
+        .ok_cancel => false,
+    };
+
+    var row = dvui.box(@src(), .{ .dir = .horizontal }, .{
+        .expand = .horizontal,
+        .name = "WindowHeader",
+        .background = true,
+        .color_fill = dvui.themeGet().color(.content, .fill),
+        .corner_radius = .{ .x = 10, .y = 10 },
+    });
+    defer row.deinit();
+
+    if (dismiss_close_leading) {
+        windowHeaderPaintClose(openflag);
+    } else {
+        windowHeaderPaintKindIcon(header_kind);
+    }
 
     dvui.labelNoFmt(@src(), str, .{ .align_x = 0.5 }, .{
         .expand = .horizontal,
@@ -451,30 +494,10 @@ pub fn windowHeader(str: []const u8, right_str: []const u8, openflag: ?*bool, he
 
     dvui.labelNoFmt(@src(), right_str, .{}, .{ .expand = .none, .gravity_y = 0.5 });
 
-    if (header_kind != .none) {
-        const close_side = windowHeaderCloseInnerSide();
-        const tvg = switch (header_kind) {
-            .none => unreachable,
-            .info => icons.tvg.lucide.@"circle-help",
-            .warning, .err => icons.tvg.lucide.@"circle-alert",
-        };
-        const icon_color: dvui.Color = switch (header_kind) {
-            .none => unreachable,
-            .info => dvui.themeGet().color(.content, .text),
-            .warning => dialog_header_warning_fill,
-            .err => dvui.themeGet().color(.err, .fill),
-        };
-
-        dvui.icon(@src(), "dialog_header_accent", tvg, .{
-            .stroke_color = icon_color,
-            .fill_color = icon_color,
-        }, .{
-            .expand = .none,
-            .min_size_content = .{ .w = close_side, .h = close_side },
-            .margin = window_header_close_margin,
-            .gravity_y = 0.5,
-            .color_text = .white,
-        });
+    if (dismiss_close_leading) {
+        windowHeaderPaintKindIcon(header_kind);
+    } else {
+        windowHeaderPaintClose(openflag);
     }
 
     const evts = dvui.events();
