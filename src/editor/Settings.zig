@@ -1,8 +1,14 @@
 const builtin = @import("builtin");
 const pixi = @import("../pixi.zig");
 const std = @import("std");
+const dvui = @import("dvui");
 
 const Settings = @This();
+
+pub const default_theme = "Pixi Dark";
+
+/// Duration after the last edit before autosave runs (during normal operation).
+pub const autosave_timeout_ns: i128 = 500 * 1_000_000;
 
 pub var parsed: ?std.json.Parsed(Settings) = null;
 
@@ -30,12 +36,6 @@ min_window_size: [2]f32 = .{ 640, 480 },
 
 initial_window_size: [2]f32 = .{ 1280, 720 },
 
-/// Minimum FPS for animations.
-min_animation_fps: f32 = 0.001,
-
-/// Maximum FPS for animations.
-max_animation_fps: f32 = 240.0,
-
 /// Which control scheme to use for zooming and panning.
 /// TODO: Remove builtin check and offer a setup menu if settings.json doesn't exist.
 input_scheme: InputScheme = if (builtin.os.tag == .macos) .trackpad else .mouse,
@@ -62,8 +62,14 @@ max_file_size: [2]i32 = .{ 4096, 4096 },
 /// Maximum number of recents before removing oldest
 max_recents: usize = 10,
 
-/// Currently applied theme name
-theme: []const u8,
+/// Last selected UI theme (`dvui.Theme.name`). Always allocator-owned after `load`; see `setThemeName` / `deinit`.
+theme: []const u8 = default_theme,
+
+/// Logical font sizes applied to body / title / heading / mono slots for every theme (families unchanged).
+font_body_size: f32 = 9,
+font_title_size: f32 = 9,
+font_heading_size: f32 = 8,
+font_mono_size: f32 = 10,
 
 /// Color for the even squares of the checkerboard pattern
 checker_color_even: [4]u8 = .{ 255, 255, 255, 255 },
@@ -84,37 +90,51 @@ titlebar_height: f32 = 26.0, // This is the height of the titlebar in pixels
 /// Empty strip below the top window edge (non-macOS), above the main title row (in-window menu, etc.).
 titlebar_top_buffer: f32 = 10.0,
 
-/// Loads settings or if fails, returns default settings
-pub fn load(allocator: std.mem.Allocator, path: []const u8) !Settings {
-    if (pixi.fs.read(allocator, path) catch null) |data| {
-        defer allocator.free(data);
-
-        const options = std.json.ParseOptions{
-            .duplicate_field_behavior = .use_first,
-            .ignore_unknown_fields = true,
-        };
-        if (std.json.parseFromSlice(Settings, allocator, data, options) catch null) |p| {
-            parsed = p;
-            return p.value;
-        }
-    }
-
+fn default(allocator: std.mem.Allocator) !Settings {
     return .{
-        .theme = try allocator.dupe(u8, "pixi_dark.json"),
+        .theme = try allocator.dupe(u8, default_theme),
     };
+}
+
+pub fn setThemeName(settings: *Settings, allocator: std.mem.Allocator, name: []const u8) !void {
+    if (std.mem.eql(u8, settings.theme, name)) return;
+    const copy = try allocator.dupe(u8, name);
+    allocator.free(settings.theme);
+    settings.theme = copy;
+}
+
+/// Loads settings (`theme` is always heap-owned after successful return — see `setThemeName` / `deinit`).
+pub fn load(allocator: std.mem.Allocator, path: []const u8) !Settings {
+    const maybe_data = pixi.fs.read(allocator, dvui.io, path) catch null;
+    const data = maybe_data orelse return default(allocator);
+    defer allocator.free(data);
+
+    const options = std.json.ParseOptions{
+        .duplicate_field_behavior = .use_first,
+        .ignore_unknown_fields = true,
+    };
+    const p = std.json.parseFromSlice(Settings, allocator, data, options) catch |err| {
+        dvui.log.warn("Could not parse settings.json ({s}); using defaults.", .{@errorName(err)});
+        parsed = null;
+        return default(allocator);
+    };
+
+    parsed = p;
+    var result = p.value;
+    // Own theme independently of JSON parse arena (arena is freed in `deinit`).
+    result.theme = try allocator.dupe(u8, p.value.theme);
+    return result;
 }
 
 pub fn save(settings: *Settings, allocator: std.mem.Allocator, path: []const u8) !void {
     const str = try std.json.Stringify.valueAlloc(allocator, settings, .{});
     defer allocator.free(str);
 
-    var file = try std.fs.createFileAbsolute(path, .{});
-    defer file.close();
-
-    try file.writeAll(str);
+    try std.Io.Dir.cwd().writeFile(dvui.io, .{ .sub_path = path, .data = str });
 }
 
 pub fn deinit(settings: *Settings, allocator: std.mem.Allocator) void {
+    allocator.free(settings.theme);
     defer parsed = null;
-    if (parsed) |p| p.deinit() else allocator.free(settings.theme);
+    if (parsed) |pr| pr.deinit();
 }

@@ -7,5 +7,5 @@ imgui.ini
 recents.json
 .temp/
 *.code-workspace
-
+zig-pkg/
 .zig-cache/

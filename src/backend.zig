@@ -65,6 +65,7 @@ pub const NativeMenuAction = enum(c_int) {
     show_dvui_demo = 9,
     save_as = 10,
     new_file = 11,
+    grid_layout = 12,
 };
 
 // Queue a single pending native action id.
@@ -282,9 +283,10 @@ const win32_mica_subclass_id: usize = 0x50584931; // "PXI1"
 /// Applies the undocumented SetWindowCompositionAttribute accent policy for acrylic blur (frosted glass).
 /// Safe to call; no-ops if user32 or the API is unavailable.
 fn applyWin32AcrylicAccent(hwnd: win32.foundation.HWND) void {
-    var user32 = std.DynLib.open("user32.dll") catch return;
-    defer user32.close();
-    const SetWindowCompositionAttribute = user32.lookup(*const fn (win32.foundation.HWND, *const WINCOMPATTR_DATA) callconv(.winapi) i32, "SetWindowCompositionAttribute") orelse return;
+    const user32 = win32.system.library_loader.LoadLibraryA("user32.dll") orelse return;
+    defer _ = win32.system.library_loader.FreeLibrary(user32);
+    const proc = win32.system.library_loader.GetProcAddress(user32, "SetWindowCompositionAttribute") orelse return;
+    const SetWindowCompositionAttribute: *const fn (win32.foundation.HWND, *const WINCOMPATTR_DATA) callconv(.winapi) i32 = @ptrCast(proc);
     var policy = ACCENT_POLICY{
         .accent_state = ACCENT_ENABLE_ACRYLICBLURBEHIND,
         .accent_flags = 0,
@@ -736,6 +738,7 @@ pub fn setupMacOSMenuBar() void {
     const key_z = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"z".ptr});
     const key_t = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"t".ptr});
     const key_e = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"e".ptr});
+    const key_g = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"g".ptr});
     const key_m = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"m".ptr});
 
     const edit_menu_title_str = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"Edit".ptr});
@@ -748,6 +751,8 @@ pub fn setupMacOSMenuBar() void {
         addNativeMenuItem(edit_menu, NSMenuItem, NSString, target, "Redo", "redo:", @intFromPtr(key_z.value), NSEventModifierFlagCommand | NSEventModifierFlagShift, @intFromPtr(empty.value));
         edit_menu.msgSend(void, "addItem:", .{NSMenuItem.msgSend(objc.Object, "separatorItem", .{}).value});
         addNativeMenuItem(edit_menu, NSMenuItem, NSString, target, "Transform", "transform:", @intFromPtr(key_t.value), NSEventModifierFlagCommand, @intFromPtr(empty.value));
+        edit_menu.msgSend(void, "addItem:", .{NSMenuItem.msgSend(objc.Object, "separatorItem", .{}).value});
+        addNativeMenuItem(edit_menu, NSMenuItem, NSString, target, "Grid Layout…", "gridLayout:", @intFromPtr(key_g.value), NSEventModifierFlagCommand, @intFromPtr(empty.value));
         const edit_title = NSString.msgSend(objc.Object, "stringWithUTF8String:", .{"Edit".ptr});
         const edit_item = NSMenuItem.msgSend(objc.Object, "alloc", .{}).msgSend(objc.Object, "initWithTitle:action:keyEquivalent:", .{
             edit_title.value,
@@ -854,7 +859,7 @@ fn addNativeMenuItemWithTarget(menu: objc.Object, _: objc.Class, NSStringClass: 
 /// Returns and clears a pending native menu action (macOS menu bar). Call once per frame; on non-macOS always returns null.
 pub fn pollPendingNativeMenuAction() ?NativeMenuAction {
     const id = pending_native_menu_action_id.swap(-1, .acq_rel);
-    if (id < 0 or id > 11) return null;
+    if (id < 0 or id > @intFromEnum(NativeMenuAction.grid_layout)) return null;
     return @enumFromInt(id);
 }
 

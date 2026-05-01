@@ -254,11 +254,12 @@ pub fn appendProject(packer: *Packer) !void {
 pub fn recurseFiles(packer: *Packer, root_directory: []const u8) !void {
     const recursor = struct {
         fn search(p: *Packer, directory: []const u8) !void {
-            var dir = try std.fs.cwd().openDir(directory, .{ .access_sub_paths = true, .iterate = true });
-            defer dir.close();
+            const io = dvui.io;
+            var dir = try std.Io.Dir.cwd().openDir(io, directory, .{ .access_sub_paths = true, .iterate = true });
+            defer dir.close(io);
 
             var iter = dir.iterate();
-            while (try iter.next()) |entry| {
+            while (try iter.next(io)) |entry| {
                 if (entry.kind == .file) {
                     const ext = std.fs.path.extension(entry.name);
                     if (std.mem.eql(u8, ext, ".pixi")) {

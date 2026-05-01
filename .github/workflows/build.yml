@@ -21,6 +21,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Keep CI aligned with .minimum_zig_version in build.zig.zon (Zig 0.16 for this branch).
+env:
+  ZIG_VERSION: "0.16.0"
+
 jobs:
   # Runs on: push to main, all PRs, and manual dispatch.
   test:
@@ -31,6 +35,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
       - name: Run tests
         # Runs both pure-logic and headless integration test targets.
         run: zig build test --summary all
@@ -48,6 +54,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
       - name: Build
         run: zig build
       - name: Upload Artifacts
@@ -66,6 +74,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
       - name: Build
         run: zig build
       - name: Upload Artifacts
@@ -82,6 +92,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Zig
         uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
       - name: build
         run: zig build
       - name: Upload Artifacts

@@ -33,6 +33,7 @@ pub const Keybinds = @import("Keybinds.zig");
 
 pub const Workspace = @import("Workspace.zig");
 pub const Explorer = @import("explorer/Explorer.zig");
+pub const IgnoreRules = @import("explorer/IgnoreRules.zig");
 pub const Panel = @import("panel/Panel.zig");
 pub const Sidebar = @import("Sidebar.zig");
 pub const Infobar = @import("Infobar.zig");
@@ -57,17 +58,19 @@ last_titlebar_color: dvui.Color,
 dim_titlebar: bool = false,
 
 /// Workspaces stored by their grouping ID
-workspaces: std.AutoArrayHashMap(u64, Workspace) = undefined,
+workspaces: std.AutoArrayHashMapUnmanaged(u64, Workspace) = .empty,
 sidebar: Sidebar,
 infobar: Infobar,
 
 /// The root folder that will be searched for files and a .pixiproject file
 folder: ?[]const u8 = null,
 project: ?Project = null,
+/// From `.pixiignore` (preferred) or `.gitignore` at the project root; used by the Files explorer.
+ignore: IgnoreRules = .{},
 
-themes: std.array_list.Managed(dvui.Theme) = undefined,
+themes: std.ArrayList(dvui.Theme) = .empty,
 
-open_files: std.AutoArrayHashMap(u64, pixi.Internal.File) = undefined,
+open_files: std.AutoArrayHashMapUnmanaged(u64, pixi.Internal.File) = .empty,
 
 // The actively focused workspace grouping ID
 // This will contain tabs for all open files with a matching grouping ID
@@ -99,12 +102,23 @@ pending_save_as_path: ?[]u8 = null,
 
 /// After Save As from "Save and Close", close this file id once save completes.
 pending_close_file_id: ?u64 = null,
-/// User requested app quit while dirty files remain; drive `Dialogs.UnsavedClose` until clean.
+
+/// "Save all and quit" walks these ids (see `advanceSaveAllQuit`). Non-empty ⇒ save-all quit in progress.
+quit_save_all_ids: std.ArrayListUnmanaged(u64) = .empty,
+
+/// True during save-all quit (nested Save As / flat-raster prompts).
 quit_in_progress: bool = false,
-/// Next frame: continue quit flow (next dirty prompt or exit).
+/// Next frame: continue save-all quit (`advanceSaveAllQuit`).
 pending_quit_continue: bool = false,
 /// End this frame with `App.Result.close` (e.g. quit finished).
 pending_app_close: bool = false,
+
+/// Last serialized JSON written or captured at startup; avoids redundant writes.
+settings_last_saved_json: ?[]u8 = null,
+/// True after user-driven settings edits until successfully persisted or snapshot matches disk.
+settings_dirty: bool = false,
+/// Monotonic deadline (`perf.nanoTimestamp()`): autosave runs when dirty and `now >= deadline`.
+settings_save_deadline_ns: i128 = 0,
 
 pub const SpriteClipboard = struct {
     source: dvui.ImageSource,
@@ -146,97 +160,14 @@ const embedded_fonts: []const dvui.Font.Source = &.{
 pub fn init(
     app: *App,
 ) !Editor {
+    const arena = dvui.currentWindow().arena();
+    var environ_map = try pixi.processEnviron().createMap(arena);
+    defer environ_map.deinit();
     const config_folder = std.fs.path.join(pixi.app.allocator, &.{
-        try known_folders.getPath(dvui.currentWindow().arena(), .local_configuration) orelse app.root_path,
+        try known_folders.getPath(dvui.io, arena, environ_map, .local_configuration) orelse app.root_path,
         "Pixi",
     }) catch app.root_path;
     const palette_folder = std.fs.path.join(pixi.app.allocator, &.{ config_folder, "Palettes" }) catch config_folder;
-
-    var pixi_dark = dvui.themeGet();
-    pixi_dark.embedded_fonts = embedded_fonts;
-
-    pixi_dark.window = .{
-        .fill = .{ .r = 28, .g = 29, .b = 36, .a = 255 },
-        .border = .{ .r = 34, .g = 35, .b = 42, .a = 255 },
-        .text = .{ .r = 206, .g = 163, .b = 127, .a = 255 },
-    };
-
-    pixi_dark.control = .{
-        .fill = .{ .r = 28, .g = 29, .b = 36, .a = 255 },
-        .border = .{ .r = 34, .g = 35, .b = 42, .a = 255 },
-        .text = .{ .r = 134, .g = 138, .b = 148, .a = 255 },
-    };
-
-    pixi_dark.highlight = .{
-        .fill = .{ .r = 47, .g = 179, .b = 135, .a = 255 },
-        .border = .{ .r = 47, .g = 179, .b = 135, .a = 255 },
-        .text = pixi_dark.window.fill,
-    };
-
-    pixi_dark.err = .{
-        .fill = .{ .r = 109, .g = 35, .b = 54, .a = 255 },
-    };
-
-    // theme.content
-    pixi_dark.fill = .{ .r = 42, .g = 44, .b = 54, .a = 255 };
-    pixi_dark.text = pixi_dark.window.text.?;
-    pixi_dark.focus = pixi_dark.highlight.fill.?;
-
-    pixi_dark.dark = true;
-    pixi_dark.name = "Pixi Dark";
-    pixi_dark.font_body = .find(.{ .family = "Comfortaa", .size = 9, .weight = .bold });
-    pixi_dark.font_title = .find(.{ .family = "NotoSans", .size = 9, .weight = .bold });
-    pixi_dark.font_heading = .find(.{ .family = "NotoSans", .size = 8, .weight = .bold });
-    pixi_dark.font_mono = .find(.{ .family = "CozetteVector", .size = 10 });
-
-    dvui.themeSet(pixi_dark);
-
-    var moi: dvui.Theme = pixi_dark;
-    moi.name = "Moi";
-    moi.window = .{
-        .fill = .{ .r = 84, .g = 12, .b = 26, .a = 255 },
-        .border = .{ .r = 104, .g = 62, .b = 72, .a = 255 },
-        .text = .{ .r = 255, .g = 190, .b = 190, .a = 240 },
-    };
-
-    moi.control = .{
-        .fill = moi.window.fill.?.lighten(10),
-        .border = .{ .r = 104, .g = 62, .b = 72, .a = 255 },
-        .text = .{ .r = 255, .g = 235, .b = 235, .a = 200 },
-    };
-    moi.highlight = .{
-        .fill = moi.window.fill.?.lighten(10),
-    };
-
-    moi.fill = moi.control.fill.?;
-    moi.text = moi.window.text.?;
-    moi.focus = moi.highlight.fill.?;
-
-    var pixi_light = pixi_dark;
-    pixi_light.dark = false;
-    pixi_light.name = "Pixi Light";
-
-    pixi_light.window = .{
-        .fill = .{ .r = 240, .g = 240, .b = 245, .a = 255 },
-        .border = dvui.Theme.builtin.adwaita_light.window.border,
-        .text = .{ .r = 120, .g = 70, .b = 65, .a = 255 },
-    };
-
-    pixi_light.control = dvui.Theme.builtin.adwaita_light.control;
-
-    pixi_light.highlight = .{
-        .fill = .{ .r = 170, .g = 130, .b = 140, .a = 255 },
-        .text = pixi_light.window.fill,
-    };
-
-    pixi_light.err = .{
-        .fill = .{ .r = 109, .g = 35, .b = 54, .a = 255 },
-    };
-
-    // theme.content
-    pixi_light.fill = .{ .r = 200, .g = 200, .b = 205, .a = 255 };
-    pixi_light.text = .{ .r = 40, .g = 40, .b = 45, .a = 255 };
-    pixi_light.focus = pixi_light.highlight.fill.?;
 
     var editor: Editor = .{
         .config_folder = config_folder,
@@ -252,68 +183,159 @@ pub fn init(
             .source = try pixi.image.fromImageFileBytes("pixi.png", assets.files.@"pixi.png", .ptr),
         },
         .tools = try .init(app.allocator),
-        .themes = .init(app.allocator),
+        .themes = .empty,
     };
 
-    editor.themes.append(pixi_dark) catch {
-        dvui.log.err("Failed to append theme", .{});
-        return error.FailedToAppendTheme;
-    };
+    editor.settings = try Settings.load(app.allocator, try std.fs.path.join(app.allocator, &.{ editor.config_folder, "settings.json" }));
 
-    editor.themes.append(moi) catch {
-        dvui.log.err("Failed to append moi theme", .{});
-        return error.FailedToAppendMoiTheme;
-    };
+    { // Setup themes
+        var pixi_dark = dvui.themeGet();
+        pixi_dark.embedded_fonts = embedded_fonts;
 
-    editor.themes.append(pixi_light) catch {
-        dvui.log.err("Failed to append pixi light theme", .{});
-        return error.FailedToAppendPixiLightTheme;
-    };
-
-    for (dvui.Theme.builtins) |b| {
-        editor.themes.append(b) catch {
-            dvui.log.err("Failed to append builtin theme", .{});
-            return error.FailedToAppendBuiltinTheme;
+        pixi_dark.window = .{
+            .fill = .{ .r = 28, .g = 29, .b = 36, .a = 255 },
+            .border = .{ .r = 34, .g = 35, .b = 42, .a = 255 },
+            .text = .{ .r = 206, .g = 163, .b = 127, .a = 255 },
         };
+
+        pixi_dark.control = .{
+            .fill = .{ .r = 28, .g = 29, .b = 36, .a = 255 },
+            .border = .{ .r = 34, .g = 35, .b = 42, .a = 255 },
+            .text = .{ .r = 134, .g = 138, .b = 148, .a = 255 },
+        };
+
+        pixi_dark.highlight = .{
+            .fill = .{ .r = 47, .g = 179, .b = 135, .a = 255 },
+            .border = .{ .r = 47, .g = 179, .b = 135, .a = 255 },
+            .text = pixi_dark.window.fill,
+        };
+
+        pixi_dark.err = .{
+            .fill = .{ .r = 109, .g = 35, .b = 54, .a = 255 },
+        };
+
+        // theme.content
+        pixi_dark.fill = .{ .r = 42, .g = 44, .b = 54, .a = 255 };
+        pixi_dark.text = pixi_dark.window.text.?;
+        pixi_dark.focus = pixi_dark.highlight.fill.?;
+
+        pixi_dark.dark = true;
+        pixi_dark.name = "Pixi Dark";
+        pixi_dark.font_body = .find(.{ .family = "Comfortaa", .size = editor.settings.font_body_size, .weight = .bold });
+        pixi_dark.font_title = .find(.{ .family = "NotoSans", .size = editor.settings.font_title_size, .weight = .bold });
+        pixi_dark.font_heading = .find(.{ .family = "NotoSans", .size = editor.settings.font_heading_size, .weight = .bold });
+        pixi_dark.font_mono = .find(.{ .family = "CozetteVector", .size = editor.settings.font_mono_size });
+
+        var moi: dvui.Theme = pixi_dark;
+        moi.name = "Moi";
+        moi.window = .{
+            .fill = .{ .r = 84, .g = 12, .b = 26, .a = 255 },
+            .border = .{ .r = 104, .g = 62, .b = 72, .a = 255 },
+            .text = .{ .r = 255, .g = 190, .b = 190, .a = 240 },
+        };
+
+        moi.control = .{
+            .fill = moi.window.fill.?.lighten(10),
+            .border = .{ .r = 104, .g = 62, .b = 72, .a = 255 },
+            .text = .{ .r = 255, .g = 235, .b = 235, .a = 200 },
+        };
+        moi.highlight = .{
+            .fill = moi.window.fill.?.lighten(10),
+        };
+
+        moi.fill = moi.control.fill.?;
+        moi.text = moi.window.text.?;
+        moi.focus = moi.highlight.fill.?;
+
+        var pixi_light = pixi_dark;
+        pixi_light.dark = false;
+        pixi_light.name = "Pixi Light";
+
+        pixi_light.window = .{
+            .fill = .{ .r = 240, .g = 240, .b = 245, .a = 255 },
+            .border = dvui.Theme.builtin.adwaita_light.window.border,
+            .text = .{ .r = 120, .g = 70, .b = 65, .a = 255 },
+        };
+
+        pixi_light.control = dvui.Theme.builtin.adwaita_light.control;
+
+        pixi_light.highlight = .{
+            .fill = .{ .r = 170, .g = 130, .b = 140, .a = 255 },
+            .text = pixi_light.window.fill,
+        };
+
+        pixi_light.err = .{
+            .fill = .{ .r = 109, .g = 35, .b = 54, .a = 255 },
+        };
+
+        // theme.content
+        pixi_light.fill = .{ .r = 200, .g = 200, .b = 205, .a = 255 };
+        pixi_light.text = .{ .r = 40, .g = 40, .b = 45, .a = 255 };
+        pixi_light.focus = pixi_light.highlight.fill.?;
+
+        appendUserThemes(app.allocator, &editor) catch |err| {
+            dvui.log.err("Failed to prepare user themes folder: {s}", .{@errorName(err)});
+        };
+
+        editor.themes.append(app.allocator, pixi_dark) catch {
+            dvui.log.err("Failed to append theme", .{});
+            return error.FailedToAppendTheme;
+        };
+
+        editor.themes.append(app.allocator, moi) catch {
+            dvui.log.err("Failed to append moi theme", .{});
+            return error.FailedToAppendMoiTheme;
+        };
+
+        editor.themes.append(app.allocator, pixi_light) catch {
+            dvui.log.err("Failed to append pixi light theme", .{});
+            return error.FailedToAppendPixiLightTheme;
+        };
+
+        for (dvui.Theme.builtins) |b| {
+            editor.themes.append(app.allocator, b) catch {
+                dvui.log.err("Failed to append builtin theme", .{});
+                return error.FailedToAppendBuiltinTheme;
+            };
+        }
+
+        try editor.applySettingsTheme();
     }
 
     var valid_path: bool = true;
     if (std.fs.path.isAbsolute(editor.config_folder)) {
-        std.fs.accessAbsolute(editor.config_folder, .{ .mode = .read_only }) catch {
+        std.Io.Dir.accessAbsolute(dvui.io, editor.config_folder, .{ .read = true }) catch {
             valid_path = false;
         };
 
         if (!valid_path) {
-            std.fs.makeDirAbsolute(editor.config_folder) catch |err| dvui.log.err("Failed to create config folder: {s}: {any}", .{ editor.config_folder, err });
+            std.Io.Dir.createDirAbsolute(dvui.io, editor.config_folder, .default_dir) catch |err| dvui.log.err("Failed to create config folder: {s}: {any}", .{ editor.config_folder, err });
         }
     }
 
     valid_path = true;
     if (std.fs.path.isAbsolute(editor.palette_folder)) {
-        std.fs.accessAbsolute(editor.palette_folder, .{ .mode = .read_only }) catch {
+        std.Io.Dir.accessAbsolute(dvui.io, editor.palette_folder, .{ .read = true }) catch {
             valid_path = false;
         };
 
         if (!valid_path) {
-            std.fs.makeDirAbsolute(editor.palette_folder) catch |err| dvui.log.err("Failed to create palette folder: {s}: {any}", .{ editor.palette_folder, err });
+            std.Io.Dir.createDirAbsolute(dvui.io, editor.palette_folder, .default_dir) catch |err| dvui.log.err("Failed to create palette folder: {s}: {any}", .{ editor.palette_folder, err });
         }
     }
 
-    editor.settings = Settings.load(app.allocator, try std.fs.path.join(app.allocator, &.{ editor.config_folder, "settings.json" })) catch .{
-        .theme = try app.allocator.dupe(u8, "pixi_dark.json"),
-    };
     pixi.perf.console_logging_enabled = editor.settings.perf_logging;
     editor.recents = Recents.load(app.allocator, try std.fs.path.join(app.allocator, &.{ editor.config_folder, "recents.json" })) catch .{
         .folders = .init(app.allocator),
     };
 
-    pixi.backend.setTitlebarColor(dvui.currentWindow(), pixi_dark.fill.opacity(if (dvui.themeGet().dark) editor.settings.window_opacity_dark else editor.settings.window_opacity_light));
+    pixi.backend.setTitlebarColor(dvui.currentWindow(), dvui.themeGet().color(.content, .fill).opacity(if (dvui.themeGet().dark) editor.settings.window_opacity_dark else editor.settings.window_opacity_light));
 
     editor.explorer.* = .init();
     editor.panel.* = .init();
-    editor.open_files = .init(pixi.app.allocator);
-    editor.workspaces = .init(pixi.app.allocator);
-    editor.workspaces.put(0, .init(0)) catch |err| {
+    editor.open_files = .empty;
+    editor.workspaces = .empty;
+    editor.workspaces.put(pixi.app.allocator, 0, .init(0)) catch |err| {
         std.log.err("Failed to create workspace: {s}", .{@errorName(err)});
         return err;
     };
@@ -323,7 +345,111 @@ pub fn init(
 
     try Keybinds.register();
 
+    // Collect the initial settings json
+    editor.settings_last_saved_json = try std.json.Stringify.valueAlloc(pixi.app.allocator, &editor.settings, .{});
+
     return editor;
+}
+
+/// Ensures `{config}/Themes` exists and scans `*.json` for future user themes (loaded entries are prepended before Pixi themes).
+fn appendUserThemes(gpa: std.mem.Allocator, editor: *Editor) !void {
+    const themes_dir = try std.fs.path.join(gpa, &.{ editor.config_folder, "Themes" });
+
+    if (!std.fs.path.isAbsolute(themes_dir)) {
+        gpa.free(themes_dir);
+        return;
+    }
+    defer gpa.free(themes_dir);
+
+    std.Io.Dir.accessAbsolute(dvui.io, themes_dir, .{ .read = true }) catch {
+        try std.Io.Dir.createDirAbsolute(dvui.io, themes_dir, .default_dir);
+    };
+
+    var dir = try std.Io.Dir.cwd().openDir(dvui.io, themes_dir, .{ .access_sub_paths = false, .iterate = true });
+    defer dir.close(dvui.io);
+
+    var iter = dir.iterate();
+    while (try iter.next(dvui.io)) |entry| {
+        if (entry.kind != .file) continue;
+        if (!std.mem.endsWith(u8, entry.name, ".json")) continue;
+        // Future: parse Theme JSON and append before Pixi themes so folder overrides builtins by list order.
+    }
+}
+
+/// Clamp settings font sizes (6–20), apply those sizes to every registered theme (preserving each theme’s font families), and refresh the active DVUI theme.
+pub fn applyFontSizesFromSettings(editor: *Editor) void {
+    const clampFontSize = struct {
+        fn f(sz: f32) f32 {
+            return @floatCast(std.math.clamp(@round(sz), 6.0, 20.0));
+        }
+    }.f;
+
+    const sb = clampFontSize(editor.settings.font_body_size);
+    const st = clampFontSize(editor.settings.font_title_size);
+    const sh = clampFontSize(editor.settings.font_heading_size);
+    const sm = clampFontSize(editor.settings.font_mono_size);
+
+    editor.settings.font_body_size = sb;
+    editor.settings.font_title_size = st;
+    editor.settings.font_heading_size = sh;
+    editor.settings.font_mono_size = sm;
+
+    for (editor.themes.items) |*t| {
+        t.font_body = t.font_body.withSize(sb);
+        t.font_title = t.font_title.withSize(st);
+        t.font_heading = t.font_heading.withSize(sh);
+        t.font_mono = t.font_mono.withSize(sm);
+    }
+
+    const active_name = dvui.themeGet().name;
+    for (editor.themes.items) |*t| {
+        if (std.mem.eql(u8, t.name, active_name)) {
+            dvui.themeSet(t.*);
+            break;
+        }
+    }
+}
+
+fn themeFilenameToName(trimmed: []const u8) ?[]const u8 {
+    const pairs = [_]struct { stub: []const u8, canonical: []const u8 }{
+        .{ .stub = "pixi_dark.json", .canonical = "Pixi Dark" },
+        .{ .stub = "pixi_light.json", .canonical = "Pixi Light" },
+    };
+    for (pairs) |p| {
+        if (std.mem.eql(u8, trimmed, p.stub)) return p.canonical;
+    }
+    return null;
+}
+
+/// Select a theme from `editor.themes` matching `settings.theme`: trim, legacy file-name aliases, then exact and case-insensitive name match. Falls back to `Settings.default_theme`, then the first entry, and logs if the stored value did not match anything.
+fn resolveSettingsTheme(editor: *Editor) *dvui.Theme {
+    const trimmed = std.mem.trim(u8, editor.settings.theme, &std.ascii.whitespace);
+    const candidate = themeFilenameToName(trimmed) orelse trimmed;
+
+    for (editor.themes.items) |*t| {
+        if (std.mem.eql(u8, t.name, candidate)) return t;
+    }
+    for (editor.themes.items) |*t| {
+        if (std.ascii.eqlIgnoreCase(t.name, candidate)) return t;
+    }
+    dvui.log.warn(
+        "Saved theme \"{s}\" did not match any known theme; falling back to \"{s}\".",
+        .{ trimmed, Settings.default_theme },
+    );
+    for (editor.themes.items) |*t| {
+        if (std.mem.eql(u8, t.name, Settings.default_theme)) return t;
+    }
+    std.debug.assert(editor.themes.items.len > 0);
+    return &editor.themes.items[0];
+}
+
+pub fn applySettingsTheme(editor: *Editor) !void {
+    const t = resolveSettingsTheme(editor);
+    if (!std.mem.eql(u8, editor.settings.theme, t.name)) {
+        try Settings.setThemeName(&editor.settings, pixi.app.allocator, t.name);
+    }
+    dvui.themeSet(t.*);
+    editor.applyFontSizesFromSettings();
 }
 
 pub fn currentGroupingID(editor: *Editor) u64 {
@@ -340,6 +466,79 @@ pub fn newFileID(editor: *Editor) u64 {
     return editor.file_id_counter;
 }
 
+pub fn markSettingsDirty(editor: *Editor) void {
+    editor.settings_dirty = true;
+    editor.settings_save_deadline_ns = pixi.perf.nanoTimestamp() + Settings.autosave_timeout_ns;
+}
+
+fn activelyDrawing(editor: *Editor) bool {
+    for (editor.open_files.values()) |*file| {
+        if (file.editor.active_drawing) return true;
+    }
+    return false;
+}
+
+/// Debounced autosave (defers while a canvas stroke is active).
+fn saveSettingsGuarded(editor: *Editor) !void {
+    if (!editor.settings_dirty) return;
+
+    const now = pixi.perf.nanoTimestamp();
+    if (now < editor.settings_save_deadline_ns) return;
+
+    if (editor.activelyDrawing())
+        return;
+
+    const serialized = try std.json.Stringify.valueAlloc(pixi.app.allocator, &editor.settings, .{});
+    defer pixi.app.allocator.free(serialized);
+
+    if (editor.settings_last_saved_json) |old| {
+        if (std.mem.eql(u8, old, serialized)) {
+            editor.settings_dirty = false;
+            return;
+        }
+    }
+
+    const settings_path = try std.fs.path.join(pixi.app.allocator, &.{ editor.config_folder, "settings.json" });
+    defer pixi.app.allocator.free(settings_path);
+
+    try Settings.save(&editor.settings, pixi.app.allocator, settings_path);
+
+    if (editor.settings_last_saved_json) |blob| {
+        pixi.app.allocator.free(blob);
+        editor.settings_last_saved_json = null;
+    }
+    editor.settings_last_saved_json = try pixi.app.allocator.dupe(u8, serialized);
+    editor.settings_dirty = false;
+}
+
+/// Flush to disk regardless of idle/drawing deferral — used during shutdown only.
+fn saveSettingsRaw(editor: *Editor) !void {
+    const serialized = try std.json.Stringify.valueAlloc(pixi.app.allocator, &editor.settings, .{});
+    defer pixi.app.allocator.free(serialized);
+
+    const need_disk = blk: {
+        if (editor.settings_last_saved_json) |old| {
+            if (std.mem.eql(u8, old, serialized)) break :blk false;
+        }
+        break :blk true;
+    };
+
+    const settings_path = try std.fs.path.join(pixi.app.allocator, &.{ editor.config_folder, "settings.json" });
+    defer pixi.app.allocator.free(settings_path);
+
+    if (need_disk)
+        try Settings.save(&editor.settings, pixi.app.allocator, settings_path);
+
+    if (need_disk) {
+        if (editor.settings_last_saved_json) |blob| {
+            pixi.app.allocator.free(blob);
+            editor.settings_last_saved_json = null;
+        }
+        editor.settings_last_saved_json = try pixi.app.allocator.dupe(u8, serialized);
+    }
+    editor.settings_dirty = false;
+}
+
 const handle_size = 10;
 const handle_dist = 60;
 
@@ -348,7 +547,27 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
 
     if (editor.pending_quit_continue) {
         editor.pending_quit_continue = false;
-        Dialogs.UnsavedClose.continueAppQuitIfNeeded();
+        editor.advanceSaveAllQuit();
+    }
+
+    const wd = dvui.currentWindow().data();
+    for (dvui.events()) |*e| {
+        if (e.handled) continue;
+        if (!dvui.eventMatchSimple(e, wd)) continue;
+        const want_quit = (e.evt == .window and e.evt.window.action == .close) or
+            (e.evt == .app and e.evt.app.action == .quit);
+        if (!want_quit) continue;
+
+        var dirty_n: usize = 0;
+        for (editor.open_files.values()) |f| {
+            if (f.dirty()) dirty_n += 1;
+        }
+        if (dirty_n == 0) continue;
+
+        e.handle(@src(), wd);
+        if (!Dialogs.AppQuitUnsaved.active(dvui.currentWindow()) and editor.quit_save_all_ids.items.len == 0) {
+            Dialogs.AppQuitUnsaved.request();
+        }
     }
 
     if (pixi.backend.pollPendingNativeMenuAction()) |action| {
@@ -658,6 +877,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
             }
         } else if (editor.explorer.paned.dragging) {
             editor.settings.explorer_ratio = editor.explorer.paned.split_ratio.*;
+            editor.markSettingsDirty();
         }
 
         if (sidebar_pressed) {
@@ -714,6 +934,7 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
                 }
             } else {
                 pixi.editor.settings.panel_ratio = 1.0 - editor.panel.paned.split_ratio.*;
+                pixi.editor.markSettingsDirty();
             }
 
             if (editor.panel.paned.showSecond()) {
@@ -763,6 +984,10 @@ pub fn tick(editor: *Editor) !dvui.App.Result {
 
     // look at demo() for examples of dvui widgets, shows in a floating window
     dvui.Examples.demo(.full);
+
+    editor.saveSettingsGuarded() catch |err| {
+        dvui.log.err("Failed to autosave settings ({s})", .{@errorName(err)});
+    };
 
     _ = editor.arena.reset(.retain_capacity);
 
@@ -860,6 +1085,11 @@ pub fn handleNativeMenuAction(editor: *Editor, action: pixi.backend.NativeMenuAc
                 editor.transform() catch {
                     std.log.err("Failed to transform", .{});
                 };
+            }
+        },
+        .grid_layout => {
+            if (editor.activeFile() != null) {
+                editor.requestGridLayoutDialog();
             }
         },
         .toggle_explorer => {
@@ -1104,7 +1334,7 @@ pub fn rebuildWorkspaces(editor: *Editor) !void {
                 }
             }
 
-            editor.workspaces.put(file.editor.grouping, workspace) catch |err| {
+            editor.workspaces.put(pixi.app.allocator, file.editor.grouping, workspace) catch |err| {
                 std.log.err("Failed to create workspace: {s}", .{@errorName(err)});
                 return err;
             };
@@ -1221,24 +1451,81 @@ pub fn drawWorkspaces(editor: *Editor, index: usize) !dvui.App.Result {
     return .ok;
 }
 
+pub fn abortSaveAllQuit(editor: *Editor) void {
+    Dialogs.FlatRasterSaveWarning.pending_from_save_all_quit = false;
+    editor.quit_save_all_ids.clearAndFree(pixi.app.allocator);
+    editor.quit_in_progress = false;
+    editor.pending_close_file_id = null;
+    editor.pending_quit_continue = false;
+}
+
+pub fn advanceSaveAllQuit(editor: *Editor) void {
+    if (editor.quit_save_all_ids.items.len == 0) return;
+
+    while (editor.quit_save_all_ids.items.len > 0) {
+        const id = editor.quit_save_all_ids.items[0];
+        const file_ptr = editor.open_files.getPtr(id) orelse {
+            _ = editor.quit_save_all_ids.swapRemove(0);
+            continue;
+        };
+        if (!file_ptr.dirty()) {
+            _ = editor.quit_save_all_ids.swapRemove(0);
+            continue;
+        }
+
+        if (editor.open_files.getIndex(id)) |idx| {
+            editor.setActiveFile(idx);
+        }
+
+        if (!pixi.Internal.File.hasRecognizedSaveExtension(file_ptr.path)) {
+            editor.pending_close_file_id = id;
+            editor.quit_in_progress = true;
+            editor.requestSaveAs();
+            return;
+        }
+        if (file_ptr.shouldConfirmFlatRasterSave()) {
+            Dialogs.FlatRasterSaveWarning.pending_from_save_all_quit = true;
+            Dialogs.FlatRasterSaveWarning.request(id, .save_and_close);
+            return;
+        }
+        Dialogs.UnsavedClose.saveSynchronously(file_ptr) catch |err| {
+            dvui.log.err("Save all quit: {s}", .{@errorName(err)});
+            editor.abortSaveAllQuit();
+            return;
+        };
+        editor.rawCloseFileID(id) catch |err| {
+            dvui.log.err("Save all quit close: {s}", .{@errorName(err)});
+            editor.abortSaveAllQuit();
+            return;
+        };
+        _ = editor.quit_save_all_ids.swapRemove(0);
+    }
+
+    editor.quit_save_all_ids.clearRetainingCapacity();
+    editor.quit_in_progress = false;
+    editor.pending_app_close = true;
+}
+
 pub fn close(app: *App, editor: *Editor) void {
     _ = app;
     if (editor.open_files.count() == 0) {
         editor.pending_app_close = true;
         return;
     }
-    for (editor.open_files.values()) |file| {
-        if (file.dirty()) {
-            editor.quit_in_progress = true;
-            Dialogs.UnsavedClose.request(file.id, .app_quit);
-            return;
-        }
+    var dirty_n: usize = 0;
+    for (editor.open_files.values()) |f| {
+        if (f.dirty()) dirty_n += 1;
     }
-    editor.pending_app_close = true;
+    if (dirty_n > 0) {
+        Dialogs.AppQuitUnsaved.request();
+    } else {
+        editor.pending_app_close = true;
+    }
 }
 
 pub fn setProjectFolder(editor: *Editor, path: []const u8) !void {
     if (editor.folder) |folder| {
+        editor.ignore.deinit(pixi.app.allocator);
         if (editor.project) |*project| {
             project.save() catch {
                 dvui.log.err("Failed to save project", .{});
@@ -1251,10 +1538,11 @@ pub fn setProjectFolder(editor: *Editor, path: []const u8) !void {
     editor.explorer.pane = .files;
 
     editor.project = Project.load(pixi.app.allocator) catch null;
+    editor.ignore = try IgnoreRules.load(pixi.app.allocator, path);
 }
 
 pub fn saving(editor: *Editor) bool {
-    for (editor.open_files.items) |file| {
+    for (editor.open_files.values()) |file| {
         if (file.saving) return true;
     }
     return false;
@@ -1297,7 +1585,7 @@ pub fn openFilePath(editor: *Editor, path: []const u8, grouping: u64) !bool {
     }
 
     if (pixi.Internal.File.fromPath(path) catch null) |file| {
-        try editor.open_files.put(file.id, file);
+        try editor.open_files.put(pixi.app.allocator, file.id, file);
         if (editor.open_files.getPtr(file.id)) |f| {
             f.editor.grouping = grouping;
         }
@@ -1328,7 +1616,7 @@ pub fn newFile(editor: *Editor, path: []const u8, options: pixi.Internal.File.In
         return error.FailedToCreateFile;
     };
 
-    try editor.open_files.put(file.id, file);
+    try editor.open_files.put(pixi.app.allocator, file.id, file);
     editor.setActiveFile(editor.open_files.count() - 1);
     editor.pending_composite_warmup = true;
 
@@ -1351,6 +1639,34 @@ pub fn allocNextUntitledPath(editor: *Editor) ![]u8 {
     return std.fmt.allocPrint(pixi.app.allocator, "untitled-{d}", .{max_n + 1});
 }
 
+/// Opens the Grid Layout dialog for the active file. Uses a custom `windowFn` that matches
+/// `dialogWindow`'s open animation while capping the window to half the main window size; the
+/// dialog can still be resized afterward.
+/// The dialog rebinds the active file via the `_grid_layout_file_id` data slot so the form and
+/// preview can survive frames where `pixi.editor.activeFile()` momentarily returns null.
+pub fn requestGridLayoutDialog(editor: *Editor) void {
+    const file = editor.activeFile() orelse return;
+
+    Dialogs.GridLayout.presetFromFile(file);
+
+    var mutex = pixi.dvui.dialog(@src(), .{
+        .displayFn = Dialogs.GridLayout.dialog,
+        .callafterFn = Dialogs.GridLayout.callAfter,
+        .windowFn = Dialogs.GridLayout.windowFn,
+        .title = "Grid Layout...",
+        .ok_label = "Apply",
+        .cancel_label = "Cancel",
+        .resizeable = true,
+        .header_kind = .info,
+        .default = .ok,
+    });
+    dvui.dataSet(null, mutex.id, "_grid_layout_file_id", file.id);
+    // Let `GridLayout.windowFn` run `autoSize` only until the open animation finishes; otherwise
+    // `auto_size` stays true every frame and the shell snaps back to content min (user resize breaks).
+    dvui.dataSet(null, mutex.id, "_grid_dialog_open_done", false);
+    mutex.mutex.unlock(dvui.io);
+}
+
 /// Opens the New File dimensions dialog; on confirm, creates an in-memory `untitled-n` document (or on-disk from explorer when `_parent_path` is set).
 pub fn requestNewFileDialog(_: *Editor) void {
     var mutex = pixi.dvui.dialog(@src(), .{
@@ -1360,9 +1676,10 @@ pub fn requestNewFileDialog(_: *Editor) void {
         .ok_label = "Create",
         .cancel_label = "Cancel",
         .resizeable = false,
+        .header_kind = .info,
         .default = .ok,
     });
-    mutex.mutex.unlock();
+    mutex.mutex.unlock(dvui.io);
 }
 
 pub fn setActiveFile(editor: *Editor, index: usize) void {
@@ -1527,7 +1844,7 @@ pub fn copy(editor: *Editor) !void {
                 const id = id_mutex.id;
                 const message = std.fmt.allocPrint(dvui.currentWindow().arena(), "Copied selection", .{}) catch "Copied selection.";
                 dvui.dataSetSlice(dvui.currentWindow(), id, "_message", message);
-                id_mutex.mutex.unlock();
+                id_mutex.mutex.unlock(dvui.io);
             }
         }
     }
@@ -1781,6 +2098,10 @@ pub fn save(editor: *Editor) !void {
         editor.requestSaveAs();
         return;
     }
+    if (file.shouldConfirmFlatRasterSave()) {
+        Dialogs.FlatRasterSaveWarning.request(file.id, .editor_save);
+        return;
+    }
     try file.saveAsync();
 }
 
@@ -1807,8 +2128,8 @@ pub fn saveAsDialogCallback(paths: ?[][:0]const u8) void {
     if (paths == null) {
         if (pixi.editor.pending_close_file_id) |_| {
             pixi.editor.pending_close_file_id = null;
-            if (pixi.editor.quit_in_progress) {
-                pixi.editor.quit_in_progress = false;
+            if (pixi.editor.quit_save_all_ids.items.len > 0) {
+                pixi.editor.abortSaveAllQuit();
             }
         }
         return;
@@ -1865,7 +2186,10 @@ fn processPendingSaveAs(editor: *Editor) void {
             editor.rawCloseFileID(cid) catch |err| {
                 dvui.log.err("Failed to close file after Save As: {s}", .{@errorName(err)});
             };
-            if (editor.quit_in_progress) {
+            if (editor.quit_save_all_ids.items.len > 0) {
+                if (std.mem.indexOfScalar(u64, editor.quit_save_all_ids.items, cid)) |ix| {
+                    _ = editor.quit_save_all_ids.swapRemove(ix);
+                }
                 editor.pending_quit_continue = true;
             }
         }
@@ -1886,7 +2210,7 @@ pub fn redo(editor: *Editor) !void {
 
 pub fn openInFileBrowser(_: *Editor, path: []const u8) !void {
     const cmd = if (builtin.os.tag == .macos) "open" else if (builtin.os.tag == .linux) "xdg-open" else "start";
-    _ = std.process.Child.run(.{ .argv = &.{ cmd, path }, .allocator = pixi.app.allocator }) catch {
+    _ = std.process.run(pixi.app.allocator, dvui.io, .{ .argv = &.{ cmd, path } }) catch {
         dvui.log.err("Failed to open file browser", .{});
         return;
     };
@@ -1895,7 +2219,7 @@ pub fn openInFileBrowser(_: *Editor, path: []const u8) !void {
 pub fn closeFileID(editor: *Editor, id: u64) !void {
     if (editor.open_files.get(id)) |file| {
         if (file.dirty()) {
-            Dialogs.UnsavedClose.request(id, .tab_close);
+            Dialogs.UnsavedClose.request(id);
             return;
         }
         try editor.rawCloseFileID(id);
@@ -1962,15 +2286,21 @@ pub fn deinit(editor: *Editor) !void {
         editor.pending_save_as_path = null;
     }
 
+    editor.quit_save_all_ids.deinit(pixi.app.allocator);
+
     if (editor.colors.palette) |*palette| palette.deinit();
     if (editor.colors.file_tree_palette) |*palette| palette.deinit();
 
     editor.recents.save(pixi.app.allocator, try std.fs.path.join(pixi.app.allocator, &.{ editor.config_folder, "recents.json" })) catch {
         dvui.log.err("Failed to save recents", .{});
     };
-    editor.recents.deinit();
+    editor.recents.deinit(pixi.app.allocator);
 
-    try editor.settings.save(pixi.app.allocator, try std.fs.path.join(pixi.app.allocator, &.{ editor.config_folder, "settings.json" }));
+    try saveSettingsRaw(editor);
+    if (editor.settings_last_saved_json) |blob| {
+        pixi.app.allocator.free(blob);
+        editor.settings_last_saved_json = null;
+    }
     editor.settings.deinit(pixi.app.allocator);
 
     if (editor.project) |*project| {
@@ -1983,6 +2313,8 @@ pub fn deinit(editor: *Editor) !void {
     editor.explorer.deinit();
 
     editor.tools.deinit(pixi.app.allocator);
+
+    editor.ignore.deinit(pixi.app.allocator);
 
     if (editor.folder) |folder| pixi.app.allocator.free(folder);
     editor.arena.deinit();

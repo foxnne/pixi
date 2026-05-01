@@ -93,12 +93,38 @@ pub fn install(self: *CanvasWidget, src: std.builtin.SourceLocation, init_opts: 
 
     self.scaler = dvui.scale(src, .{ .scale = &self.scale }, .{ .rect = .{ .x = -self.origin.x, .y = -self.origin.y } });
 
-    // can use this to convert between viewport/virtual_size and screen coords
-    self.scroll_rect_scale = self.scroll_container.screenRectScale(.{});
-    // can use this to convert between data and screen coords
-    self.screen_rect_scale = self.scaler.screenRectScale(.{});
+    self.syncTransformCachesFromWidgets();
+}
 
-    self.rect = self.screenFromDataRect(dvui.Rect.fromSize(.{ .w = init_opts.data_size.w, .h = init_opts.data_size.h }));
+/// Re-read scroll/scaler `RectScale` and `rect` from the widget tree. Call at end of `install`, or
+/// after changing `scale` / `origin` / `virtual_size` while the scroll area still exists (e.g. fit pass).
+pub fn syncTransformCachesFromWidgets(self: *CanvasWidget) void {
+    self.scroll_rect_scale = self.scroll_container.screenRectScale(.{});
+    self.screen_rect_scale = self.scaler.screenRectScale(.{});
+    self.rect = self.screenFromDataRect(dvui.Rect.fromSize(.{ .w = self.init_opts.data_size.w, .h = self.init_opts.data_size.h }));
+}
+
+/// Contain `content` inside `host` (natural px) with margin; updates `scale`, `scroll_info.virtual_size`,
+/// and `origin` for centered letterboxing. Prefer calling **before** `install` when the host size comes
+/// from the previous frame’s viewport so the scaler is created with the right offset; if you must run
+/// after `install`, follow with `syncTransformCachesFromWidgets` (scaler child offset may lag one frame).
+pub fn fitContentContainInHost(self: *CanvasWidget, content: dvui.Size, host: dvui.Rect, margin: f32) void {
+    const fw = content.w;
+    const fh = content.h;
+    if (fw <= 0 or fh <= 0 or host.w <= 1 or host.h <= 1) return;
+
+    self.scale = @max(
+        @min(host.w / (fw * margin), host.h / (fh * margin)),
+        0.0001,
+    );
+
+    self.scroll_info.virtual_size.w = fw * self.scale;
+    self.scroll_info.virtual_size.h = fh * self.scale;
+
+    const virt_w = self.scroll_info.virtual_size.w;
+    const virt_h = self.scroll_info.virtual_size.h;
+    self.origin.x = -(host.w - virt_w) * 0.5;
+    self.origin.y = -(host.h - virt_h) * 0.5;
 }
 
 pub fn deinit(self: *CanvasWidget) void {

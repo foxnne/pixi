@@ -20,6 +20,7 @@ pub fn register() !void {
         try window.keybinds.putNoClobber(window.gpa, "save_as", .{ .command = true, .shift = true, .key = .s });
         try window.keybinds.putNoClobber(window.gpa, "sample", .{ .control = true });
         try window.keybinds.putNoClobber(window.gpa, "transform", .{ .command = true, .key = .t });
+        try window.keybinds.putNoClobber(window.gpa, "grid_layout", .{ .command = true, .key = .g });
         try window.keybinds.putNoClobber(window.gpa, "explorer", .{ .command = true, .key = .e });
         try window.keybinds.putNoClobber(window.gpa, "workspace", .{ .command = true, .key = .w });
         try window.keybinds.putNoClobber(window.gpa, "export", .{ .command = true, .key = .p });
@@ -35,6 +36,7 @@ pub fn register() !void {
         try window.keybinds.putNoClobber(window.gpa, "save_as", .{ .control = true, .shift = true, .key = .s });
         try window.keybinds.putNoClobber(window.gpa, "sample", .{ .alt = true });
         try window.keybinds.putNoClobber(window.gpa, "transform", .{ .control = true, .key = .t });
+        try window.keybinds.putNoClobber(window.gpa, "grid_layout", .{ .control = true, .key = .g });
         try window.keybinds.putNoClobber(window.gpa, "explorer", .{ .control = true, .key = .e });
         try window.keybinds.putNoClobber(window.gpa, "workspace", .{ .control = true, .key = .w });
         try window.keybinds.putNoClobber(window.gpa, "export", .{ .control = true, .key = .p });
@@ -127,9 +129,10 @@ pub fn tick() !void {
                         .cancel_label = "Cancel",
                         .resizeable = false,
                         .modal = false,
+                        .header_kind = .info,
                         .default = .ok,
                     });
-                    mutex.mutex.unlock();
+                    mutex.mutex.unlock(dvui.io);
                 }
 
                 if (ke.matchBind("decrease_stroke_size") and (ke.action == .down or ke.action == .repeat)) {
@@ -208,6 +211,12 @@ pub fn tick() !void {
                         pixi.editor.transform() catch {
                             std.log.err("Failed to transform", .{});
                         };
+                    }
+
+                    if (ke.matchBind("grid_layout") and ke.action == .down) {
+                        if (pixi.editor.activeFile() != null) {
+                            pixi.editor.requestGridLayoutDialog();
+                        }
                     }
                 }
 

@@ -229,6 +229,17 @@ pub fn height(file: *const File) u32 {
     return file.rows * file.row_height;
 }
 
+/// Width × height of the artwork in pixels, taken from the first layer. This matches the in-memory
+/// canvas even if grid metadata were ever inconsistent with `width()` / `height()`.
+pub fn canvasPixelSize(file: *const File) struct { w: u32, h: u32 } {
+    if (file.layers.len == 0) return .{ .w = 0, .h = 0 };
+    const s = file.layers.get(0).size();
+    return .{
+        .w = @intFromFloat(s.w),
+        .h = @intFromFloat(s.h),
+    };
+}
+
 /// Clears the cached per-layer transparency mask used by the selection overlay (`FileWidget.updateActiveLayerMask`).
 /// Call after any in-memory edit to layer pixels while `ImageSource.hash()` is pointer-based and does not
 /// change when bytes change (see also `Transform.accept` / undo-redo).
@@ -614,6 +625,24 @@ fn isFlatImageExtension(ext: []const u8) bool {
 pub fn hasRecognizedSaveExtension(path: []const u8) bool {
     const ext = std.fs.path.extension(path);
     return std.mem.eql(u8, ext, ".pixi") or isFlatImageExtension(ext);
+}
+
+/// True when the document holds state that a flat PNG/JPEG round-trip would not preserve
+/// (layers, tile grid, animations, per-sprite origins).
+pub fn requiresPixiCompatibleSave(self: File) bool {
+    if (self.layers.len != 1) return true;
+    if (self.columns != 1 or self.rows != 1) return true;
+    if (self.animations.len != 0) return true;
+    for (self.sprites.items(.origin)) |o| {
+        if (o[0] != 0.0 or o[1] != 0.0) return true;
+    }
+    return false;
+}
+
+pub fn shouldConfirmFlatRasterSave(self: File) bool {
+    const ext = std.fs.path.extension(self.path);
+    if (!isFlatImageExtension(ext)) return false;
+    return requiresPixiCompatibleSave(self);
 }
 
 /// Loads a PNG or JPEG as the first layer of a new file, and retains the path
@@ -2602,26 +2631,56 @@ pub fn saveTar(self: *File, window: *dvui.Window) !void {
         const id = id_mutex.id;
         const message = std.fmt.allocPrint(window.arena(), "Saved {s}", .{std.fs.path.basename(self.path)}) catch "Saved file";
         dvui.dataSetSlice(window, id, "_message", message);
-        id_mutex.mutex.unlock();
+        id_mutex.mutex.unlock(dvui.io);
     }
 
     self.saving = false;
     self.history.bookmark = 0;
 }
 
+/// All visible layers composited with src-over (same as on-canvas), then encoded to PNG or JPEG.
+fn writeFlattenedLayersToPath(self: *File, out_path: []const u8, window: *dvui.Window, comptime kind: enum { png, jpg }) !void {
+    const w = self.width();
+    const h = self.height();
+    if (w == 0 or h == 0) return error.InvalidImageSize;
+
+    try pixi.render.syncLayerComposite(self);
+    const target = self.editor.layer_composite_target orelse return error.NoLayerComposite;
+
+    const pma_read: []dvui.Color.PMA = try dvui.Texture.readTarget(pixi.app.allocator, target);
+    defer {
+        const byte_len = pma_read.len * @sizeOf(dvui.Color.PMA);
+        pixi.app.allocator.free(@as([*]u8, @ptrCast(pma_read.ptr))[0..byte_len]);
+    }
+
+    var tmp_layer: pixi.Internal.Layer = try .fromPixelsPMA(self.newLayerID(), "_flat_save", pma_read, w, h, .ptr);
+    defer tmp_layer.deinit();
+
+    switch (kind) {
+        .png => {
+            const r: u32 = @intFromFloat(@round(window.natural_scale * 72.0 / 0.0254));
+            try pixi.image.writeToPngResolution(tmp_layer.source, out_path, r);
+        },
+        .jpg => {
+            const ppi: u16 = @intFromFloat(@round(window.natural_scale * 72.0));
+            try pixi.image.writeToJpgPpi(tmp_layer.source, out_path, ppi);
+        },
+    }
+}
+
 pub fn savePng(self: *File, window: *dvui.Window) !void {
     if (self.editor.saving) return;
     self.editor.saving = true;
+    errdefer self.editor.saving = false;
 
-    // Write only the first layer, we shouldn't do anything with other layers
-    try pixi.image.writeToPngResolution(self.layers.get(self.selected_layer_index).source, self.path, @intFromFloat(@round(window.natural_scale * 72.0 / 0.0254)));
+    try self.writeFlattenedLayersToPath(self.path, window, .png);
 
     {
         const id_mutex = dvui.toastAdd(window, @src(), self.id, self.editor.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
         const id = id_mutex.id;
         const message = std.fmt.allocPrint(window.arena(), "Saved {s} to disk", .{std.fs.path.basename(self.path)}) catch "Saved file";
         dvui.dataSetSlice(window, id, "_message", message);
-        id_mutex.mutex.unlock();
+        id_mutex.mutex.unlock(dvui.io);
     }
 
     self.editor.saving = false;
@@ -2631,16 +2690,16 @@ pub fn savePng(self: *File, window: *dvui.Window) !void {
 pub fn saveJpg(self: *File, window: *dvui.Window) !void {
     if (self.editor.saving) return;
     self.editor.saving = true;
+    errdefer self.editor.saving = false;
 
-    const ppi: u16 = @intFromFloat(@round(window.natural_scale * 72.0));
-    try pixi.image.writeToJpgPpi(self.layers.get(self.selected_layer_index).source, self.path, ppi);
+    try self.writeFlattenedLayersToPath(self.path, window, .jpg);
 
     {
         const id_mutex = dvui.toastAdd(window, @src(), self.id, self.editor.canvas.id, pixi.dvui.toastDisplay, 2_000_000);
         const id = id_mutex.id;
         const message = std.fmt.allocPrint(window.arena(), "Saved {s} to disk", .{std.fs.path.basename(self.path)}) catch "Saved file";
         dvui.dataSetSlice(window, id, "_message", message);
-        id_mutex.mutex.unlock();
+        id_mutex.mutex.unlock(dvui.io);
     }
 
     self.editor.saving = false;
@@ -2657,20 +2716,13 @@ pub fn saveZip(self: *File, window: *dvui.Window) !void {
     const zip_file = zip.zip_open(null_terminated_path.ptr, zip.ZIP_DEFAULT_COMPRESSION_LEVEL, 'w');
 
     if (zip_file) |z| {
-        var json = std.array_list.Managed(u8).init(pixi.app.allocator);
-        const writer = json.writer();
         const options = std.json.Stringify.Options{};
 
         const output = try std.json.Stringify.valueAlloc(pixi.app.allocator, ext, options);
         defer pixi.app.allocator.free(output);
 
-        writer.writeAll(output) catch return error.CouldNotWriteZipFile;
-
-        const json_output = try json.toOwnedSlice();
-        defer pixi.app.allocator.free(json_output);
-
         _ = zip.zip_entry_open(z, "pixidata.json");
-        _ = zip.zip_entry_write(z, json_output.ptr, json_output.len);
+        _ = zip.zip_entry_write(z, output.ptr, output.len);
         _ = zip.zip_entry_close(z);
 
         if (self.layers.len > 0) {
@@ -2693,7 +2745,7 @@ pub fn saveZip(self: *File, window: *dvui.Window) !void {
             const id = id_mutex.id;
             const message = std.fmt.allocPrint(window.arena(), "Saved {s}", .{std.fs.path.basename(self.path)}) catch "Saved file";
             dvui.dataSetSlice(window, id, "_message", message);
-            id_mutex.mutex.unlock();
+            id_mutex.mutex.unlock(dvui.io);
         }
     }
 
@@ -2882,9 +2934,460 @@ pub fn saveAsFlattened(self: *File, output_path: []const u8, window: *dvui.Windo
         const id = id_mutex.id;
         const message = std.fmt.allocPrint(window.arena(), "Saved {s} to disk", .{std.fs.path.basename(self.path)}) catch "Saved file";
         dvui.dataSetSlice(window, id, "_message", message);
-        id_mutex.mutex.unlock();
+        id_mutex.mutex.unlock(dvui.io);
     }
     pixi.editor.requestCompositeWarmup();
+}
+
+pub const GridLayoutOptions = struct {
+    column_width: u32,
+    row_height: u32,
+    columns: u32,
+    rows: u32,
+    anchor: pixi.math.layout_anchor.LayoutAnchor,
+    /// When true (default), `applyGridLayout` snapshots the previous state and pushes a
+    /// `grid_layout` change to the file's history before mutating. Internal callers driving
+    /// undo/redo restoration should pass `false` so the swap doesn't loop into itself.
+    history: bool = true,
+};
+
+/// Captures everything `applyGridLayout` mutates, owning all returned slices. The caller is
+/// responsible for freeing via `Change.deinit` (see `History.Change.GridLayout.deinit`).
+pub fn captureGridLayoutSnapshot(file: *File) !pixi.Internal.History.Change.GridLayout {
+    const total: usize = @as(usize, file.column_width) * @as(usize, file.columns) *
+        @as(usize, file.row_height) * @as(usize, file.rows);
+
+    const layer_count = file.layers.len;
+    var layer_ids = try pixi.app.allocator.alloc(u64, layer_count);
+    errdefer pixi.app.allocator.free(layer_ids);
+
+    var layer_pixels = try pixi.app.allocator.alloc([][4]u8, layer_count);
+    var allocated: usize = 0;
+    errdefer {
+        for (layer_pixels[0..allocated]) |buf| pixi.app.allocator.free(buf);
+        pixi.app.allocator.free(layer_pixels);
+    }
+
+    for (0..layer_count) |i| {
+        layer_ids[i] = file.layers.items(.id)[i];
+        const src = file.layers.get(i).pixels();
+        std.debug.assert(src.len == total);
+        const dst = try pixi.app.allocator.alloc([4]u8, total);
+        @memcpy(dst, src);
+        layer_pixels[i] = dst;
+        allocated += 1;
+    }
+
+    const sprite_count = file.sprites.len;
+    var sprite_origins = try pixi.app.allocator.alloc([2]f32, sprite_count);
+    errdefer pixi.app.allocator.free(sprite_origins);
+    for (0..sprite_count) |i| sprite_origins[i] = file.sprites.items(.origin)[i];
+
+    return .{
+        .column_width = file.column_width,
+        .row_height = file.row_height,
+        .columns = file.columns,
+        .rows = file.rows,
+        .layer_ids = layer_ids,
+        .layer_pixels = layer_pixels,
+        .sprite_origins = sprite_origins,
+        .selected_animation_index = file.selected_animation_index,
+        .selected_animation_frame_index = file.selected_animation_frame_index,
+        .selected_layer_index = file.selected_layer_index,
+    };
+}
+
+/// Restores the file to the exact state described by `snap`. Mirrors the structural updates of
+/// `applyGridLayout` (resize layer buffers, sprite list, scratch layers, checkerboard, composite
+/// tear-down) but copies pixel data verbatim instead of re-anchoring it.
+pub fn applyGridLayoutSnapshot(file: *File, snap: pixi.Internal.History.Change.GridLayout) !void {
+    const new_w: u32 = snap.column_width * snap.columns;
+    const new_h: u32 = snap.row_height * snap.rows;
+    const total: usize = @as(usize, new_w) * @as(usize, new_h);
+
+    // Replace each live layer's pixel buffer with the snapshot's. Layers are matched by id so an
+    // intervening reorder doesn't paint pixels into the wrong layer.
+    for (0..file.layers.len) |layer_index| {
+        var live = file.layers.get(layer_index);
+        const live_id = live.id;
+
+        const snap_idx_opt: ?usize = blk: {
+            for (snap.layer_ids, 0..) |sid, j| if (sid == live_id) break :blk j;
+            break :blk null;
+        };
+
+        var rebuilt = pixi.Internal.Layer.init(
+            live.id,
+            live.name,
+            new_w,
+            new_h,
+            .{ .r = 0, .g = 0, .b = 0, .a = 0 },
+            .ptr,
+        ) catch return error.LayerCreateError;
+        rebuilt.visible = live.visible;
+        rebuilt.collapse = live.collapse;
+
+        if (snap_idx_opt) |j| @memcpy(rebuilt.pixels(), snap.layer_pixels[j]);
+
+        rebuilt.invalidate();
+        live.deinit();
+        file.layers.set(layer_index, rebuilt);
+    }
+
+    file.editor.temporary_layer.deinit();
+    file.editor.selection_layer.deinit();
+    file.editor.transform_layer.deinit();
+    file.editor.temporary_layer = pixi.Internal.Layer.init(file.newLayerID(), "Temporary", new_w, new_h, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch return error.LayerCreateError;
+    file.editor.selection_layer = pixi.Internal.Layer.init(file.newLayerID(), "Selection", new_w, new_h, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch return error.LayerCreateError;
+    file.editor.transform_layer = pixi.Internal.Layer.init(file.newLayerID(), "Transform", new_w, new_h, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch return error.LayerCreateError;
+
+    file.sprites.shrinkRetainingCapacity(0);
+    const new_sprite_count: usize = @as(usize, snap.columns) * @as(usize, snap.rows);
+    var i: usize = 0;
+    while (i < new_sprite_count) : (i += 1) {
+        const origin: [2]f32 = if (i < snap.sprite_origins.len) snap.sprite_origins[i] else .{ 0.0, 0.0 };
+        file.sprites.append(pixi.app.allocator, .{ .origin = origin }) catch return error.MemoryAllocationFailed;
+    }
+
+    file.editor.selected_sprites.deinit();
+    file.editor.selected_sprites = std.DynamicBitSet.initEmpty(pixi.app.allocator, new_sprite_count) catch return error.MemoryAllocationFailed;
+
+    file.editor.checkerboard.deinit();
+    file.editor.checkerboard = std.DynamicBitSet.initEmpty(pixi.app.allocator, total) catch return error.MemoryAllocationFailed;
+    for (0..total) |idx| {
+        const value = pixi.math.checker(.{ .w = @floatFromInt(new_w), .h = @floatFromInt(new_h) }, idx);
+        file.editor.checkerboard.setValue(idx, value);
+    }
+
+    switch (file.editor.checkerboard_tile) {
+        .pixelsPMA => |p| pixi.app.allocator.free(p.rgba),
+        .pixels => |p| pixi.app.allocator.free(p.rgba),
+        else => {},
+    }
+    {
+        const alpha_width: u32 = alpha_checkerboard_count;
+        const aspect_ratio = @as(f32, @floatFromInt(snap.column_width)) / @as(f32, @floatFromInt(snap.row_height));
+        const alpha_height = @round(@as(f32, @floatFromInt(alpha_width)) / aspect_ratio);
+        file.editor.checkerboard_tile = pixi.image.init(
+            alpha_width,
+            std.math.clamp(2, @as(u32, @intFromFloat(alpha_height)), 1024),
+            .{ .r = 0, .g = 0, .b = 0, .a = 0 },
+            .ptr,
+        ) catch return error.LayerCreateError;
+        for (pixi.image.pixels(file.editor.checkerboard_tile), 0..) |*pixel, idx| {
+            if (pixi.math.checker(pixi.image.size(file.editor.checkerboard_tile), idx)) {
+                pixel.* = pixi.editor.settings.checker_color_even;
+            } else {
+                pixel.* = pixi.editor.settings.checker_color_odd;
+            }
+        }
+        dvui.textureInvalidateCache(file.editor.checkerboard_tile.hash());
+    }
+
+    file.editor.transform = null;
+    file.selected_animation_index = snap.selected_animation_index;
+    file.selected_animation_frame_index = snap.selected_animation_frame_index;
+    if (snap.selected_layer_index < file.layers.len) {
+        file.selected_layer_index = snap.selected_layer_index;
+    }
+
+    file.column_width = snap.column_width;
+    file.row_height = snap.row_height;
+    file.columns = snap.columns;
+    file.rows = snap.rows;
+
+    pixi.render.destroyLayerCompositeResources(file);
+    file.invalidateActiveLayerTransparencyMaskCache();
+}
+
+/// Mirrors the export size cap (4096×4096) and rejects degenerate proposals before any allocation.
+pub fn validateGridLayoutProposedDims(column_width: u32, row_height: u32, columns: u32, rows: u32) bool {
+    if (column_width == 0 or row_height == 0 or columns == 0 or rows == 0) return false;
+    const total_w: u64 = @as(u64, column_width) * @as(u64, columns);
+    const total_h: u64 = @as(u64, row_height) * @as(u64, rows);
+    if (total_w == 0 or total_h == 0) return false;
+    if (total_w > 4096 or total_h > 4096) return false;
+    return true;
+}
+
+pub const GridSliceOptions = struct {
+    column_width: u32,
+    row_height: u32,
+    columns: u32,
+    rows: u32,
+    history: bool = true,
+};
+
+/// Re-tile metadata only: pixel buffers, layer masks, scratch layers, and per-cell artwork are left
+/// untouched. Requires `column_width × columns` and `row_height × rows` to match `canvasPixelSize`.
+/// Sprite origins are preserved for indices that still exist after the new `columns × rows`; new
+/// cells get origin `(0, 0)`.
+pub fn applyGridSliceOnly(file: *File, options: GridSliceOptions) !void {
+    if (!validateGridLayoutProposedDims(options.column_width, options.row_height, options.columns, options.rows)) {
+        return error.InvalidGridLayout;
+    }
+
+    const canvas = file.canvasPixelSize();
+    if (canvas.w == 0 or canvas.h == 0) return error.InvalidGridLayout;
+
+    const prop_w: u32 = options.column_width * options.columns;
+    const prop_h: u32 = options.row_height * options.rows;
+    if (prop_w != canvas.w or prop_h != canvas.h) return error.InvalidGridLayout;
+
+    const same =
+        options.column_width == file.column_width and
+        options.row_height == file.row_height and
+        options.columns == file.columns and
+        options.rows == file.rows;
+    if (same) return;
+
+    var snapshot_opt: ?pixi.Internal.History.Change.GridLayout = if (options.history)
+        try file.captureGridLayoutSnapshot()
+    else
+        null;
+    errdefer if (snapshot_opt) |snap| {
+        var ch = pixi.Internal.History.Change{ .grid_layout = snap };
+        ch.deinit();
+    };
+
+    const new_cw = options.column_width;
+    const new_rh = options.row_height;
+    const new_cols = options.columns;
+    const new_rows = options.rows;
+    const new_sprite_count: usize = @as(usize, new_cols) * @as(usize, new_rows);
+
+    const old_sprite_count = file.sprites.len;
+    file.sprites.resize(pixi.app.allocator, new_sprite_count) catch return error.MemoryAllocationFailed;
+
+    if (new_sprite_count > old_sprite_count) {
+        var i: usize = old_sprite_count;
+        while (i < new_sprite_count) : (i += 1) {
+            file.sprites.items(.origin)[i] = .{ 0, 0 };
+        }
+    }
+
+    var new_selected = try std.DynamicBitSet.initEmpty(pixi.app.allocator, new_sprite_count);
+    const sel_copy = @min(old_sprite_count, new_sprite_count);
+    for (0..sel_copy) |i| {
+        if (file.editor.selected_sprites.isSet(i)) new_selected.set(i);
+    }
+    file.editor.selected_sprites.deinit();
+    file.editor.selected_sprites = new_selected;
+
+    file.column_width = new_cw;
+    file.row_height = new_rh;
+    file.columns = new_cols;
+    file.rows = new_rows;
+
+    switch (file.editor.checkerboard_tile) {
+        .pixelsPMA => |p| pixi.app.allocator.free(p.rgba),
+        .pixels => |p| pixi.app.allocator.free(p.rgba),
+        else => {},
+    }
+    {
+        const alpha_width: u32 = alpha_checkerboard_count;
+        const aspect_ratio = @as(f32, @floatFromInt(new_cw)) / @as(f32, @floatFromInt(new_rh));
+        const alpha_height = @round(@as(f32, @floatFromInt(alpha_width)) / aspect_ratio);
+        file.editor.checkerboard_tile = pixi.image.init(
+            alpha_width,
+            std.math.clamp(2, @as(u32, @intFromFloat(alpha_height)), 1024),
+            .{ .r = 0, .g = 0, .b = 0, .a = 0 },
+            .ptr,
+        ) catch return error.LayerCreateError;
+        for (pixi.image.pixels(file.editor.checkerboard_tile), 0..) |*pixel, idx| {
+            if (pixi.math.checker(pixi.image.size(file.editor.checkerboard_tile), idx)) {
+                pixel.* = pixi.editor.settings.checker_color_even;
+            } else {
+                pixel.* = pixi.editor.settings.checker_color_odd;
+            }
+        }
+        dvui.textureInvalidateCache(file.editor.checkerboard_tile.hash());
+    }
+
+    pixi.render.destroyLayerCompositeResources(file);
+    file.invalidateActiveLayerTransparencyMaskCache();
+
+    if (snapshot_opt) |snap| {
+        snapshot_opt = null;
+        try file.history.append(.{ .grid_layout = snap });
+    }
+}
+
+/// Re-grid the document. For every cell present in both the old and new grids,
+/// `cellAnchoredBlit` decides how the old `column_width × row_height` tile is composed
+/// into the new cell (pad on growth, crop on shrink, mixed axes resolved per-axis).
+///
+/// Layer pixel buffers are reallocated; sprite origins, the selected-sprite bitset, and the editor
+/// scratch layers (temporary/selection/transform) are rebuilt to the new total size. The composite
+/// targets are torn down so they get re-created at the next paint.
+///
+/// `applyGridLayout` is destructive: history is **not** repurposed for it (the existing `resize` event
+/// captures only width/height and would lose the cell-size delta). Callers should warn before invoking.
+pub fn applyGridLayout(file: *File, options: GridLayoutOptions) !void {
+    if (!validateGridLayoutProposedDims(options.column_width, options.row_height, options.columns, options.rows)) {
+        return error.InvalidGridLayout;
+    }
+
+    const same =
+        options.column_width == file.column_width and
+        options.row_height == file.row_height and
+        options.columns == file.columns and
+        options.rows == file.rows;
+    if (same) return;
+
+    // Capture undo state up front. If allocation fails we abort *before* mutating, so the file
+    // is left untouched and the user can retry.
+    var snapshot_opt: ?pixi.Internal.History.Change.GridLayout = if (options.history)
+        try file.captureGridLayoutSnapshot()
+    else
+        null;
+    errdefer if (snapshot_opt) |snap| {
+        var ch = pixi.Internal.History.Change{ .grid_layout = snap };
+        ch.deinit();
+    };
+
+    const old_cw = file.column_width;
+    const old_rh = file.row_height;
+    const old_cols = file.columns;
+    const old_rows = file.rows;
+    const old_w: u32 = old_cw * old_cols;
+
+    const new_cw = options.column_width;
+    const new_rh = options.row_height;
+    const new_cols = options.columns;
+    const new_rows = options.rows;
+    const new_w: u32 = new_cw * new_cols;
+    const new_h: u32 = new_rh * new_rows;
+
+    // Slice/regrid: when total pixel dims don't change, the pixel buffer is bit-identical and
+    // the operation is purely metadata + per-cell sprite reset. Going through `cellAnchoredBlit`
+    // here would be wrong — that function maps cell index → cell index, so e.g. 1×1 → 4×4 of
+    // the same total size only fills cell (0,0) and zeroes the other 15 cells.
+    const total_preserved = new_w == old_w and new_h == old_rh * old_rows;
+
+    // For each layer: build a new pixel buffer at the new total size. When total is preserved
+    // we copy the whole buffer; otherwise re-grid each shared cell through `cellAnchoredBlit`.
+    for (0..file.layers.len) |layer_index| {
+        var old_layer = file.layers.get(layer_index);
+        const old_pix = old_layer.pixels();
+
+        var new_layer = pixi.Internal.Layer.init(
+            old_layer.id,
+            old_layer.name,
+            new_w,
+            new_h,
+            .{ .r = 0, .g = 0, .b = 0, .a = 0 },
+            .ptr,
+        ) catch return error.LayerCreateError;
+        new_layer.visible = old_layer.visible;
+        new_layer.collapse = old_layer.collapse;
+
+        const new_pix = new_layer.pixels();
+
+        if (total_preserved) {
+            std.debug.assert(new_pix.len == old_pix.len);
+            @memcpy(new_pix, old_pix);
+        } else {
+            var nrow: u32 = 0;
+            while (nrow < @min(new_rows, old_rows)) : (nrow += 1) {
+                var ncol: u32 = 0;
+                while (ncol < @min(new_cols, old_cols)) : (ncol += 1) {
+                    const blk = pixi.math.layout_anchor.cellAnchoredBlit(old_cw, old_rh, new_cw, new_rh, options.anchor);
+                    if (blk.sw == 0 or blk.sh == 0) continue;
+
+                    const src_x0: u32 = ncol * old_cw + blk.sx;
+                    const src_y0: u32 = nrow * old_rh + blk.sy;
+                    const dst_x0: u32 = ncol * new_cw + blk.dx;
+                    const dst_y0: u32 = nrow * new_rh + blk.dy;
+
+                    var row: u32 = 0;
+                    while (row < blk.sh) : (row += 1) {
+                        const src_off: usize = (@as(usize, src_y0 + row) * old_w) + src_x0;
+                        const dst_off: usize = (@as(usize, dst_y0 + row) * new_w) + dst_x0;
+                        @memcpy(
+                            new_pix[dst_off .. dst_off + blk.sw],
+                            old_pix[src_off .. src_off + blk.sw],
+                        );
+                    }
+                }
+            }
+        }
+
+        new_layer.invalidate();
+        old_layer.deinit();
+        file.layers.set(layer_index, new_layer);
+    }
+
+    // Editor scratch layers must follow the canvas dimensions or every brush/selection coordinate is wrong.
+    file.editor.temporary_layer.deinit();
+    file.editor.selection_layer.deinit();
+    file.editor.transform_layer.deinit();
+    file.editor.temporary_layer = pixi.Internal.Layer.init(file.newLayerID(), "Temporary", new_w, new_h, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch return error.LayerCreateError;
+    file.editor.selection_layer = pixi.Internal.Layer.init(file.newLayerID(), "Selection", new_w, new_h, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch return error.LayerCreateError;
+    file.editor.transform_layer = pixi.Internal.Layer.init(file.newLayerID(), "Transform", new_w, new_h, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr) catch return error.LayerCreateError;
+
+    // Sprite origins reset: cell positions and meaning change with cell size, so re-anchoring is undefined.
+    file.sprites.shrinkRetainingCapacity(0);
+    const new_sprite_count: usize = @as(usize, new_cols) * @as(usize, new_rows);
+    var i: usize = 0;
+    while (i < new_sprite_count) : (i += 1) {
+        file.sprites.append(pixi.app.allocator, .{ .origin = .{ 0.0, 0.0 } }) catch return error.MemoryAllocationFailed;
+    }
+
+    file.editor.selected_sprites.deinit();
+    file.editor.selected_sprites = std.DynamicBitSet.initEmpty(pixi.app.allocator, new_sprite_count) catch return error.MemoryAllocationFailed;
+
+    file.editor.checkerboard.deinit();
+    file.editor.checkerboard = std.DynamicBitSet.initEmpty(pixi.app.allocator, @as(usize, new_w) * @as(usize, new_h)) catch return error.MemoryAllocationFailed;
+    for (0..@as(usize, new_w) * @as(usize, new_h)) |idx| {
+        const value = pixi.math.checker(.{ .w = @floatFromInt(new_w), .h = @floatFromInt(new_h) }, idx);
+        file.editor.checkerboard.setValue(idx, value);
+    }
+
+    // The single-cell tile aspect drives the on-canvas alpha checker; rebuild for the new ratio.
+    switch (file.editor.checkerboard_tile) {
+        .pixelsPMA => |p| pixi.app.allocator.free(p.rgba),
+        .pixels => |p| pixi.app.allocator.free(p.rgba),
+        else => {},
+    }
+    {
+        const alpha_width: u32 = alpha_checkerboard_count;
+        const aspect_ratio = @as(f32, @floatFromInt(new_cw)) / @as(f32, @floatFromInt(new_rh));
+        const alpha_height = @round(@as(f32, @floatFromInt(alpha_width)) / aspect_ratio);
+        file.editor.checkerboard_tile = pixi.image.init(
+            alpha_width,
+            std.math.clamp(2, @as(u32, @intFromFloat(alpha_height)), 1024),
+            .{ .r = 0, .g = 0, .b = 0, .a = 0 },
+            .ptr,
+        ) catch return error.LayerCreateError;
+        for (pixi.image.pixels(file.editor.checkerboard_tile), 0..) |*pixel, idx| {
+            if (pixi.math.checker(pixi.image.size(file.editor.checkerboard_tile), idx)) {
+                pixel.* = pixi.editor.settings.checker_color_even;
+            } else {
+                pixel.* = pixi.editor.settings.checker_color_odd;
+            }
+        }
+        dvui.textureInvalidateCache(file.editor.checkerboard_tile.hash());
+    }
+
+    // Sprite-bound editor state (animations reference cell indices that may no longer exist; transforms
+    // reference dimensions). Drop selections rather than guess at remaps.
+    file.selected_animation_index = null;
+    file.selected_animation_frame_index = 0;
+    file.editor.transform = null;
+
+    file.column_width = new_cw;
+    file.row_height = new_rh;
+    file.columns = new_cols;
+    file.rows = new_rows;
+
+    pixi.render.destroyLayerCompositeResources(file);
+    file.invalidateActiveLayerTransparencyMaskCache();
+
+    if (snapshot_opt) |snap| {
+        snapshot_opt = null;
+        try file.history.append(.{ .grid_layout = snap });
+    }
 }
 
 pub fn saveAsync(self: *File) !void {
@@ -2898,11 +3401,10 @@ pub fn saveAsync(self: *File) !void {
         const thread = try std.Thread.spawn(.{}, saveZip, .{ self, dvui.currentWindow() });
         thread.detach();
     } else if (std.mem.eql(u8, ext, ".png")) {
-        const thread = try std.Thread.spawn(.{}, savePng, .{ self, dvui.currentWindow() });
-        thread.detach();
+        // `writeFlattenedLayersToPath` uses `syncLayerComposite` + `readTarget` (GPU); must run on the GUI thread.
+        try savePng(self, dvui.currentWindow());
     } else if (std.mem.eql(u8, ext, ".jpg") or std.mem.eql(u8, ext, ".jpeg")) {
-        const thread = try std.Thread.spawn(.{}, saveJpg, .{ self, dvui.currentWindow() });
-        thread.detach();
+        try saveJpg(self, dvui.currentWindow());
     }
 }
 

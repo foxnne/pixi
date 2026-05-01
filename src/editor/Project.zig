@@ -23,7 +23,7 @@ pub fn load(allocator: std.mem.Allocator) !?Project {
     if (pixi.editor.folder) |folder| {
         const file = try std.fs.path.join(pixi.editor.arena.allocator(), &.{ folder, ".pixiproject" });
 
-        if (pixi.fs.read(allocator, file) catch null) |r| {
+        if (pixi.fs.read(allocator, dvui.io, file) catch null) |r| {
             read = r;
 
             const options = std.json.ParseOptions{ .duplicate_field_behavior = .use_first, .ignore_unknown_fields = true };
@@ -59,9 +59,6 @@ pub fn load(allocator: std.mem.Allocator) !?Project {
 pub fn save(project: *Project) !void {
     if (pixi.editor.folder) |folder| {
         const file = try std.fs.path.join(pixi.editor.arena.allocator(), &.{ folder, ".pixiproject" });
-        var handle = try std.fs.createFileAbsolute(file, .{});
-        defer handle.close();
-
         const options = std.json.Stringify.Options{};
 
         const str = try std.json.Stringify.valueAlloc(pixi.app.allocator, Project{
@@ -71,7 +68,7 @@ pub fn save(project: *Project) !void {
             .pack_on_save = project.pack_on_save,
         }, options);
 
-        try handle.writeAll(str);
+        try std.Io.Dir.cwd().writeFile(dvui.io, .{ .sub_path = file, .data = str });
 
         return;
     }

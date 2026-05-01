@@ -35,7 +35,7 @@ watcher: Watcher = undefined,
 thread: std.Thread = undefined,
 watching: bool = false,
 
-var gpa: std.heap.GeneralPurposeAllocator(.{}) = .init;
+var gpa: std.heap.DebugAllocator(.{}) = .init;
 
 pub fn init(assets: *Assets) !void {
     const allocator = gpa.allocator();

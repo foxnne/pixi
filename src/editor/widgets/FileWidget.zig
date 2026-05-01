@@ -652,8 +652,8 @@ fn spriteDrawsBubbleTopEdge(self: *FileWidget, sprite_index: usize, pan: ?Bubble
 
 /// Accumulator that merges multiple Triangles batches into a single draw call.
 const TriAcc = struct {
-    vtx: std.ArrayList(dvui.Vertex) = .{},
-    idx: std.ArrayList(dvui.Vertex.Index) = .{},
+    vtx: std.ArrayList(dvui.Vertex) = .empty,
+    idx: std.ArrayList(dvui.Vertex.Index) = .empty,
     alloc: std.mem.Allocator,
 
     fn init(alloc: std.mem.Allocator) TriAcc {

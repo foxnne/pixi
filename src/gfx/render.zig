@@ -259,9 +259,8 @@ fn fullCompositeEligible(
     if (!std.meta.eql(init_opts.color_mod, dvui.Color.white)) return false;
     if (init_opts.file.editor.transform != null) return false;
     if (init_opts.file.editor.active_drawing) return false;
-    const w = init_opts.file.width();
-    const h = init_opts.file.height();
-    if (w == 0 or h == 0) return false;
+    const ce = layerCompositeExtent(init_opts.file);
+    if (ce.w == 0 or ce.h == 0) return false;
     return true;
 }
 
@@ -275,17 +274,28 @@ fn splitCompositeEligible(
     if (min_layer_index != 0) return false;
     if (init_opts.fade != 0) return false;
     if (!std.meta.eql(init_opts.color_mod, dvui.Color.white)) return false;
-    const w = init_opts.file.width();
-    const h = init_opts.file.height();
-    if (w == 0 or h == 0) return false;
+    const ce = layerCompositeExtent(init_opts.file);
+    if (ce.w == 0 or ce.h == 0) return false;
     return true;
+}
+
+/// Pixel size of the flattened layer stack — prefers the first layer (`canvasPixelSize`) so the
+/// composite matches bitmap data even when `columns × column_width` / `rows × row_height` disagree
+/// (slice/grid previews use the canvas as the locked image rect).
+fn layerCompositeExtent(file: *pixi.Internal.File) struct { w: u32, h: u32 } {
+    const c = file.canvasPixelSize();
+    if (c.w > 0 and c.h > 0) return .{ .w = c.w, .h = c.h };
+    const w = file.width();
+    const h = file.height();
+    return .{ .w = w, .h = h };
 }
 
 /// Rebuilds the full-canvas flattened layer texture (all layers included).
 /// Used when NOT actively drawing.
 pub fn syncLayerComposite(file: *pixi.Internal.File) !void {
-    const w = file.width();
-    const h = file.height();
+    const ce = layerCompositeExtent(file);
+    const w = ce.w;
+    const h = ce.h;
     if (w == 0 or h == 0) return;
 
     if (file.editor.layer_composite_frame_built == frame_index) return;
@@ -334,8 +344,9 @@ pub fn syncLayerComposite(file: *pixi.Internal.File) !void {
 /// the "above" target flattens layers visually above (lower index).
 /// Only rebuilt when the split layer changes or a structural change occurs.
 fn syncSplitComposite(file: *pixi.Internal.File) !void {
-    const w = file.width();
-    const h = file.height();
+    const ce = layerCompositeExtent(file);
+    const w = ce.w;
+    const h = ce.h;
     if (w == 0 or h == 0) return;
 
     if (file.editor.split_composite_frame_built == frame_index) return;
@@ -398,16 +409,16 @@ fn syncSplitComposite(file: *pixi.Internal.File) !void {
         break :blk nt;
     };
 
-    const t_below = std.time.nanoTimestamp();
+    const t_below = perf.nanoTimestamp();
     try renderLayersIntoTarget(file, below, active_idx + 1, file.layers.len, null);
     if (perf.record) {
-        perf.split_composite_below_ns = @intCast(std.time.nanoTimestamp() - t_below);
+        perf.split_composite_below_ns = @intCast(perf.nanoTimestamp() - t_below);
     }
 
-    const t_above = std.time.nanoTimestamp();
+    const t_above = perf.nanoTimestamp();
     try renderLayersIntoTarget(file, above, 0, active_idx, null);
     if (perf.record) {
-        perf.split_composite_above_ns = @intCast(std.time.nanoTimestamp() - t_above);
+        perf.split_composite_above_ns = @intCast(perf.nanoTimestamp() - t_above);
     }
 
     file.editor.split_composite_layer = active_idx;
@@ -418,11 +429,11 @@ fn syncSplitComposite(file: *pixi.Internal.File) !void {
 /// stroke does not pay allocation + flatten cost. Safe to call once after open or when
 /// selecting a drawing tool; no-op if composites are already current.
 pub fn warmupDrawingComposites(file: *pixi.Internal.File) !void {
-    const w0 = std.time.nanoTimestamp();
+    const w0 = perf.nanoTimestamp();
     try syncSplitComposite(file);
     _ = file.editor.temporary_layer.source.getTexture() catch null;
     _ = file.editor.selection_layer.source.getTexture() catch null;
-    perf.composite_warmup_last_ns = @intCast(std.time.nanoTimestamp() - w0);
+    perf.composite_warmup_last_ns = @intCast(perf.nanoTimestamp() - w0);
     perf.composite_warmup_total +%= 1;
 }
 
@@ -436,8 +447,9 @@ fn renderLayersIntoTarget(
     max_index: usize,
     skip_index: ?usize,
 ) !void {
-    const w = file.width();
-    const h = file.height();
+    const ce = layerCompositeExtent(file);
+    const w = ce.w;
+    const h = ce.h;
     const image_rect = dvui.Rect.Physical{
         .x = 0,
         .y = 0,

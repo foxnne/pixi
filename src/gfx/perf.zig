@@ -5,6 +5,11 @@
 //! until release (commit builds the stroke map from the snapshot diff).
 const std = @import("std");
 const builtin = @import("builtin");
+const dvui = @import("dvui");
+
+pub inline fn nanoTimestamp() i128 {
+    return std.Io.Clock.boot.now(dvui.io).nanoseconds;
+}
 
 /// Enable perf recording in Debug and ReleaseSafe builds.
 pub const record: bool = builtin.mode == .Debug or builtin.mode == .ReleaseSafe;
@@ -42,7 +47,7 @@ pub fn drawFrameBegin(active_drawing: bool) void {
     history_append_pixels_slots = 0;
     draw_frame_active = active_drawing;
     if (active_drawing) {
-        draw_frame_start_ts = std.time.nanoTimestamp();
+        draw_frame_start_ts = nanoTimestamp();
     }
 }
 
@@ -61,7 +66,7 @@ pub fn drawFrameEnd() void {
         }
         return;
     }
-    const elapsed_ns: u64 = @intCast(std.time.nanoTimestamp() - draw_frame_start_ts);
+    const elapsed_ns: u64 = @intCast(nanoTimestamp() - draw_frame_start_ts);
     const elapsed_us = elapsed_ns / 1000;
     draw_frames_total += 1;
     draw_time_sum_us += elapsed_us;
@@ -164,7 +169,7 @@ pub var composite_warmup_last_ns: u64 = 0;
 pub fn beginFrame() void {
     if (!record) return;
     frame_index +%= 1;
-    tick_start_ts = std.time.nanoTimestamp();
+    tick_start_ts = nanoTimestamp();
     render_layers_ns = 0;
     render_layers_calls = 0;
     draw_layers_ns = 0;
@@ -186,7 +191,7 @@ pub fn endFrameAndMaybeLog() void {
     if (!record) return;
     if (!console_logging_enabled) return;
 
-    const tick_end_ts = std.time.nanoTimestamp();
+    const tick_end_ts = nanoTimestamp();
     tick_total_ns = @intCast(tick_end_ts - tick_start_ts);
 
     if (!verbose_frame_log and frame_index % log_interval_frames != 0) return;
@@ -238,23 +243,23 @@ pub fn endFrameAndMaybeLog() void {
 
 pub inline fn renderLayersBegin() i128 {
     if (!record) return 0;
-    return std.time.nanoTimestamp();
+    return nanoTimestamp();
 }
 
 pub inline fn renderLayersEnd(start: i128) void {
     if (!record) return;
-    render_layers_ns +%= @intCast(std.time.nanoTimestamp() - start);
+    render_layers_ns +%= @intCast(nanoTimestamp() - start);
     render_layers_calls += 1;
 }
 
 pub inline fn drawLayersBegin() i128 {
     if (!record) return 0;
-    return std.time.nanoTimestamp();
+    return nanoTimestamp();
 }
 
 pub inline fn drawLayersEnd(start: i128) void {
     if (!record) return;
-    draw_layers_ns +%= @intCast(std.time.nanoTimestamp() - start);
+    draw_layers_ns +%= @intCast(nanoTimestamp() - start);
     draw_layers_calls += 1;
 }
 
@@ -266,12 +271,12 @@ pub inline fn recordTempMemset(pixel_count: usize) void {
 
 pub inline fn spritePreviewBegin() i128 {
     if (!record) return 0;
-    return std.time.nanoTimestamp();
+    return nanoTimestamp();
 }
 
 pub inline fn spritePreviewEnd(start: i128) void {
     if (!record) return;
-    sprite_preview_ns +%= @intCast(std.time.nanoTimestamp() - start);
+    sprite_preview_ns +%= @intCast(nanoTimestamp() - start);
     sprite_preview_calls += 1;
 }
 
@@ -282,41 +287,41 @@ pub inline fn canvasPaneDrawn() void {
 
 pub inline fn syncCompositeBegin() i128 {
     if (!record) return 0;
-    return std.time.nanoTimestamp();
+    return nanoTimestamp();
 }
 
 pub inline fn syncCompositeEnd(start: i128) void {
     if (!record) return;
-    sync_composite_ns +%= @intCast(std.time.nanoTimestamp() - start);
+    sync_composite_ns +%= @intCast(nanoTimestamp() - start);
     sync_composite_calls += 1;
 }
 
 pub inline fn toolProcessBegin() i128 {
     if (!record) return 0;
-    return std.time.nanoTimestamp();
+    return nanoTimestamp();
 }
 
 pub inline fn toolProcessEnd(start: i128) void {
     if (!record) return;
-    tool_process_ns +%= @intCast(std.time.nanoTimestamp() - start);
+    tool_process_ns +%= @intCast(nanoTimestamp() - start);
 }
 
 pub inline fn updateMaskBegin() i128 {
     if (!record) return 0;
-    return std.time.nanoTimestamp();
+    return nanoTimestamp();
 }
 
 pub inline fn updateMaskEnd(start: i128) void {
     if (!record) return;
-    update_mask_ns +%= @intCast(std.time.nanoTimestamp() - start);
+    update_mask_ns +%= @intCast(nanoTimestamp() - start);
 }
 
 pub inline fn processEventsBegin() i128 {
     if (!record) return 0;
-    return std.time.nanoTimestamp();
+    return nanoTimestamp();
 }
 
 pub inline fn processEventsEnd(start: i128) void {
     if (!record) return;
-    process_events_ns +%= @intCast(std.time.nanoTimestamp() - start);
+    process_events_ns +%= @intCast(nanoTimestamp() - start);
 }

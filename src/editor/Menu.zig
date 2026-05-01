@@ -245,6 +245,22 @@ pub fn draw() !dvui.App.Result {
                 fw.close();
             }
         }
+
+        _ = dvui.separator(@src(), .{ .expand = .horizontal });
+
+        if (menuItemWithHotkey(
+            @src(),
+            "Grid Layout…",
+            dvui.currentWindow().keybinds.get("grid_layout") orelse .{},
+            if (pixi.editor.activeFile() != null) true else false,
+            .{},
+            .{ .expand = .horizontal },
+        ) != null) {
+            if (pixi.editor.activeFile() != null) {
+                pixi.editor.requestGridLayoutDialog();
+                fw.close();
+            }
+        }
     }
 
     if (menuItem(@src(), "View", .{ .submenu = true }, .{

@@ -44,7 +44,7 @@ pub fn fromImageFileBytes(name: []const u8, file_bytes: []const u8, invalidation
 }
 
 pub fn fromImageFilePath(name: []const u8, path: []const u8, invalidation: dvui.ImageSource.InvalidationStrategy) !dvui.ImageSource {
-    const file_byes = try pixi.fs.read(pixi.app.allocator, path);
+    const file_byes = try pixi.fs.read(pixi.app.allocator, dvui.io, path);
     defer pixi.app.allocator.free(file_byes);
     return fromImageFileBytes(name, file_byes, invalidation);
 }
@@ -258,6 +258,9 @@ pub fn blit(source: dvui.ImageSource, dst_pixels: [][4]u8, dst_rect: dvui.Rect, 
     blitData(pixels(source), @intFromFloat(image_size.w), @intFromFloat(image_size.h), dst_pixels, dst_rect, transparent);
 }
 
+/// When `transparent` is true: composite **src_pixels** (upper) overlaid on **dst_pixels** (lower)
+/// and write the result back into **src_pixels** (used by multi-layer CPU flattening).
+/// When false: copies each row of `dst_pixels` into the corresponding row of `src_pixels`.
 pub fn blitData(src_pixels: [][4]u8, src_width: usize, src_height: usize, dst_pixels: [][4]u8, dst_rect: dvui.Rect, transparent: bool) void {
     const x = @as(usize, @intFromFloat(dst_rect.x));
     const y = @as(usize, @intFromFloat(dst_rect.y));
@@ -279,10 +282,13 @@ pub fn blitData(src_pixels: [][4]u8, src_width: usize, src_height: usize, dst_pi
         if (!transparent) {
             @memcpy(source_row, dst_row);
         } else {
-            for (dst_row, source_row) |src, *dst| {
-                if (src[3] > 0) {
-                    dst.* = src;
-                }
+            for (source_row, dst_row) |*top_px, bot_px| {
+                const top_c = dvui.Color{ .r = top_px[0], .g = top_px[1], .b = top_px[2], .a = top_px[3] };
+                const bot_c = dvui.Color{ .r = bot_px[0], .g = bot_px[1], .b = bot_px[2], .a = bot_px[3] };
+                const tpm = dvui.Color.PMA.fromColor(top_c);
+                const bpm = dvui.Color.PMA.fromColor(bot_c);
+                const out_pma = pixi.Internal.Layer.blendPmaSrcOver(@bitCast(tpm), @bitCast(bpm));
+                top_px.* = @as(dvui.Color.PMA, @bitCast(out_pma)).toColor().toRGBA();
             }
         }
 
@@ -328,11 +334,12 @@ pub fn writeToPng(source: dvui.ImageSource, path: []const u8) !void {
         else => return error.InvalidImageSource,
     };
 
-    var handle = try std.fs.cwd().createFile(path, .{});
-    defer handle.close();
+    const io = dvui.io;
+    var handle = try std.Io.Dir.cwd().createFile(io, path, .{});
+    defer handle.close(io);
 
     var buffer: [512]u8 = undefined;
-    var writer = handle.writer(&buffer);
+    var writer = handle.writer(io, &buffer);
 
     try dvui.PNGEncoder.write(&writer.interface, data, w, h);
     try writer.end();
@@ -349,11 +356,12 @@ pub fn writeToPngResolution(source: dvui.ImageSource, path: []const u8, resoluti
         else => return error.InvalidImageSource,
     };
 
-    var handle = try std.fs.cwd().createFile(path, .{});
-    defer handle.close();
+    const io = dvui.io;
+    var handle = try std.Io.Dir.cwd().createFile(io, path, .{});
+    defer handle.close(io);
 
     var buffer: [512]u8 = undefined;
-    var writer = handle.writer(&buffer);
+    var writer = handle.writer(io, &buffer);
 
     try dvui.PNGEncoder.writeWithResolution(&writer.interface, data, w, h, resolution);
     try writer.end();
@@ -374,11 +382,12 @@ fn flatRgbaForEncode(source: dvui.ImageSource) !struct { data: []u8, w: u32, h: 
 pub fn writeToJpg(source: dvui.ImageSource, path: []const u8) !void {
     const flat = try flatRgbaForEncode(source);
 
-    var handle = try std.fs.cwd().createFile(path, .{});
-    defer handle.close();
+    const io = dvui.io;
+    var handle = try std.Io.Dir.cwd().createFile(io, path, .{});
+    defer handle.close(io);
 
     var buffer: [512]u8 = undefined;
-    var writer = handle.writer(&buffer);
+    var writer = handle.writer(io, &buffer);
 
     try dvui.JPGEncoder.write(&writer.interface, flat.data, flat.w, flat.h);
     try writer.end();
@@ -389,11 +398,12 @@ pub fn writeToJpg(source: dvui.ImageSource, path: []const u8) !void {
 pub fn writeToJpgPpi(source: dvui.ImageSource, path: []const u8, ppi: u16) !void {
     const flat = try flatRgbaForEncode(source);
 
-    var handle = try std.fs.cwd().createFile(path, .{});
-    defer handle.close();
+    const io = dvui.io;
+    var handle = try std.Io.Dir.cwd().createFile(io, path, .{});
+    defer handle.close(io);
 
     var buffer: [512]u8 = undefined;
-    var writer = handle.writer(&buffer);
+    var writer = handle.writer(io, &buffer);
 
     var enc = dvui.JPGEncoder.initDensity(&writer.interface, ppi);
     try enc.writeWithQuality(flat.data, flat.w, flat.h, 90);

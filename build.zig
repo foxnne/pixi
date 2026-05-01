@@ -19,9 +19,9 @@ fn update_step(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
             .branch = "main",
         },
         GitDependency{
-            // zigwin32
-            .url = "https://github.com/marlersoft/zigwin32",
-            .branch = "main",
+            // zigwin32 (kristoff-it fork has the zig 0.16 fix branch)
+            .url = "https://github.com/kristoff-it/zigwin32",
+            .branch = "fix/zig16",
         },
         GitDependency{
             // icons
@@ -31,15 +31,10 @@ fn update_step(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
         GitDependency{
             // dvui
             .url = "https://github.com/foxnne/dvui-dev",
-            .branch = "main",
-        },
-        GitDependency{
-            // assetpack
-            .url = "https://github.com/foxnne/assetpack",
-            .branch = "main",
+            .branch = "zig16-dev-updates",
         },
     };
-    try update.update_dependency(step.owner.allocator, deps);
+    try update.update_dependency(step.owner.allocator, step.owner.graph.io, deps);
 }
 
 pub fn build(b: *std.Build) !void {
@@ -67,7 +62,7 @@ pub fn build(b: *std.Build) !void {
     });
     const zstbi_module = zstbi_lib.root_module;
 
-    zstbi_lib.addCSourceFile(.{ .file = std.Build.path(b, "src/deps/stbi/zstbi.c") });
+    zstbi_module.addCSourceFile(.{ .file = std.Build.path(b, "src/deps/stbi/zstbi.c") });
 
     const msf_gif_lib = b.addLibrary(.{
         .name = "msf_gif",
@@ -79,7 +74,7 @@ pub fn build(b: *std.Build) !void {
     });
     const msf_gif_module = msf_gif_lib.root_module;
 
-    msf_gif_lib.addCSourceFile(.{ .file = std.Build.path(b, "src/deps/msf_gif/msf_gif.c") });
+    msf_gif_module.addCSourceFile(.{ .file = std.Build.path(b, "src/deps/msf_gif/msf_gif.c") });
 
     const exe = b.addExecutable(.{
         .name = "Pixi",
@@ -151,17 +146,17 @@ pub fn build(b: *std.Build) !void {
             exe.root_module.addImport("objc", dep.module("objc"));
         }
         // Custom NSVisualEffectView subclass that forwards right-click to the content view (SDL).
-        exe.addCSourceFile(.{ .file = std.Build.path(b, "src/objc/PixiVisualEffectView.m") });
+        exe.root_module.addCSourceFile(.{ .file = std.Build.path(b, "src/objc/PixiVisualEffectView.m") });
         // Target for macOS menu bar items (File menu); calls back into Zig via PixiNativeMenuAction.
-        exe.addCSourceFile(.{ .file = std.Build.path(b, "src/objc/PixiMenuTarget.m") });
+        exe.root_module.addCSourceFile(.{ .file = std.Build.path(b, "src/objc/PixiMenuTarget.m") });
     } else if (target.result.os.tag == .windows) {
         if (b.lazyDependency("zigwin32", .{})) |dep| {
             exe.root_module.addImport("win32", dep.module("win32"));
         }
-        exe.linkSystemLibrary("comctl32");
+        exe.root_module.linkSystemLibrary("comctl32", .{});
     }
 
-    exe.linkLibCpp();
+    exe.root_module.link_libcpp = true;
     zip.link(exe);
 
     // ---------------------------------------------------------------
@@ -204,6 +199,7 @@ pub fn build(b: *std.Build) !void {
         .{ "pixi-easing", "src/math/easing.zig" },
         .{ "pixi-layer-order", "src/internal/layer_order.zig" },
         .{ "pixi-palette-parse", "src/internal/palette_parse.zig" },
+        .{ "pixi-layout-anchor", "src/math/layout_anchor.zig" },
     }) |entry| {
         tests_module.addAnonymousImport(entry[0], .{
             .root_source_file = b.path(entry[1]),
@@ -291,9 +287,9 @@ pub fn build(b: *std.Build) !void {
     });
 
     if (target.result.os.tag == .windows) {
-        integration_tests.linkSystemLibrary("comctl32");
+        integration_tests.root_module.linkSystemLibrary("comctl32", .{});
     }
-    integration_tests.linkLibCpp();
+    integration_tests.root_module.link_libcpp = true;
     zip.link(integration_tests);
 
     integration_tests.step.dependOn(process_assets_step);

@@ -23,7 +23,7 @@ root_path: [:0]const u8 = undefined,
 should_close: bool = false,
 window: *dvui.Window = undefined,
 
-var gpa: std.heap.GeneralPurposeAllocator(.{}) = .init;
+var gpa: std.heap.DebugAllocator(.{}) = .init;
 
 // To be a dvui App:
 // * declare "dvui_app"
@@ -49,8 +49,16 @@ pub fn AppInit(win: *dvui.Window) !void {
 
     // Run from the directory where the executable is located so relative assets can be found.
     var buffer: [1024]u8 = undefined;
-    const path = std.fs.selfExeDirPath(buffer[0..]) catch ".";
-    std.posix.chdir(path) catch {};
+    const exe_dir_len = std.process.executableDirPath(dvui.io, buffer[0..]) catch 0;
+    const path: []const u8 = if (exe_dir_len > 0) buffer[0..exe_dir_len] else ".";
+    {
+        var path_buf: [std.posix.PATH_MAX]u8 = undefined;
+        if (path.len < path_buf.len) {
+            @memcpy(path_buf[0..path.len], path);
+            path_buf[path.len] = 0;
+            _ = std.posix.system.chdir(@ptrCast(&path_buf));
+        }
+    }
 
     pixi.app = try allocator.create(App);
     pixi.app.* = .{

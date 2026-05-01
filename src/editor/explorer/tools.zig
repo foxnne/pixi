@@ -1131,7 +1131,7 @@ pub fn drawPalettes() !void {
                             }
                         }
                     },
-                    .dir => |_| {},
+                    .dir => {},
                 }
             }
 
@@ -1260,11 +1260,12 @@ pub fn drawPalettes() !void {
     }
 }
 fn searchPalettes(dropdown: *dvui.DropdownWidget) !void {
-    var dir_opt = std.fs.cwd().openDir(pixi.editor.palette_folder, .{ .access_sub_paths = false, .iterate = true }) catch null;
+    const io = dvui.io;
+    var dir_opt = std.Io.Dir.cwd().openDir(io, pixi.editor.palette_folder, .{ .access_sub_paths = false, .iterate = true }) catch null;
     if (dir_opt) |*dir| {
-        defer dir.close();
+        defer dir.close(io);
         var iter = dir.iterate();
-        while (try iter.next()) |entry| {
+        while (try iter.next(io)) |entry| {
             if (entry.kind == .file) {
                 const ext = std.fs.path.extension(entry.name);
                 if (std.mem.eql(u8, ext, ".hex")) {
