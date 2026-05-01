@@ -19,12 +19,8 @@ pub const sprites = struct {
     pub const pixel_selection_default = 13;
     pub const pixel_selection_add_default = 14;
     pub const pixel_selection_rem_default = 15;
-    pub const fox_decor = 16;
-    pub const Sprite_17 = 17;
-    pub const fox_default = 18;
-    pub const logo_default = 19;
-    pub const fox_bg = 20;
-    pub const Sprite_21 = 21;
+    pub const fox_default = 16;
+    pub const logo_default = 17;
 };
 
 // Animations 
@@ -69,16 +65,10 @@ pub const animations = struct {
      pub var pixel_selection_rem_default = [_]usize {
         sprites.pixel_selection_rem_default,
     };
-     pub var fox_decor = [_]usize {
-        sprites.fox_decor,
-    };
      pub var fox_default = [_]usize {
         sprites.fox_default,
     };
      pub var logo_default = [_]usize {
         sprites.logo_default,
-    };
-     pub var fox_bg = [_]usize {
-        sprites.fox_bg,
     };
 };

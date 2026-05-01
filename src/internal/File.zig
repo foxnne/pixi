@@ -3101,14 +3101,8 @@ pub fn applyGridLayoutSnapshot(file: *File, snap: pixi.Internal.History.Change.G
 }
 
 /// Mirrors the export size cap (4096×4096) and rejects degenerate proposals before any allocation.
-pub fn validateGridLayoutProposedDims(column_width: u32, row_height: u32, columns: u32, rows: u32) bool {
-    if (column_width == 0 or row_height == 0 or columns == 0 or rows == 0) return false;
-    const total_w: u64 = @as(u64, column_width) * @as(u64, columns);
-    const total_h: u64 = @as(u64, row_height) * @as(u64, rows);
-    if (total_w == 0 or total_h == 0) return false;
-    if (total_w > 4096 or total_h > 4096) return false;
-    return true;
-}
+/// Pure logic lives in `internal/grid_layout_validate.zig` for unit-testability.
+pub const validateGridLayoutProposedDims = @import("grid_layout_validate.zig").validateGridLayoutProposedDims;
 
 pub const GridSliceOptions = struct {
     column_width: u32,
