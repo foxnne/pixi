@@ -31,7 +31,12 @@ fn update_step(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
         GitDependency{
             // dvui
             .url = "https://github.com/foxnne/dvui-dev",
-            .branch = "zig16-dev-updates",
+            .branch = "main",
+        },
+        GitDependency{
+            // assetpack
+            .url = "https://github.com/foxnne/assetpack",
+            .branch = "main",
         },
     };
     try update.update_dependency(step.owner.allocator, step.owner.graph.io, deps);

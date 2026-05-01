@@ -70,6 +70,11 @@ var preview_first_open_fade_pending: bool = false;
 var preview_have_prev_slice_mode: bool = false;
 var preview_prev_slice_full_layer: bool = false;
 
+/// Refit the preview when host/viewport sizes differ by more than this many **logical** pixels.
+/// A threshold of ~1px skipped refits during very slow corner-resize drags (sub-pixel per frame on
+/// a trackpad). Small epsilon tracks real layout drift; fit only runs when dimensions actually move.
+const preview_layout_min_delta: f32 = 0.01;
+
 const anchors: [9]pixi.math.layout_anchor.LayoutAnchor = .{
     .nw, .n, .ne,
     .w,  .c, .e,
@@ -197,8 +202,8 @@ fn previewGridLineColor() dvui.Color {
     return dvui.themeGet().color(.window, .text).opacity(if (dvui.themeGet().dark) 0.58 else 0.52);
 }
 
-fn captionFont() dvui.Font {
-    return dvui.Font.theme(.body).larger(-1);
+fn font() dvui.Font {
+    return dvui.Font.theme(.body);
 }
 
 /// Tiled checker (UV repeat per cell, like `FileWidget` non-effect mode) for the preview's transparency backdrop.
@@ -460,6 +465,7 @@ fn harmonizeSliceStateWithLayer(file: *pixi.Internal.File) void {
 }
 
 fn renderPreview(
+    mutex_id: dvui.Id,
     dlg_id: dvui.Id,
     file: *pixi.Internal.File,
     nw: u32,
@@ -495,9 +501,15 @@ fn renderPreview(
 
     const dims_changed = nw != preview_last_nw or nh != preview_last_nh;
 
+    const shell_drag_or_resize = blk: {
+        const wid = dvui.dataGet(null, mutex_id, "_grid_layout_float_wd_id", dvui.Id) orelse break :blk false;
+        break :blk dvui.captured(wid);
+    };
+
     const host_vp_versus_stored = host_vp_ok and (preview_viewport_fit_w < 4 or preview_viewport_fit_h < 4 or
-        @abs(vp_host_w - preview_viewport_fit_w) > 2 or @abs(vp_host_h - preview_viewport_fit_h) > 2);
-    const needs_preinstall_refit = host_vp_ok and (fit_key_changed or dims_changed or host_vp_versus_stored);
+        @abs(vp_host_w - preview_viewport_fit_w) >= preview_layout_min_delta or
+        @abs(vp_host_h - preview_viewport_fit_h) >= preview_layout_min_delta);
+    const needs_preinstall_refit = host_vp_ok and (fit_key_changed or dims_changed or host_vp_versus_stored or shell_drag_or_resize);
 
     const preview_data: dvui.Size = .{ .w = @floatFromInt(nw), .h = @floatFromInt(nh) };
 
@@ -538,11 +550,11 @@ fn renderPreview(
     const vph = preview_canvas.scroll_info.viewport.h;
 
     const vp_ok = vpw > 8 and vph > 8;
-    const layout_mismatch = host_vp_ok and vp_ok and (@abs(vpw - vp_host_w) > 2 or @abs(vph - vp_host_h) > 2);
+    const layout_mismatch = host_vp_ok and vp_ok and (@abs(vpw - vp_host_w) >= preview_layout_min_delta or @abs(vph - vp_host_h) >= preview_layout_min_delta);
     const needs_bootstrap_refit = !host_vp_ok and vp_ok and (fit_key_changed or dims_changed);
 
     var did_post_install_refit = false;
-    if (layout_mismatch or needs_bootstrap_refit) {
+    if (layout_mismatch or needs_bootstrap_refit or (shell_drag_or_resize and vp_ok)) {
         preview_canvas.fitContentContainInHost(
             preview_data,
             dvui.Rect{ .x = 0, .y = 0, .w = vpw, .h = vph },
@@ -760,8 +772,7 @@ fn gridLayoutDrawModePill(dlg_id: dvui.Id) void {
 /// grid (column_width / row_height / columns / rows). The dialog framework uses this to enable/disable
 /// the OK button — re-applying an identical grid is a no-op so we disable accept rather than invoke.
 pub fn dialog(id: dvui.Id) anyerror!bool {
-    const caption = captionFont();
-    const entry_font = caption;
+    const form_font = font();
 
     const file_id_for_dialog = dvui.dataGet(null, id, "_grid_layout_file_id", u64);
     const target_file: ?*pixi.Internal.File = if (file_id_for_dialog) |fid|
@@ -849,8 +860,8 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
         });
 
         switch (mode) {
-            .resize => valid = drawResizeForm(unique_id, target_file, caption, entry_font) and valid,
-            .slice => valid = drawSliceForm(unique_id, target_file, caption, entry_font) and valid,
+            .resize => valid = drawResizeForm(unique_id, target_file, form_font) and valid,
+            .slice => valid = drawSliceForm(unique_id, target_file, form_font) and valid,
         }
 
         inner_left.deinit();
@@ -947,6 +958,7 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
             const dims_ok = pixi.Internal.File.validateGridLayoutProposedDims(pv_cw, pv_rh, pv_cols, pv_rows);
             if (dims_ok) {
                 renderPreview(
+                    id,
                     unique_id,
                     tf,
                     preview_w,
@@ -961,6 +973,7 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
             } else {
                 // Keep the preview pane filled: invalid form state still shows the current layer using on-disk grid.
                 renderPreview(
+                    id,
                     unique_id,
                     tf,
                     preview_w,
@@ -994,22 +1007,60 @@ pub fn dialog(id: dvui.Id) anyerror!bool {
     return valid and changed and (target_file != null);
 }
 
-/// Resize-mode form: cell width/height + columns/rows (free-form), 9-way anchor selector,
-/// and a "current vs after" size readout. Mirrors the original (pre-pill) behaviour.
+/// Resize-mode form: cell width (x), cell height (y), columns (x), rows (y); 9-way anchor; current vs after readout.
 fn drawResizeForm(
     unique_id: dvui.Id,
     target_file: ?*pixi.Internal.File,
-    caption: dvui.Font,
-    entry_font: dvui.Font,
+    form_font: dvui.Font,
 ) bool {
     var valid: bool = true;
 
-    // ── Cell width
+    _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 10, .h = 10 } });
+
+    if (target_file) |af| {
+        dvui.label(@src(), "Current size: {d} × {d} px", .{ af.width(), af.height() }, .{
+            .gravity_x = 0,
+            .font = form_font,
+            .color_text = dvui.themeGet().color(.control, .text),
+        });
+    } else {
+        valid = false;
+    }
+
+    dvui.label(@src(), "After apply: {d} × {d} px", .{
+        resize_form.column_width * resize_form.columns,
+        resize_form.row_height * resize_form.rows,
+    }, .{
+        .gravity_x = 0,
+        .font = form_font,
+        .color_text = dvui.themeGet().color(.control, .text),
+    });
+
+    if (!pixi.Internal.File.validateGridLayoutProposedDims(
+        resize_form.column_width,
+        resize_form.row_height,
+        resize_form.columns,
+        resize_form.rows,
+    )) {
+        valid = false;
+        dvui.label(
+            @src(),
+            "Resulting size must fit within 4096 × 4096 px.",
+            .{},
+            .{
+                .gravity_x = 0,
+                .color_text = dvui.themeGet().color(.err, .text),
+                .font = form_font,
+            },
+        );
+    }
+
+    // ── Cell width (x)
     {
         var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal });
         defer hbox.deinit();
 
-        dvui.label(@src(), "Cell width (x):", .{}, .{ .gravity_y = 0.5, .font = caption });
+        dvui.label(@src(), "Cell width (x):", .{}, .{ .gravity_y = 0.5, .font = form_font });
         const res_cw = dvui.textEntryNumber(@src(), u32, .{
             .min = NewFile.min_size[0],
             .max = NewFile.max_size[0],
@@ -1020,7 +1071,7 @@ fn drawResizeForm(
             .label = .{ .label_widget = .prev },
             .gravity_x = 1.0,
             .id_extra = unique_id.update("cw").asUsize(),
-            .font = entry_font,
+            .font = form_font,
         });
         if (res_cw.value == .Valid) {
             resize_form.column_width = res_cw.value.Valid;
@@ -1029,12 +1080,12 @@ fn drawResizeForm(
         }
     }
 
-    // ── Cell height
+    // ── Cell height (y)
     {
         var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal });
         defer hbox.deinit();
 
-        dvui.label(@src(), "Cell height (y):", .{}, .{ .gravity_y = 0.5, .font = caption });
+        dvui.label(@src(), "Cell height (y):", .{}, .{ .gravity_y = 0.5, .font = form_font });
         const res_rh = dvui.textEntryNumber(@src(), u32, .{
             .min = NewFile.min_size[1],
             .max = NewFile.max_size[1],
@@ -1045,7 +1096,7 @@ fn drawResizeForm(
             .label = .{ .label_widget = .prev },
             .gravity_x = 1.0,
             .id_extra = unique_id.update("rh").asUsize(),
-            .font = entry_font,
+            .font = form_font,
         });
         if (res_rh.value == .Valid) {
             resize_form.row_height = res_rh.value.Valid;
@@ -1054,12 +1105,12 @@ fn drawResizeForm(
         }
     }
 
-    // ── Columns
+    // ── Columns (x)
     {
         var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal });
         defer hbox.deinit();
 
-        dvui.label(@src(), "Columns:", .{}, .{ .gravity_y = 0.5, .font = caption });
+        dvui.label(@src(), "Columns (x):", .{}, .{ .gravity_y = 0.5, .font = form_font });
         const res_col = dvui.textEntryNumber(@src(), u32, .{
             .min = 1,
             .max = NewFile.max_size[0],
@@ -1070,7 +1121,7 @@ fn drawResizeForm(
             .label = .{ .label_widget = .prev },
             .gravity_x = 1.0,
             .id_extra = unique_id.update("cols").asUsize(),
-            .font = entry_font,
+            .font = form_font,
         });
         if (res_col.value == .Valid) {
             resize_form.columns = res_col.value.Valid;
@@ -1079,12 +1130,12 @@ fn drawResizeForm(
         }
     }
 
-    // ── Rows
+    // ── Rows (y)
     {
         var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal });
         defer hbox.deinit();
 
-        dvui.label(@src(), "Rows:", .{}, .{ .gravity_y = 0.5, .font = caption });
+        dvui.label(@src(), "Rows (y):", .{}, .{ .gravity_y = 0.5, .font = form_font });
         const res_row = dvui.textEntryNumber(@src(), u32, .{
             .min = 1,
             .max = NewFile.max_size[1],
@@ -1095,7 +1146,7 @@ fn drawResizeForm(
             .label = .{ .label_widget = .prev },
             .gravity_x = 1.0,
             .id_extra = unique_id.update("rows").asUsize(),
-            .font = entry_font,
+            .font = form_font,
         });
         if (res_row.value == .Valid) {
             resize_form.rows = res_row.value.Valid;
@@ -1107,7 +1158,7 @@ fn drawResizeForm(
     _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 6, .h = 8 } });
 
     // ── Anchor 3×3 button grid (single-select toggle).
-    dvui.label(@src(), "Anchor", .{}, .{ .gravity_x = 0, .font = caption });
+    dvui.label(@src(), "Anchor", .{}, .{ .gravity_x = 0, .font = form_font });
 
     const row_tag = [_][]const u8{ "_r0", "_r1", "_r2" };
     {
@@ -1159,7 +1210,7 @@ fn drawResizeForm(
                         dvui.themeGet().color(.window, .text)
                     else
                         dvui.themeGet().color(.control, .text),
-                    .font = entry_font,
+                    .font = form_font,
                 }));
                 if (button.clicked()) {
                     anchor_ix = ix;
@@ -1169,56 +1220,17 @@ fn drawResizeForm(
         }
     }
 
-    _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 10, .h = 10 } });
-
-    if (target_file) |af| {
-        dvui.label(@src(), "Current size: {d} × {d} px", .{ af.width(), af.height() }, .{
-            .gravity_x = 0,
-            .font = caption,
-        });
-    } else {
-        valid = false;
-    }
-
-    dvui.label(@src(), "After apply:  {d} × {d} px", .{
-        resize_form.column_width * resize_form.columns,
-        resize_form.row_height * resize_form.rows,
-    }, .{
-        .gravity_x = 0,
-        .font = caption,
-    });
-
-    if (!pixi.Internal.File.validateGridLayoutProposedDims(
-        resize_form.column_width,
-        resize_form.row_height,
-        resize_form.columns,
-        resize_form.rows,
-    )) {
-        valid = false;
-        dvui.label(
-            @src(),
-            "Resulting size must fit within 4096 × 4096 px.",
-            .{},
-            .{
-                .gravity_x = 0,
-                .color_text = dvui.themeGet().color(.err, .text),
-                .font = caption,
-            },
-        );
-    }
-
     return valid;
 }
 
-/// Slice-mode form: image dimensions are pinned to the file's current `width × height`. The user
-/// edits *any* of `columns / rows / cell width / cell height` and the dialog auto-fills the
-/// linked field (`cell_w = total_w / columns`, etc) whenever it can divide evenly. The grid is
-/// invalid if the user-typed values don't multiply back to the locked total.
+/// Slice-mode form: image dimensions are pinned to the file's current `width × height`. Field order
+/// matches resize: cell width, cell height, columns, rows. The user edits any field and the dialog
+/// auto-fills the linked value whenever it divides evenly. The grid is invalid if values don't
+/// multiply back to the locked total.
 fn drawSliceForm(
     unique_id: dvui.Id,
     target_file: ?*pixi.Internal.File,
-    caption: dvui.Font,
-    entry_font: dvui.Font,
+    form_font: dvui.Font,
 ) bool {
     var valid: bool = true;
     const tf = target_file orelse return false;
@@ -1229,67 +1241,25 @@ fn drawSliceForm(
         dvui.label(@src(), "No layer pixels to slice.", .{}, .{
             .gravity_x = 0,
             .color_text = dvui.themeGet().color(.err, .text),
-            .font = caption,
+            .font = form_font,
         });
         return false;
     }
 
     dvui.label(@src(), "Image size: {d} × {d} px (locked)", .{ total_w, total_h }, .{
         .gravity_x = 0,
-        .font = caption,
-        .color_text = dvui.themeGet().color(.control, .text).opacity(0.8),
+        .font = form_font,
+        .color_text = dvui.themeGet().color(.control, .text),
     });
 
     _ = dvui.spacer(@src(), .{ .min_size_content = .{ .w = 4, .h = 6 } });
-
-    // ── Columns
-    {
-        var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal });
-        defer hbox.deinit();
-
-        dvui.label(@src(), "Columns:", .{}, .{ .gravity_y = 0.5, .font = caption });
-        const res = dvui.textEntryNumber(@src(), u32, .{
-            .min = 1,
-            .max = @max(total_w, 1),
-            .value = &slice_form.columns,
-            .show_min_max = true,
-        }, .{
-            .box_shadow = .{ .color = .black, .alpha = 0.25, .offset = .{ .x = -4, .y = 4 }, .fade = 8 },
-            .label = .{ .label_widget = .prev },
-            .gravity_x = 1.0,
-            .id_extra = unique_id.update("s_cols").asUsize(),
-            .font = entry_font,
-        });
-        if (res.value == .Valid) slice_form.columns = res.value.Valid else valid = false;
-    }
-
-    // ── Rows
-    {
-        var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal });
-        defer hbox.deinit();
-
-        dvui.label(@src(), "Rows:", .{}, .{ .gravity_y = 0.5, .font = caption });
-        const res = dvui.textEntryNumber(@src(), u32, .{
-            .min = 1,
-            .max = @max(total_h, 1),
-            .value = &slice_form.rows,
-            .show_min_max = true,
-        }, .{
-            .box_shadow = .{ .color = .black, .alpha = 0.25, .offset = .{ .x = -4, .y = 4 }, .fade = 8 },
-            .label = .{ .label_widget = .prev },
-            .gravity_x = 1.0,
-            .id_extra = unique_id.update("s_rows").asUsize(),
-            .font = entry_font,
-        });
-        if (res.value == .Valid) slice_form.rows = res.value.Valid else valid = false;
-    }
 
     // ── Cell width (x)
     {
         var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal });
         defer hbox.deinit();
 
-        dvui.label(@src(), "Cell width (x):", .{}, .{ .gravity_y = 0.5, .font = caption });
+        dvui.label(@src(), "Cell width (x):", .{}, .{ .gravity_y = 0.5, .font = form_font });
         const res = dvui.textEntryNumber(@src(), u32, .{
             .min = 1,
             .max = @max(total_w, 1),
@@ -1300,7 +1270,7 @@ fn drawSliceForm(
             .label = .{ .label_widget = .prev },
             .gravity_x = 1.0,
             .id_extra = unique_id.update("s_cw").asUsize(),
-            .font = entry_font,
+            .font = form_font,
         });
         if (res.value == .Valid) slice_form.column_width = res.value.Valid else valid = false;
     }
@@ -1310,7 +1280,7 @@ fn drawSliceForm(
         var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal });
         defer hbox.deinit();
 
-        dvui.label(@src(), "Cell height (y):", .{}, .{ .gravity_y = 0.5, .font = caption });
+        dvui.label(@src(), "Cell height (y):", .{}, .{ .gravity_y = 0.5, .font = form_font });
         const res = dvui.textEntryNumber(@src(), u32, .{
             .min = 1,
             .max = @max(total_h, 1),
@@ -1321,9 +1291,51 @@ fn drawSliceForm(
             .label = .{ .label_widget = .prev },
             .gravity_x = 1.0,
             .id_extra = unique_id.update("s_ch").asUsize(),
-            .font = entry_font,
+            .font = form_font,
         });
         if (res.value == .Valid) slice_form.row_height = res.value.Valid else valid = false;
+    }
+
+    // ── Columns (x)
+    {
+        var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal });
+        defer hbox.deinit();
+
+        dvui.label(@src(), "Columns (x):", .{}, .{ .gravity_y = 0.5, .font = form_font });
+        const res = dvui.textEntryNumber(@src(), u32, .{
+            .min = 1,
+            .max = @max(total_w, 1),
+            .value = &slice_form.columns,
+            .show_min_max = true,
+        }, .{
+            .box_shadow = .{ .color = .black, .alpha = 0.25, .offset = .{ .x = -4, .y = 4 }, .fade = 8 },
+            .label = .{ .label_widget = .prev },
+            .gravity_x = 1.0,
+            .id_extra = unique_id.update("s_cols").asUsize(),
+            .font = form_font,
+        });
+        if (res.value == .Valid) slice_form.columns = res.value.Valid else valid = false;
+    }
+
+    // ── Rows (y)
+    {
+        var hbox = dvui.box(@src(), .{ .dir = .horizontal }, .{ .expand = .horizontal });
+        defer hbox.deinit();
+
+        dvui.label(@src(), "Rows (y):", .{}, .{ .gravity_y = 0.5, .font = form_font });
+        const res = dvui.textEntryNumber(@src(), u32, .{
+            .min = 1,
+            .max = @max(total_h, 1),
+            .value = &slice_form.rows,
+            .show_min_max = true,
+        }, .{
+            .box_shadow = .{ .color = .black, .alpha = 0.25, .offset = .{ .x = -4, .y = 4 }, .fade = 8 },
+            .label = .{ .label_widget = .prev },
+            .gravity_x = 1.0,
+            .id_extra = unique_id.update("s_rows").asUsize(),
+            .font = form_font,
+        });
+        if (res.value == .Valid) slice_form.rows = res.value.Valid else valid = false;
     }
 
     // Auto-link: prefer count-driven autofill (if columns or rows changed, derive the cell size).
@@ -1359,20 +1371,20 @@ fn drawSliceForm(
         dvui.label(@src(), "Cells must tile the image exactly.", .{}, .{
             .gravity_x = 0,
             .color_text = dvui.themeGet().color(.err, .text),
-            .font = caption,
+            .font = form_font,
         });
         if (!w_match) {
-            dvui.label(@src(), "  • {d} × {d} ≠ {d} (width)", .{ cw_eff, slice_form.columns, total_w }, .{
+            dvui.label(@src(), "  • {d} × {d} ≠ {d} (x)", .{ cw_eff, slice_form.columns, total_w }, .{
                 .gravity_x = 0,
                 .color_text = dvui.themeGet().color(.err, .text),
-                .font = caption,
+                .font = form_font,
             });
         }
         if (!h_match) {
-            dvui.label(@src(), "  • {d} × {d} ≠ {d} (height)", .{ rh_eff, slice_form.rows, total_h }, .{
+            dvui.label(@src(), "  • {d} × {d} ≠ {d} (y)", .{ rh_eff, slice_form.rows, total_h }, .{
                 .gravity_x = 0,
                 .color_text = dvui.themeGet().color(.err, .text),
-                .font = caption,
+                .font = form_font,
             });
         }
     }
@@ -1436,6 +1448,10 @@ pub fn windowFn(id: dvui.Id) anyerror!void {
         },
     });
     defer win.deinit();
+    // `renderPreview` refits when the preview viewport changes; during very slow resize drags the
+    // scroll viewport can lag the shell by sub-pixel amounts for multiple frames. While this window
+    // holds capture (resize or drag), refit every frame so scale/center stay correct.
+    dvui.dataSet(null, id, "_grid_layout_float_wd_id", win.data().id);
 
     if (dvui.dataGet(null, id, "_grid_dialog_open_done", bool) orelse false) {
         win.stopAutoSizing();

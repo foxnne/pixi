@@ -26,13 +26,13 @@
             .lazy = true,
         },
         .dvui = .{
-            .url = "git+https://github.com/foxnne/dvui-dev#df2eb8009823837f4667fc963d74fe08f5060bdf",
-            .hash = "dvui-0.5.0-dev-AQFJmSYK3wDnZjL4AjbYPJPhFLuTpzET4PsKXTi68mV9",
+            //.path = "../dvui-dev",
+            .url = "git+https://github.com/foxnne/dvui-dev#3fea718de58591ed5df9372e6d1b30c9ef4feeef",
+            .hash = "dvui-0.5.0-dev-AQFJmSsK3wDLFqpi9tQ9xVC-xkAtQE0JAY1B4-o1Ey0M",
         },
         .assetpack = .{
-            //.path = "../assetpack",
-            .url = "git+https://github.com/foxnne/assetpack#fa8210e54870fc7c406cde027be2c8dab6ccdb5d",
-            .hash = "N-V-__8AAAFhAAAfPMIvCLHpoiOknZr_xhu5nOU4D5651m__",
+            .url = "git+https://github.com/foxnne/assetpack#0230aa72d7c4930e7275f5bbbe02dc6a12d7154d",
+            .hash = "assetpack-0.1.0-5DA2d2xjAAB5iotA8oy2GOkcsUGZlhGUBh0CRTgI6Qs5",
         },
         .known_folders = .{
             .url = "https://github.com/ziglibs/known-folders/archive/d6d03830968cca6b7b9f24fd97ee348346a6905d.tar.gz",

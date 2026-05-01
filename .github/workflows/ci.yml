@@ -1,0 +1,41 @@
+name: CI
+
+# PR / manual: three native test jobs (no skipped rows). Push to main: Linux-only (fast).
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "doc/**"
+      - "README.md"
+      - "**.md"
+      - "LICENSE**"
+  pull_request:
+    paths-ignore:
+      - "doc/**"
+      - "README.md"
+      - "**.md"
+      - "LICENSE**"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ZIG_VERSION: "0.16.0"
+
+jobs:
+  test:
+    name: Tests (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ github.event_name == 'push' && fromJSON('[{"os":"ubuntu-latest","name":"Linux"}]') || fromJSON('[{"os":"ubuntu-latest","name":"Linux"},{"os":"windows-latest","name":"Windows"},{"os":"macos-14","name":"macOS"}]') }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+          cache-key: v2026-05-01
+      - run: zig build test --summary all

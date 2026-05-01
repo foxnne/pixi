@@ -35,6 +35,10 @@ pub const dvui_app: dvui.App = .{ .config = .{ .options = .{
     .title = "Pixi",
     .icon = icon,
     .transparent = if (builtin.os.tag == .macos or builtin.os.tag == .windows) true else false,
+    // macOS: Cancel-leading dialog/footer order; other platforms: OK-leading (matches dialog header close vs icon).
+    .window_init_options = .{
+        .button_order = if (builtin.os.tag.isDarwin()) .cancel_ok else .ok_cancel,
+    },
 } }, .frameFn = AppFrame, .initFn = AppInit, .deinitFn = AppDeinit };
 
 pub const main = dvui.App.main;
