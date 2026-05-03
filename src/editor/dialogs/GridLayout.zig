@@ -286,37 +286,54 @@ fn drawPreviewGridOverlay(
     if (rows_vis > 1) line_slots += rows_vis - 1;
     if (line_slots == 0) return;
 
-    var builder = dvui.Triangles.Builder.init(dvui.currentWindow().arena(), line_slots * 4, line_slots * 6) catch return;
+    // Each grid line is drawn twice: a 2×-thick content-fill understroke, then the text-colored stroke on top.
+    var builder = dvui.Triangles.Builder.init(dvui.currentWindow().arena(), line_slots * 8, line_slots * 12) catch return;
     defer builder.deinit(dvui.currentWindow().arena());
 
     const cw = dvui.currentWindow();
     const grid_thickness = std.math.clamp(cw.natural_scale * canvas_scale, 0, cw.natural_scale);
-    const half_phys = @max(grid_thickness, 1.0) * 0.5;
-    const half_nat = half_phys / @max(rs_box.s, 0.0001);
-    const pma_col: dvui.Color.PMA = .fromColor(grid_color.opacity(cw.alpha));
+    const rs_den = @max(rs_box.s, 0.0001);
+
+    const half_phys_fg = @max(grid_thickness, 1.0) * 0.5;
+    const half_nat_fg = half_phys_fg / rs_den;
+
+    const half_phys_halo = @max(grid_thickness, 1.0);
+    const half_nat_halo = half_phys_halo / rs_den;
+
+    const pma_halo: dvui.Color.PMA = .fromColor(dvui.themeGet().color(.content, .fill).opacity(cw.alpha));
+    const pma_fg: dvui.Color.PMA = .fromColor(grid_color.opacity(cw.alpha));
+
+    const grid_passes = [_]struct { half_nat: f32, col: dvui.Color.PMA }{
+        .{ .half_nat = half_nat_halo, .col = pma_halo },
+        .{ .half_nat = half_nat_fg, .col = pma_fg },
+    };
 
     var ix: usize = 1;
     while (ix < cols_vis) : (ix += 1) {
         const xf = @as(f32, @floatFromInt(ix)) * proto_cell_w;
-        const r_phys = rs_box.rectToPhysical(.{
-            .x = xf - half_nat,
-            .y = 0,
-            .w = half_nat * 2,
-            .h = nh,
-        });
-        appendGridLineQuad(&builder, .{ .x = r_phys.x, .y = r_phys.y }, .{ .x = r_phys.x + r_phys.w, .y = r_phys.y + r_phys.h }, pma_col);
+        for (grid_passes) |pass| {
+            const r_phys = rs_box.rectToPhysical(.{
+                .x = xf - pass.half_nat,
+                .y = 0,
+                .w = pass.half_nat * 2,
+                .h = nh,
+            });
+            appendGridLineQuad(&builder, .{ .x = r_phys.x, .y = r_phys.y }, .{ .x = r_phys.x + r_phys.w, .y = r_phys.y + r_phys.h }, pass.col);
+        }
     }
 
     var iy: usize = 1;
     while (iy < rows_vis) : (iy += 1) {
         const yf = @as(f32, @floatFromInt(iy)) * proto_cell_h;
-        const r_phys = rs_box.rectToPhysical(.{
-            .x = 0,
-            .y = yf - half_nat,
-            .w = nw,
-            .h = half_nat * 2,
-        });
-        appendGridLineQuad(&builder, .{ .x = r_phys.x, .y = r_phys.y }, .{ .x = r_phys.x + r_phys.w, .y = r_phys.y + r_phys.h }, pma_col);
+        for (grid_passes) |pass| {
+            const r_phys = rs_box.rectToPhysical(.{
+                .x = 0,
+                .y = yf - pass.half_nat,
+                .w = nw,
+                .h = pass.half_nat * 2,
+            });
+            appendGridLineQuad(&builder, .{ .x = r_phys.x, .y = r_phys.y }, .{ .x = r_phys.x + r_phys.w, .y = r_phys.y + r_phys.h }, pass.col);
+        }
     }
 
     const tris = builder.build_unowned();
