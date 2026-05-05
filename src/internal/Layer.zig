@@ -397,7 +397,8 @@ pub fn blit(self: *Layer, src_pixels: [][4]u8, dst_rect: dvui.Rect, options: Bli
 
         const next_row_start = x + yy * tex_width;
         const next_row_end = next_row_start + width;
-        if (next_row_start < self.pixels().len and next_row_end < self.pixels().len) {
+        // Exclusive end must satisfy `next_row_end <= len` (`== len` is valid for the bottom row).
+        if (next_row_start < self.pixels().len and next_row_end <= self.pixels().len) {
             d = self.pixels()[next_row_start..next_row_end];
         }
     }

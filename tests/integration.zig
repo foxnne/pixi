@@ -405,6 +405,31 @@ test "Layer.reduce returns null on a fully transparent layer" {
     try std.testing.expect(layer.reduce(.{ .x = 0, .y = 0, .w = 4, .h = 4 }) == null);
 }
 
+// Regression: row slice advancement used `next_row_end < len`, so the last row of a
+// full-height blit never received a fresh `d` slice and the final source row was written
+// into the wrong row (transform + reduce looked like the bottom pixel row was missing).
+test "Layer.blit copies the bottom row when the destination spans full layer height" {
+    var ctx = try shim.init(std.testing.allocator);
+    defer ctx.deinit(std.testing.allocator);
+
+    var layer = try Internal.Layer.init(1, "t", 4, 4, .{ .r = 0, .g = 0, .b = 0, .a = 0 }, .ptr);
+    defer layer.deinit();
+
+    const marker: [4]u8 = .{ 99, 88, 77, 255 };
+    var src: [16][4]u8 = undefined;
+    @memset(&src, .{ 0, 0, 0, 0 });
+    var xi: usize = 0;
+    while (xi < 4) : (xi += 1) {
+        src[3 * 4 + xi] = marker;
+    }
+
+    layer.blit(&src, .{ .x = 0, .y = 0, .w = 4, .h = 4 }, .{ .transparent = false, .mask = false });
+
+    const out = layer.pixels();
+    try std.testing.expectEqual(marker, out[3 * 4 + 0]);
+    try std.testing.expectEqual(marker, out[3 * 4 + 3]);
+}
+
 // -------------------------------------------------------------------
 // `Packer.append`: end-to-end check that a painted file becomes:
 //
