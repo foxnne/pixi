@@ -21,7 +21,7 @@ jobs:
       - uses: mlugg/setup-zig@v2
         with:
           version: ${{ env.ZIG_VERSION }}
-          cache-key: v2026-05-01
+          cache-key: ${{ hashFiles('build.zig.zon') }}
       - run: zig build
       - uses: actions/upload-artifact@v4
         with:
@@ -36,7 +36,7 @@ jobs:
       - uses: mlugg/setup-zig@v2
         with:
           version: ${{ env.ZIG_VERSION }}
-          cache-key: v2026-05-01
+          cache-key: ${{ hashFiles('build.zig.zon') }}
       - run: zig build
       - uses: actions/upload-artifact@v4
         with:
@@ -50,7 +50,7 @@ jobs:
       - uses: mlugg/setup-zig@v2
         with:
           version: ${{ env.ZIG_VERSION }}
-          cache-key: v2026-05-01
+          cache-key: ${{ hashFiles('build.zig.zon') }}
       - run: zig build
       - uses: actions/upload-artifact@v4
         with:
