@@ -533,26 +533,36 @@ fn renderExportPreview(file: *pixi.Internal.File, kind: ExportFullPreviewKind) v
     }
 }
 
+/// Flatten visible layers for one sprite tile. Layer index `0` is the front (drawn last on canvas);
+/// higher indices sit behind. `blitData` composites its **first** buffer (upper) over the **second** (lower).
 fn compositedSpritePixels(allocator: std.mem.Allocator, file: *pixi.Internal.File, sprite_index: usize) ![][4]u8 {
     const sprite_rect = file.spriteRect(sprite_index);
-    var layer_index = file.layers.len - 1;
-    const pixels = file.layers.get(layer_index).pixelsFromRect(allocator, sprite_rect) orelse {
-        return error.NoPixels;
-    };
-    errdefer allocator.free(pixels);
-    while (layer_index > 0) {
-        layer_index -= 1;
-        const layer = file.layers.get(layer_index);
-        if (!layer.visible) {
-            break;
+    const w: usize = @intFromFloat(sprite_rect.w);
+    const h: usize = @intFromFloat(sprite_rect.h);
+
+    var front: usize = 0;
+    while (front < file.layers.len) : (front += 1) {
+        const layer = file.layers.get(front);
+        if (!layer.visible) continue;
+
+        const pixels = layer.pixelsFromRect(allocator, sprite_rect) orelse continue;
+        errdefer allocator.free(pixels);
+
+        var behind = front + 1;
+        while (behind < file.layers.len) : (behind += 1) {
+            const lower = file.layers.get(behind);
+            if (!lower.visible) continue;
+
+            const layer_pixels = lower.pixelsFromRect(allocator, sprite_rect) orelse continue;
+            defer allocator.free(layer_pixels);
+
+            pixi.image.blitData(pixels, w, h, layer_pixels, sprite_rect.justSize(), true);
         }
 
-        if (layer.pixelsFromRect(allocator, sprite_rect)) |layer_pixels| {
-            pixi.image.blitData(pixels, @intFromFloat(sprite_rect.w), @intFromFloat(sprite_rect.h), layer_pixels, sprite_rect.justSize(), true);
-            allocator.free(layer_pixels);
-        }
+        return pixels;
     }
-    return pixels;
+
+    return error.NoPixels;
 }
 
 // This is for use with the SDL dialogs, but currently the SDL dialogs dont support sending the default path
