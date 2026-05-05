@@ -246,7 +246,7 @@ pub fn setRect(source: dvui.ImageSource, rect: dvui.Rect, color: [4]u8) void {
 
         const next_row_start = x + yy * tex_width;
         const next_row_end = next_row_start + width;
-        if (next_row_start < pixels(source).len and next_row_end < pixels(source).len) {
+        if (next_row_start < pixels(source).len and next_row_end <= pixels(source).len) {
             d = pixels(source)[next_row_start..next_row_end];
         }
     }
@@ -298,7 +298,7 @@ pub fn blitData(src_pixels: [][4]u8, src_width: usize, src_height: usize, dst_pi
 
         const next_row_start = x + yy * tex_width;
         const next_row_end = next_row_start + width;
-        if (next_row_start < src_pixels.len and next_row_end < src_pixels.len) {
+        if (next_row_start < src_pixels.len and next_row_end <= src_pixels.len) {
             source_row = src_pixels[next_row_start..next_row_end];
         }
     }

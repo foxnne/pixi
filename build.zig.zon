@@ -30,8 +30,9 @@
             .url = "git+https://github.com/foxnne/dvui-dev#3fea718de58591ed5df9372e6d1b30c9ef4feeef",
             .hash = "dvui-0.5.0-dev-AQFJmSsK3wDLFqpi9tQ9xVC-xkAtQE0JAY1B4-o1Ey0M",
         },
+        // Tarball pinned to this SHA (not git+#branch): reproducible trees across Linux/Windows/macOS.
         .assetpack = .{
-            .url = "git+https://github.com/foxnne/assetpack#0230aa72d7c4930e7275f5bbbe02dc6a12d7154d",
+            .url = "https://github.com/foxnne/assetpack/archive/0230aa72d7c4930e7275f5bbbe02dc6a12d7154d.tar.gz",
             .hash = "assetpack-0.1.0-5DA2d2xjAAB5iotA8oy2GOkcsUGZlhGUBh0CRTgI6Qs5",
         },
         .known_folders = .{
