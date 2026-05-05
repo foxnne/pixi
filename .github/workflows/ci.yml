@@ -37,5 +37,5 @@ jobs:
       - uses: mlugg/setup-zig@v2
         with:
           version: ${{ env.ZIG_VERSION }}
-          cache-key: 92834028102
+          cache-key: ${{ hashFiles('build.zig.zon') }}
       - run: zig build test --summary all

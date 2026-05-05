@@ -40,7 +40,7 @@
 
 ## Compilation
 - [Linux] Ensure `gtk+3-devel` or similar is installed (for native file dialogs).
-- Install zig 0.15.1.
+- Install zig 0.16.0.
 - Clone pixi.
 - Build.
     - ```git clone https://github.com/foxnne/pixi.git```
